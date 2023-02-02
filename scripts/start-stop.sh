@@ -40,7 +40,8 @@ instances=(
 action=STOP
 # action=RESET
 
-for i in "${instances[@]}"; do
+for i in "${instances[@]}";
+do
     /home/ubuntu/bin/oci compute instance action --action $action --instance-id $i | jq -r '.data."display-name"' &
     # /home/ubuntu/bin/oci compute instance action --action $action --instance-id $i &
     # ~/bin/oci compute instance action --action $action --instance-id $i &

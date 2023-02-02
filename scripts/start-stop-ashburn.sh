@@ -1,176 +1,302 @@
 #!/bin/bash
+# instances=(
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacrdz2drb7act4xis5xv37u4hkcvnaqnaaoad7e3v5dxoq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacalwuhxyfz25ahu2o37uq7vqj6jalcqxoufngyy2fpjwa"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacl5ml6fkldw63zvtwntzwz73wdkqexz5hunwpyq5my5mq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacrgtkh4ai2a5muys75edv3b5pnpj3fvb3oxjsbbxwdjdq"
+   # # "ocid1.instance.oc1.iad.anuwcljr7deiexacuy7trkssucuscp4s7ih76ylztcity366n5q3zeoicqxq"  # WRONG
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacwvdf7nwflsdnfws6bljm2i4qb5ljvpcl6oddric5uspa"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexac6flmb64x2dw2caehdb6jvtjifwrhfwykegjqrupttxsq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacjyr4jfygu2qc5jkxxf2wqiopxirzc33msox5worqthea"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexac2ibnvkp2rr2yl3i42exrgdf6vgyr44gy5sqvrytlynlq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacuafxsmnnqiwwv57zdldfq5e2rulkji2f7lhfzoplk2qq"
+#    "ocid1.instance.oc1.iad.anuwcljr7deiexacgzcg7lga4qn2f6kylyfo7co3ntw6g355fi5j4xi3xria"
+#    "ocid1.instance.oc1.iad.anuwcljr7deiexacqf5irngyj6thetf6zoayo4s2hkmb5ea3gxix7mn7zcoa"
+#    "ocid1.instance.oc1.iad.anuwcljr7deiexacnscpsmcycapnaq7shqutyexk4j6uv23sq6e3muckt6wq"
+#    "ocid1.instance.oc1.iad.anuwcljr7deiexacx6lt2nk4vgamctcb4qbxoo7cdjwnadn52gui6jbh5yyq"
+#    # "ocid1.instance.oc1.iad.anuwcljr7deiexacqi34nkmoml2s6t2yda5jmd6j2uosirkgqkbej5tmqdwq"  # WRONg
+#    "ocid1.instance.oc1.iad.anuwcljr7deiexacmxzrrec3gxp6mfgsxbksehdlpcqtcz6oovv6x3m42whq"    # S15
+#    "ocid1.instance.oc1.iad.anuwcljr7deiexacp44kp6jvpz4jjektye2tgwh2fmznggyrcyjej4niirga"
+#    "ocid1.instance.oc1.iad.anuwcljr7deiexaceypgx4mqmc3da7oa5iq2awyki6ynbod5abd7mv3vm3aa"
+#    "ocid1.instance.oc1.iad.anuwcljr7deiexacn4n74xq4ud4fc4cg6w2ldq4m6bbi6t2x2qd4yhoffvwq"
+#    "ocid1.instance.oc1.iad.anuwcljr7deiexacfy6tlmkqsz53klqokuuqoqkg4ekuevubamckbx2movva"
+#    "ocid1.instance.oc1.iad.anuwcljr7deiexacwcec2ywewqqdw2wiczvebyib2tmvdmvpsb5x67pispgq"
+#    "ocid1.instance.oc1.iad.anuwcljr7deiexacrmz724x5zh3l4rknp6sudwtga6vuodtsuteqxrysmnta"
+#    "ocid1.instance.oc1.iad.anuwcljr7deiexacgvs4z2jbqvzk3rjv64cymxuzfhdvbjdfgtd6kpuwyi6a"
+#    "ocid1.instance.oc1.iad.anuwcljr7deiexacbnwwantuqezpwxskuedpt6q6ud2ygfdoyx2gb4kvqllq"
+#    "ocid1.instance.oc1.iad.anuwcljr7deiexacwhxjvp5vbu4qwiczvhczypeiimz2qxmkff4cozastq3a"
+#    "ocid1.instance.oc1.iad.anuwcljr7deiexaceryhnao6gnifpyvjfyqkhaxghlu2hd4dzefqgaphounq"
+#    "ocid1.instance.oc1.iad.anuwcljr7deiexacs4mdj6yfzc3ob3uipkbcmtrxdfjhzkqgkf34jxaqqc7q"
+#    "ocid1.instance.oc1.iad.anuwcljr7deiexac42g4j3dkceb44eex7odwusfziyfiprbxldh3fsisw6iq"
+#    "ocid1.instance.oc1.iad.anuwcljr7deiexac7g7hfn534ta3feazrn4qlh5zl5dh65mlmuxmbeo7k36a"
+#    "ocid1.instance.oc1.iad.anuwcljr7deiexacdrwbgsxmpajq2wjntnlvq2gownszaifaprgzt6boc6uq"
+#    "ocid1.instance.oc1.iad.anuwcljr7deiexactt36mrlzu6tskfp7ryyxf563ckszu56xemmqecdsx53q"
+#    "ocid1.instance.oc1.iad.anuwcljr7deiexac55d7e47nwqn2zha4xechrelxfunad2rg5glcj6nmgbpq"  #S31
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacpevjj77dgwanilp3sq6sxyatn725b65wwnp5qpoasxva"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacwws4bvp7gbjnmhsoo5wabarhlufdtzo7gqhmb4xhbooa"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexac5yq4qt6g5x7teifco4pgllqp6qzcadtu4y7k5lui7jba"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacbzsqzwta62gd726ae7ljdpnvjkvrjl4ym5oxx4iwz4gq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacngdlhhs5dlbbq77n72xucxqxl7w53ydfna2zm3zetxzq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacco4avacapkflfg6y4dsrnzzzmjt4q5crhy2c3qq4l2sa"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacndu7t2wwqajwznkjvlzyz75lif2pgjq6brnov2ikpxza"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexaclbln2o2jnlc3al2gwyvnrx6vxq7geembmyuswknlvguq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexach7nf3o2loudcdrt2kbyr5o7yqjmnqww5wicibkxmnkiq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexac7kvhlmuaz3jrkc4mzsjtl33sybgulanre2z7ygwapryq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexac2gnzaqqqfypvgz2yxajzb2dh7mxkufp2p4xjzogzapwa"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexac3t5tbpdps23lestwl7gv5qfnorigdn2xzroazereb3bq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexac27f2sgl7hqcbmwzwj4pgt34krit4il3vlahu4modutra"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacynsvohwxsjcqlmauka4hxu4zzmefdjf5bdarwtkwcefa"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacs7bomiuou4tavwpidx33dxprcf3pqlgmri27kxvwdpxa"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacezzgjzuizlygsv5ihlo6tidmpzvvz6m5jwwaemzhiwjq"  #S47
+   # # "ocid1.instance.oc1.iad.anuwcljr7deiexacqau4yixx7dsiqdtv4glpkq7jleiy3ddsedyrioktfiza"   #WRONG
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacisblgcuwplfdmw74wu6cjelhheczv7ca5ptkwzagh3aq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacllksolxdnlx3b36lfzcvaoouniu4557zfp677enjihea"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexac7v6y2v6lm5dlfeaqag7wda5acafw2dhyv6tlajb4dg7a"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexac47dwonejji2cxsc2wr7flrz6q4pa5d3xt2e23xznoeua"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacgt24mmt322silczbxaba7h2c6jwpgbieurg7cmp3w3ba"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexachpzxpab7vvh3ivazs2czcgmh3m5oaz4skcevvgar572a"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacom5frcxtuqhur55elvsz2w3yhwnjb5el5vlpj5fwqcoq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexaci7ptbxpuwnnhd7kwtjgsmcuufvl7uida432ox7q56yhq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacvry67qbrkeoxt2edvwya6ickuw5qtuotcijb7rpjdpya"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacp766zjiwp6u2wgmxab7r2zi755lclcoeo6a2ayvcgmvq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacg7xzbskqfqqs5skycnyxiru6adi7ryagt5duhbznw5da"
+   # # "ocid1.instance.oc1.iad.anuwcljr7deiexacwaqlpxiv4jek45wpeddp37w7dntdnfxvsiddqofxdotq"   #WRONG
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacfmbkwwtzi3qozvm2fjhtm7hf6yba6xlaejaob22asgia"   
+   # # "ocid1.instance.oc1.iad.anuwcljr7deiexacyi2vpgivd2rei4fkvlpifgh56zwxeacefzzwlfiasdsq"   #WRONG
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacszncy76yowszvm6b2pg3qkieu3i63sggjjzqqtqlc6ea"  # S63
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacjy7emiodonfeof5c5q7hnrvq22bj7txdlphnvbgix33a"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexac6awy4jvqiu4w5ahr5bzxwmdcdngj5zy3bd7ws75s7sya"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacruh6gp4p3mi24avqi2wmgmswxu6fkog7cxehpfvf43ta"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexac5yvcnnt5aevtqp3epde333vtz3ep5656o2npcgxnj3na"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexac673a7yg3pvuadx7ldacwuysmqtayfurfecga7z5ctfqa"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacebvpn6dza2nm6zkb2ytsth7f6pjv7pkp5cihjuv5otfa"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacjevxmunylhvamdis3365wriynh3d3mjxvpiev24ewefq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacvrcehbbetme2oubwxy2flpag4tyokjrh6eghgobzpynq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacwgn7364uqbkt4s5pod3m6f626c3jmvhemegl44fekjua"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacb2cweomw37b53uxgz6n3zzwpwvygpxegebb5jowtpoba"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexac5yijwgxqekgs4oxtvomzhbqcdgu7ln57iipmgzy375qq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexaccyj4b5zll2vklr4deouxeigsy46gv5qbbqvgit35m54q"
+   # # "ocid1.instance.oc1.iad.anuwcljr7deiexacto6qvjysmgg4cupftzgdco7f5k4tijw3uk52h6tl4jxa"   # WRONG
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexac7g6jq7qg6ct7bnai54x435pcm7ki4xcey6iu23c5nd5a"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacnjfsf62zuub7lhcwkfnaxl4v2llcwle6vlduuahvujpq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacfgrlr2qxoohknjurrsu4dqrofurqdhvtbnoacphvonda"    # C15
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexac33a6braa27ebevdkchhrcytlevgfw5duyswn62yxo2aa"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacfaxpahrg4ayaoglrvtflcou4wklpa4prfy7muwtx422a"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacqmq4hqurlpmxpa4ezbjevtjsvyvitkii5cqjnko6n4vq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexact5i7maeptmxu3tzlthyp6bwqzfp7iibaimgybruoscba"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacywbua4uvjgjbuyoop6afjghufn3beszpieooborgqtaq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexac46jpwxder2aogiwwz5z3bpi557fj7yhxoair2tnl5ttq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexackwi2b77grvl7atnhimy2oeqpsodl22f7vloqwktsrckq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexachvvwmf5m56uq3zncv4d34qrhkrowtyotmjhpodfcg76q"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexac77z2f6qwmwxshpmmjto27acvjbogqahulbdyhjwmc3eq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacqu7n6gjntmsvqv6mahibjrsyf7u65ko5mfv67mbmd7uq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacqn4jsefhxt6focvxqbqgv6mkdxdcowfrhfnryleint2a"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacgzvqusvx33tt6cvuc366kjisgcnvk3sjeqh6au5ont6a"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacvtwrvmi7s4ltku54co5mlpk7yxxz3jbgnwwhiossz6jq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexackyqdzizlb72pc64ludxr5d47fyhdrp3y7vv26bkgc4va"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexaceeo63xyx4fbtvpd6q2ay44korhj4ocxi4gc2vdufwkbq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacn3h37sv6ua45sfo3iilmg7kp45rd246pa4tqfcsvqvfq"    # C31
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexac337exwywt73rmofiwp44xl4gt4znd7h57dtxbsvnjdhq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexac2xcxhxny5re3eo3nxcr2ikmjqxaswox4y2xjmtzld6wa"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexack6wbhyuedd6qqriv5c2vptn7obejxaub2oirkto4ja7q"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexaceglpr2o3hsio6npn66ijjgicc6gjp5u3hs5k3lw45khq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexachukd3zhft46lwpgzuaeymvihbcg5w7mcxse2vfhslaza"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacjaxorwbta5rktw3nxncija4er2npysmgkp2yk7zq73wq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexaczjbrre6yg45ghoipjbgih4js4r65grycmxzqrcjfgveq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacnsqzlnx36uydvnu4kc26rjqr7wop3bv6rrrcjyrdyndq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexact7n75kvv2a5ed2jz7r3fa6g3kadubk2mehhy42kjydmq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexaczyhl5kjvmofjabbugsdyvgsvk7uhaa5p7igsk2k4qu4q"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexaczcobeeiazysxjkmmlazwtsaruvhw3i4d4z557r72ry6q"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexachr6dx662ru6g4bw3dbnrwfj6ud7vdqcasxscafhhrftq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexackhqwljcm6moaxxcyggy7zjgbclui4dgjl3uly67hj5wq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexac5feiax3t53w5kl3zluykvooqwcr42djl47duabuv7yya"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacv3hs6zujmr5x4be2tp3e2jd7lios3tpptzgsuewyvwza"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacmfdd5ncpzawxxr555votubkgixpq7s3ubeepzqjqfjoa"    # C47
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexaccn2olgv44pkf3krjfwgqqgjtnjf74o7pgo2ravpehm7a"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexac7dfjixqwtdlvnxhnvm754a3msn3vdqvqt3l322gblcxq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexac5qhxc7iezemnfc5mer5j5w2iy5norsfgvu7pld4mx3aq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacesj4t2do6yom5j5ejjqqz3jih5f7bezsxtpijobdwmcq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacrkegz4odwdxes47pduyehdjuo5pvhf2dhft5mfzisxya"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacpfp4c4qmobzzxvpfx7st2kfgtycw3vevx7f7irposwsq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexactswtxt4ip55lvwwm3efsub25jjbvhhbiey6dnlxzbgaq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexac7yezt33zie6bkslm34ti7vinconumkqltrffhqiqjgna"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacmbaablssns55knooynyonymo7ijlikvbchgbr7ywaslq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacqkhzqhu6m363srjqpnzcbommn5sxei2xqfeaor7u22gq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacbxjqsu426ugqld5eiiykzox4rbqxkuuvr4c3paitjpwq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacfmkokk6mp6ucnvltfekfhnifehijnrmhokvq4ddxgugq"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexaccoxlhbqttougdxueot5bib7ioct52bfab5pa5zwwnqga"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexackmr3laix3fucvsjdzd3zpawkaepylgfvd7shxcfzdrla"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacgish36ra57vpfbq34jchmbyxqjnm46g6zg4wo4jii55a"
+   # "ocid1.instance.oc1.iad.anuwcljr7deiexacm725ighqqgaegqtktl7khmp74khtudq3xmgjxkdsapiq"    # C63
+# )
+
 instances=(
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacjtwa5axie5ghgjzcgsvoz2uubnyvdv64bscbf2qbt6pq"   #phnx_16core_000
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacvdiprpgiixnjfxuvsqkqearkylag5htnnnhzpt7mcnkq"   #phnx_16core_001
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexaczdv4qoqc3hqs4z35lz5jfxbq7qil4vap3n27ltz2oykq"   #phnx_16core_002
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexaccgkn3axgeewqcivgcgvv47zfojlsp4uunjxkn3dcgzxa"   #phnx_16core_003
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacjgvwm2pansrpaacn7e6mod5oaq7gbqc5lewdqhe4nwvq"   #phnx_16core_004
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacomun3p7pwuux4edawxk77stvnuu7xow24xmfizzjg3rq"   #phnx_16core_005
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexaczzenvon7rk4dcjxmjgmmakthg2dvhg3idalifubvs6mq"   #phnx_16core_006
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacvlhadut2hyv5hazjtcuyc5c7sqrz3keagzivraeeyooa"   #phnx_16core_007
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacrfqkq4ket32d7q5algm55l5ecyw4qbdcgo67deoeczkq"   #phnx_16core_008
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexaca6e724qqxmw6iscavf5fbshi3xgz5bsznqstjmw3ioea"   #phnx_16core_009
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacwmkv52czobkegq7hefassgh4aaabz7shiqgkmxkbuzjq"   #phnx_16core_010
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacz3okcqofdegmon5zhi6z5jtnj47w3jpkwng7e4o423gq"   #phnx_16core_011
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacf5lteji4mlqeufklu5g4wm5zu6gbwoka23bfmetucw3a"   #phnx_16core_012
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexachgxfl77gj4odmgsqv4h5tcaf72ax7sw4r2bbwtwbel5q"   #phnx_16core_013
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexach56avjwhh2pfvy7tmddh5wgwdlttiknt72mhhhp7277a"   #phnx_16core_014
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacotrm4wcuvh3ofpn5fxx5qosrmoii4pibzxp3aa56cs7a"   #phnx_16core_015
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacrhd6mvafavi7rdfsp7nt46pd3hnqw3pigu7qdu7gwdeq"   #phnx_16core_016
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexaccwgsctqsv7rznhy4p7o3qqngxiuocl6jwoydeb3zvdsq"   #phnx_16core_017
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacm7bkux7ytp53envct2ihg6m2gwnmtdg2zhwuklgzupdq"   #phnx_16core_018
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacym5oryjcgcrozim4j3hdbok5ty4rbbh76znjnrdfoezq"   #phnx_16core_019
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexac7m3ihf2kaee2z7l34xnypv4lxzfgazdv7sav7qc6inta"   #phnx_16core_020
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacdsxyenmss3v6samxrbbfqnv5kdiqlaaiqldndqlty32q"   #phnx_16core_021
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacizz32z6xcjil6psb2pkxpayumz6p2alukold5cwus2wq"   #phnx_16core_022
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacha4k3jft7cvqp2ebsxcgipn6f2i7gxtfaweq7eyypcfq"   #phnx_16core_023
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacmewgakr3xommsq7bteqhcqfrildbwci3jpjk5r7hp64q"   #phnx_16core_024
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacstyf6ulkmewmy7pxg7sbnchpsckfqfog7npivdkvmgda"   #phnx_16core_025
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexac76j7bdv22s4iyhaggzqmvfwcmpegedszkttvqzkbojka"   #phnx_16core_026
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacxx7b3ap3f5zghsntte26jceqpzdkrrquysjwcjw2ifpa"   #phnx_16core_027
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexactqnp5oyh4ee6yftskabmgawttzkl5tiv7cch33732erq"   #phnx_16core_028
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacoaxxcqf2oia4yspz73uwuyxskqqbegr5k6dprhqwz4yq"   #phnx_16core_029
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacqyzd5luk3vulzg7lzyjobbihi4eder7qpceey6bx44yq"   #phnx_16core_030
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacnqxsnblcn6cly3sasmiw55xbewpuk5pudot4q5amneda"   #phnx_16core_031
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacq6ljieyvzhtyqpzsexj7cx4bttlkkjd6yivb3reytgdq"   #phnx_16core_032
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacljsgkxidw3db7gjbnwivdlnuufuzzvqigspk56jk2omq"   #phnx_16core_033
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexaceilh2n77jsmehqls2hx6cqponjvk42ipbmufjw42pguq"   #phnx_16core_034
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacesyjjaassxnkiuozbbtdzyuzawuqcuv5ehfjgahqyboq"   #phnx_16core_035
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexaczxkjbd6zmgab4ivnuyxenlhuablnwv3sfgzgh2mvcczq"   #phnx_16core_036
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacemacuaepoi5g6rltxrwu37bbqmxykqopjnnftby5om5a"   #phnx_16core_037
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexackjqpnqox7uzsgq7iomwnct2zdqkid56baiqmiz7s3rkq"   #phnx_16core_038
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacsvx2m2n4lvursgwnqyxbnv243kfww5lfdgh7h5pqzoua"   #phnx_16core_039
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacpdcxppq6caob5bq3amiskmv2dqvndi3uovrtkepicana"   #phnx_16core_040
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacngbkn4nnbtzv5527d5nb4w3gn77hgh5wpfkmlal2ou3a"   #phnx_16core_041
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexactqguxorz56pbth56rk3ue5m4xh4qseff24kwv66arkza"   #phnx_16core_042
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacetaez7sbmxugvyvedgfmpbappxz4wlcww4mctkv6n2hq"   #phnx_16core_043
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacm5jldwcobazk2jhwdbdnaxjkkagqyygiy6ixakwhdztq"   #phnx_16core_044
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacvoavzii3eepeg4dkh4iumkjopdf6cxzt424k3yhl6lhq"   #phnx_16core_045
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexac7uvoxy5rshewmgbv4xdmgjwcqqfoiblgzsgfnvhsbvtq"   #phnx_16core_046
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacygmug3sw36phmvl3mdbc2or3nkfbo3euvcmit426jbcq"   #phnx_16core_047
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexac7vdnvfddi7tidmdncwnhudvnjqflijqsf3tgocqtsjra"   #phnx_16core_048
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexachmv43kkomqnpnwg6ax76gjewaz6k7gad6pa77uka4giq"   #phnx_16core_049
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexach6eodaqhboilqw5fhxrerv6diah2ryggxtlr2iwx4eza"   #phnx_16core_050
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexac5cceqcpgztx7cmjwwahjq3s6524votpycl646ksyjaiq"   #phnx_16core_051
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacks4m2ngxsrs2scbd6kh4gpl7bzywuu5pliirnslmzsla"   #phnx_16core_052
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexact5ku7aguoav6kxrogwnr2zm4cp3ycvb3novgwqhkhqea"   #phnx_16core_053
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacyfk7bdpafgjsk7n5xnxcjth3dk4egm3ldcmy5amhxsia"   #phnx_16core_054
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexac5amiqsjdbx3ond4apd7j2p2c3wpzbo6gahongpbkklvq"   #phnx_16core_055
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacrjjpjbrwaxlw2edmn5g4jk7enphmauohs5g3huomdzxq"   #phnx_16core_056
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexac6smjlutyn7jz2woxsos3og6gmkmxjn63mwuodsf5kifa"   #phnx_16core_057
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacutfo6o4givt3wofjgmqba3wqqahdjlqguruabiidwy5a"   #phnx_16core_058
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexac7ps5u7jrdeuhqmcrtm5rea3ismmfekznn24f55dgwj6q"   #phnx_16core_059
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexac57cszkpzul5ipnlv3qqfzrvc6v47z7gpgsqcyabfecva"   #phnx_16core_060
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacluw2dv5dzohsawkxw5oiuhyawv6hr2qr4jf3lt3kgdba"   #phnx_16core_061
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexaceadcbpc355z2c7o4au4vt5xqkpguuvlrqgyb23c365qq"   #phnx_16core_062
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacced4zhpj6cz7bs3gjokzczd64kiqjoebiutbne4du6ba"   #phnx_16core_063
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacp2qpq3jnvs3n6yg5suvdxsvxpyzt6ts6maekv2pibfta"   #phnx_16core_064
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacgv3azfwxdt7xonnq2jygomdt5us554z7i5aly757bjiq"   #phnx_16core_065
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexactqhpmq5rzkdocxsgty275j4xco44al7rmdgqxnaq2ulq"   #phnx_16core_066
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexac5qoho6as7ztl6fpdlg3x7tckmyp7u2mu6khyymiipdtq"   #phnx_16core_067
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacgeqvwwbymol2cbmxf4ahkpw7ne3o4fdxgzwj47bsdbva"   #phnx_16core_068
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexachzugkqs4j4acyxk5x7qtlnzyel27gqdb4yiyqnbczwuq"   #phnx_16core_069
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacjsfkv4chdna3kudwrfnb4qm4lbwwlaeiwvo2rx552faa"   #phnx_16core_070
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacyvsc3bu5fqwcbwievqv66a4jwr5ynpzxlyfwjye6uleq"   #phnx_16core_071
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacsuan5earjw3bnpbwnbwlrcyeyvxbb4ph7accomdhmivq"   #phnx_16core_072
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacuilq4nvkd34ilsxqwrmg2nypwzh6dsmdgw6kdps5sxta"   #phnx_16core_073
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexaclzuizev27564julilji5daiudsf6x4jssexkacjbs2sa"   #phnx_16core_074
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexaciynevxl7c4fndoul2du5l6penryhomaeaukgqw7fd5qq"   #phnx_16core_075
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexac7mr75h6txwqaxosssywc26f5muccil56hcx2mv4y2yma"   #phnx_16core_076
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexaci73etvtdlopcqwxcw2uijxz3bzilcjpkfiof3axuoula"   #phnx_16core_077
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexactkl6w23lon5aitvq26ttdijrzr76djomdlxqxwagktqq"   #phnx_16core_078
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacvwyn53bzvvrkbdnzwe7beat4eqv6jzm4qk2wfhqssikq"   #phnx_16core_079
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacna7lg7ywza465rq42dc7bsb6zmverw4nekyz3sgs3siq"   #phnx_16core_080
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacixgaobg4kgee76dkmczumgwnneo2niz3ltdxy7kdnjcq"   #phnx_16core_081
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexac3v3c7gnxwa3zv4kgg7whufdbep23td5jfcythkzvofyq"   #phnx_16core_082
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacpcffc626d2targu57ernvpw7uc3ay4xk7umxcvx6haea"   #phnx_16core_083
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacubtypnjaedktaujglcx4diupcyq573jnbywlenlxf6ga"   #phnx_16core_084
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexac5cjey6atg4pqj7ozolpl5x6gpeqjfi2vklzd73lysprq"   #phnx_16core_085
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexac3z6ymoyjwqxowxrghz27nkxiqonth4cglrt7hhw2tpha"   #phnx_16core_086
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacwmfib5gvqovgsjs5u3hqacgttoxztobgtwizkaedgaqq"   #phnx_16core_087
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacgvmqt5qqd73vkmtqw7pd5j7qbe7xjuckgaid7ltvicra"   #phnx_16core_088
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacy3vle7i2n7ijh2eomsju6k7xdy3tfvkboza7pi6lghya"   #phnx_16core_089
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacnqvnp6i4xspkbvvrs2gomocqe5pcmfc6ws5zyldslxwq"   #phnx_16core_090
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexaca7qydn3i5d4or43fkv62d27rkfg2qxvjyv22fzm5hv5q"   #phnx_16core_091
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacbahwt7fnrux6zgqu37ah75caxye4qd2ioyvrkdcyuglq"   #phnx_16core_092
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacz2ms4or3vpub4ysupx3uehpbcuj3at4ascvr6eearltq"   #phnx_16core_093
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacnm6fnsgcne3yok75f2rw5sqjvvc6exer5t3npxv34jsq"   #phnx_16core_094
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacnqktoolzlnzi5kvago5vgpnjogsb7xrjan4v4acisrxa"   #phnx_16core_095
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexaccwnywwlzbbzrpdofbdps5fzorztki3sr23w7jxwva2za"   #phnx_16core_096
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacy6flauvi4zismmvvtbhemrvf7575azeq2wyx2xov7u5a"   #phnx_16core_097
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacj7cnag3gb7oydr4372z3rfgye2ygmmqq5xw5gdqolapq"   #phnx_16core_098
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexackbwcvjf5c7yrmgg6ecubteswiu7ik2n6pzrzf3uzz5ma"   #phnx_16core_099
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacgk7ngq775b2q5knslylinr2yfihkdgbbzufsmnudls4a"   #phnx_16core_100
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacfomiakm2ffsh4jfna2hltawku7t3xokatp2xpktmj2pq"   #phnx_16core_101
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacptpkoq4lnkskmjhr6vd42e53z3aeooq6dqvsyrhh7zsq"   #phnx_16core_102
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacoym2phckpmpom3hkvwenzv5hv66sehrallujl256bjcq"   #phnx_16core_103
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacq366gavoexqq7wgx7rulu5ht4bgaw73dzchkjmr6klfq"   #phnx_16core_104
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacbp3hnltijv7yjvjjuidrtlwghuw6copbkqg4axwgfyiq"   #phnx_16core_105
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexaczgwzqjqls63aygbcx46m5qcyaxi5cyvgqwj4fbvbbema"   #phnx_16core_106
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacm444yhzneliqe5gceejymnsrabk25fbn433c763bwqra"   #phnx_16core_107
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexaco7e6hhv6veu7st5wdhgbw4s7zgtpivkldl5kxofdofrq"   #phnx_16core_108
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexac3yuj5xpixxnh2akvu4vgey5xuoaye43b6lc523mamjzq"   #phnx_16core_109
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexac5hsy3prxzxbp7vsrfrrrrr34y77h5f4ii37xc4nk2rjq"   #phnx_16core_110
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexac6ctmnav7j4lvbvvoerfqounq2di22rggzxqesmvkyvwa"   #phnx_16core_111
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexaccvlksvqotf44dqrt5hw7zbkbqzqslflkw6r3soykqovq"   #phnx_16core_112
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacqld252j3yroatpasysjuvf6ry2dqvoun4a75ziqp2agq"   #phnx_16core_113
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacpp4vt3xqjimavw62jbrsr6owaijqsdmza2kxlfbovmqa"   #phnx_16core_114
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexaczgcn2rxomvh7o5bi2zjpis4ak4l5mn3i54gbw2zfhiaq"   #phnx_16core_115
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacfuaaxbw7xwdz47nrz3d24d5yzxhepnjivcmhqmfjzzba"   #phnx_16core_116
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacg3ddmkdibfzhqicjqw5hlninaxse222zd6xctiwsifja"   #phnx_16core_117
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexac5bpckpaz6kntyqd6ljsvtxun575a5yyv2ocekkmrtpha"   #phnx_16core_118
-  # "ocid1.instance.oc1.phx.anyhqljs7deiexacl6o3cgauc2ew65w63mhbgpur7vcr4aqz4xlftrouobya"   #phnx_16core_119
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacodm7x4qucnolhsjt47jdsnt35rdpcfyitnlj42d5aiaa"   #phnx_16core_120
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacdcji7kg7zpxqqhodjuhlzy7w4x432jp5yh6c5furhoqq"   #phnx_16core_121
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacledscs3ac2ceofan5gpxmyfqjb63vzmiknmmorjd6nta"   #phnx_16core_122
-  "ocid1.instance.oc1.phx.anyhqljs7deiexachghsawcvfknkfxyynkxirkkmjrqbv27gt34wp3ru3xia"   #phnx_16core_123
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacmffrjewlqmrwwrlgrbmhx7omwmdf34t7v7rurjxe2r7a"   #phnx_16core_124
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacunmc6p6uyr3yzvqmiitqi4a7l4ugqklvsxgfzmipybaq"   #phnx_16core_125
-  "ocid1.instance.oc1.phx.anyhqljs7deiexac3y6siv5dpwjqrn7o75jlw3zrrqyplpwdtfyolmytkl6q"   #phnx_16core_126
-  "ocid1.instance.oc1.phx.anyhqljs7deiexaczxjogrzcz72ajj66zzc6bocngifu4kac4imfk7nylbmq"   #phnx_16core_127
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacgm5kriwu2jtgiccruxairiil45j5rqxlx3cbp3rghuka"   #phnx_16core_128
-  "ocid1.instance.oc1.phx.anyhqljs7deiexac3gfkpg2jxcwae3cubtfxn4ywkyckeywdzkp2h276obma"   #phnx_16core_129
-  "ocid1.instance.oc1.phx.anyhqljs7deiexaciwdclpuosrih24kshkyux47di5xkp2rzrkptn3rmpgga"   #phnx_16core_130
-  "ocid1.instance.oc1.phx.anyhqljs7deiexaco2lzoeeh47lvtdueddlq7a6qo4xxiorq3vmurkjofrdq"   #phnx_16core_131
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacli5nw2p46yi3y7vybne3agjklrnx5scte5y7mt6n467a"   #phnx_16core_132
-  "ocid1.instance.oc1.phx.anyhqljs7deiexac7knkx6c7nuehqc4tqt6cpg4oqevq2ycfh3qw4srpoquq"   #phnx_16core_133
-  "ocid1.instance.oc1.phx.anyhqljs7deiexac2b7xth3pmfwb5vl7x2icbdfqnjh6nfqm23udkjulx7ma"   #phnx_16core_134
-  "ocid1.instance.oc1.phx.anyhqljs7deiexac5phw62awdj6x6l4hyu2l2iai5eirlzrarwtjmyvuwbya"   #phnx_16core_135
-  "ocid1.instance.oc1.phx.anyhqljs7deiexaci577fknncn6kadkjieda6daek6cesr5luxtwvcmcruqq"   #phnx_16core_136
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacgyfjh6uazylaoez6ibbp7en6grpzk4wbqe7vtkvb5ncq"   #phnx_16core_137
-  "ocid1.instance.oc1.phx.anyhqljs7deiexac53tpfg6zcdpvw5pd5iogznuk6ses5wlfbome36gzf2gq"   #phnx_16core_138
-  "ocid1.instance.oc1.phx.anyhqljs7deiexac565aruft4nwhifsimzijulols26obfuvnfzwspzl2ijq"   #phnx_16core_139
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacn5elqidpwzyljg3zfkfi7bcsr7klexdcjzi4uqwpeyha"   #phnx_16core_140
-  "ocid1.instance.oc1.phx.anyhqljs7deiexac44cxz72mfur37scrk74q5n2jj7pt75hi2jyimjvjeknq"   #phnx_16core_141
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacgx24xrtlmx4yc7fd2yrf2to5iftgnbavg2nwz7gkveqa"   #phnx_16core_142
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacnk7fg4ypvn2jyzf75uua4pqzaics5agxzmhbssx7vtwq"   #phnx_16core_143
-  "ocid1.instance.oc1.phx.anyhqljs7deiexaccbcmuh5ycj5ripvcw3d2nhszib36scxnzwstdpyy55cq"   #phnx_16core_144
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacla2ypxcrhzv26yokodc2stckaqztcqg66esxvmtmpydq"   #phnx_16core_145
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacvdjhpgjhlp5qvfaxkrznqhcz3tapvfmb4qi3nzf7fbca"   #phnx_16core_146
-  "ocid1.instance.oc1.phx.anyhqljs7deiexac7t2kegt5iv6hwzajyffortfca3fk234y6iwcoppxm26a"   #phnx_16core_147
-  "ocid1.instance.oc1.phx.anyhqljs7deiexact4yhxj22tseehxzatnhbucfqnnhf65ozgutfbycrpaxq"   #phnx_16core_148
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacw3jdprv2cjd5bsmz57jn7vavag7tw3bzqg5vmlcgguqa"   #phnx_16core_149
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacsnedabwlqc553s65svmbhrqqdfonkgamchcneug2333a"   #phnx_16core_150
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacixyxq2tuakraijj4kr2hyn4ghf7ulb5viobmycszymbq"   #phnx_16core_151
-  "ocid1.instance.oc1.phx.anyhqljs7deiexac2u2q33ttwfpxgv6nn4mq7xacahisgmwtk6oxuuxdecfa"   #phnx_16core_152
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacnpfltqobng5v4nwdmboqg34l6kzsdnsk7zzz2kfkaapa"   #phnx_16core_153
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacjvbmaqbortfa4klmqondohx477hx4ai6ep4juswnsf4a"   #phnx_16core_154
-  "ocid1.instance.oc1.phx.anyhqljs7deiexac5bb6crxlevshytouqo22zjq2kzqaylfy3grpvupkjfrq"   #phnx_16core_155
-  "ocid1.instance.oc1.phx.anyhqljs7deiexace4eqekvkadtadhyzp5vscnvvjhlhfue62n5eelf5vb6q"   #phnx_16core_156
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacq46djhs3kyscrezzmlwp7tpujnse2pl7d6xygbfaqndq"   #phnx_16core_157
-  "ocid1.instance.oc1.phx.anyhqljs7deiexac5yralqcnl4pt2iqphhhdiphc7exfqx37cbyxdc5w3xsq"   #phnx_16core_158
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacurhgwzrl45t7ot7shj5qlwiupezv6jwcwpgcq2qlijya"   #phnx_16core_159
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacaiurwag53cozpu5rou7dkjktu6tzwmsuu5jdrvk3qznq"     ####0
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexaci7yfb62bqpaygq4bxgxeil6bivj7onwaghvdfqye4gkq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacjqjvg4vg5dpmz3pdctaq3xx5xar5kdbimy7meurts33a"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexaccsejh2sse4skeqegcaw42cr2f7o4lepmmxq67axgzvpa"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexac23kviikeukbzo34zq36calsz44emvb6c52azqzf2h6sq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacgvsj4hdt6fbw2dbirixq3fzm5kugwqm3chcykjcpg3ua"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacpcpwrsucnno63o4c7nt5cpsyxpst2nkrh4kjauzyr5zq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacyy4xcjxe2flf5sktnlkh7urlx4qivuun6ay6ljle27na"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacwyk54l277nhk2fyegmsl7jxlms3qbx6hgouby22jdzvq"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacipaqqq5aoomsj3gcj4zdgrqqaxk5oiw6vq2ujhybxb2q"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexachlte5g42z25kkerswqnxa5yeymixtov32aufhwty4gla"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacekxqtpk4c7toixmi2kknq6gtnucf32ia5c6uv3d46i5a"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacrmzhzwbhbwcetybqz4fifez3m73p6x3hlbbyyonmn4nq"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexaciqvidnndtyx3f7ixix5xnjf25jtam7ijmegc5oacc6qa"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacowsc46wzugbtcm5bueac7uho3jn5ohkbad6sqfxsrwka"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacgsp33wtpnxmtio33wjgvpqpad2423l7wi4j66l2vb5pq"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacax7sdft7oemvzif7p3febplnarc5wli4h7vdhu3vetca"     ####16
+   "ocid1.instance.oc1.iad.anuwcljs7deiexac4mtll322zhwak7cmw3yfjonpfqzy6ongig2xzju34xva"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacpp33veaaazg4mingpqr6j5vzvvqynhuowz3adowrq7qa"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacyk7m6x2xepp5akfvqevpyopbhr3o7nsxkdt4bzcx53va"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacjwfyfxy4c3euhdyvfhzbo3cpdmssudkgoezbu3hra7ja"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacoph6zfp7n4rvbfvd6jhhfzd75m565ew2ze2ud3qq36ea"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacajzizeb72yunh4gva3zbvdqnmxeqzs62yu7cbzisymeq"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacnm6mw5s27cnyxsq4yrvvckvu2rlaqodfpshlbu3r7mkq"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacqssxgugrmvfc2j5o6jvg3ghk63wybyk3gfx7n7n6cj3q"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacjrqf57duavbc4i3xwitozdnfrfxmune4toofg3ludnoa"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexac3mxj4ckckeunkscuxwqmzqrqm5tig7vwo6eauxi6cxuq"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexac5hc7sfwtc33wxh3hjaj3qwz3o7iy5j4e6nqkh75hihra"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacbhgf2bwmq3d5n6vysikyu44m3vgte4zxpdynjzoufnpq"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexactsxdivk2pdyyqgseglhupvupmjktwvfofo7asn7ogtaq"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacd36sauxqu5oitkszcwihp7xij5hlfxht64cbhcbmul2a"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacqmwepylt52wwrmzl524k23sswhkbu3ifje5rj4jlnr2q"  
+   "ocid1.instance.oc1.iad.anuwcljs7deiexackakg2cguno2l43vv2kg4s4fa3wjh7dc7ie2gurkvz3pq"  ####32
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacjx3zpwsonfbb3zj4pysy2rb6hie3h6f4quiuxujolm2a"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexac63ddj7ragg3r3yjkar4ygnkorvv24nwrmhjgjfrfh75a"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacs2i5tornvohs2naxhmnq4piob4wwsmbebnsmfdcig4ia"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacpxp4ueas6y7xesysxlmlwvdmvvfdsmngicivl2vdiydq"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacgfmelqi673nvk2mvpoajsz7isliiemf2nv7o333zb5na"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacwihkyimikxbizghf3ji4bupuudozfithnkzkaxhtzeoq"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacqtqxahelaeo7rdykjfvh6m5j44zdgoyztsugq4vd7s2a"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexac5hb24qjm2xkwtrdzefxtmahmq3f2tp5gc6tn5qszw4bq"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacgdwom7nskkyk7xyuezrqh2fd7d54xzq6iljsfynipi4q"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexaczsteatg73sspwfeqxfpir4p6hvobalggouoqeotlrakq"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacsiieslxhsnum7mic3lyzbctjbmuuvjdbli7skll2jgsa"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacziowclc5tnphfydyry3qujfnfwhkgk5zo4u6mx7bnpca"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacjypbmonhmqvp77edjkyn74njhjecd5sgxnk2xowbvxjq"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacnh5onrarertivitf7afbolztt4pzew6qsqw5kqu7v7kq"
+   "ocid1.instance.oc1.iad.anuwcljs7deiexacls5otkre7ursspkacqpqkaft3jbjdw5vaxealv5f4qfq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacfhsuk7s4662dfmegbpnx2tnyuaiqx7z2mva7lwzcjtoq"  ###48
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacotxt536clf6gce7e5pepjsc5ruzeommejsexvj6fenka"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacfxgvyxjd3smyysoxrm63j3wk265vgkuscpuy4gqt2phq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacn3p2v3jeh2qlzzzzhw32nyis3b4r4ysmzrsh456f3dra"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexachqevtbvcydjigwilwyzpiroskips6qq4z5z3aykv6hma"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacnfzy6mmbb4thheypha4hpibqdswyotmppahkiydwktzq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacqfczmvpknuxayiopfe3xjz2gbfoydwpe3zr36rkutwuq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexactzzn6nekjvwfvy4yj2kppxby5xflwdyueimndtiwkhta"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacewkxvh2rnhj5hd5wufon6rxkb6dablj6k6qga4p3tcvq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacdviqlmjao2sthd7qzxkangaiedrklq76fot3ktlhth4q"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacvj73gcv7duwxrnz33nzrfdmgnrcj44br3gje7vhoeola"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacejxelnv6hqwhu7htwphop3wwgtblukb5jw7e2a4z4gba"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacbrd37nwazt5lsvko57oog4vqxtbwkzguchsojmek6waa"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacbtc64r45qrly75ta2ykdrexbstc43syprfutorf6nl5a"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexac7qzo6luoi2rdk2mwvaav2z26o6c5esdrbkw3fxqvnt5a"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexac3zswofwm5wbr5vs2bdpoqunnbhuuwkgg4bvxrddx343a"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacluzzikra72erylbbw76hus4pm34aqa37jhkfwbimlssa"     #### 64
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexackxdp3orxfdbcnc2bvsk6k3kcyxecqfcuvepnfsnhcsuq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacxis22isvr45wbkqe3ch2ogcuz2hi3f6xj6d523ygvfeq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacifyza3dvjvtc26phh2v4ftx2h5ocd4i2hp7wtmff7vfq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacdsmvckdue2dgeoun2qpaiqw6sn7vfwzcgx7wckx4c6la"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexackpyj3psndqjgazbxr7upjpneyksi6q365ljzqcf2lofa"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacji46paft3byetee3pngjdhdssuys77onidh3kywua4ta"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacv3dqqhqwem7ys2tcu4jbyjfoby2op5fnmm3sthb64pia"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexaclxmxp5d2yzhhthnpb4sin2qkenczmetubdcia7zptg5a"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacza4rmvt4k2vu67cnutrzryjhuzvoxcm3jrmdnxhsvr4a"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexac3lb4jxlnmpeoz2guvpfytyyrnb4qnfe2doxrwfaitf3q"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacjgeh2vvt2ub6rbzob4d5tp4eoac3wzsspuf2kmfnpr6a"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexac5okldasqfraswxtwmmdcesz2gldoqf2tlh77iqoeqfqa"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexac5idhcuh32q3seohxhy4wyvlojsqar6iiluqgasysqk5a"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacxwbsyfxmdzuyukawgdojrtzxhjwawqbxwvaktv4qv42q"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexaca6iw43yff6lz7isregg4p3jdr6ktow4bl4w34thva4aq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacy3l2i75b2h2ygzn4bf43zpqfdsydhwz7zgtuyndj7twq"  # 80
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexac62lhp6e3t2drmgtx6kqvfwf5mbruesup5jiamykt5vbq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacebsvjgczxscmstwc4jsit24cxgttaowa72i6nea6kf7a"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexaclc52a5wtykfj7dxxjvd7knlvf3juqqi2lrn52pphq23q"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexaciypclpgxfr2qn7e4q2lxf3iy5pszl2m65rb4fyisfqva"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacmasgaxtgjsqxmq3okyegvaakw36su2fkobqqcsqcwvjq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacc4dwhrxrj2nygkl4bnascvbbnkydohbwwhzvvll7uk5q"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexac3on3mcazeydxandsxgugpdwpglcykhx5irwmqbvjhw6q"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacae7yfsxokt3chj6allxdcmorgsgpht3gwxum2r6nr2wq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexac3rqgfek6ea3wtpeg6ry54fmvymw7huxwocstflupp3uq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexaclupy73ca7ct66x4vrzkdzhfvjll5h27hq7qsqrahjm6a"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacordc52f74tzrwvwxlugso7sx4qrmmpixir66jpy6rqla"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexactz62ugo2ch6wqgfmd7dzdyge7sk65tkrgoi3onzeueva"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacqsmeoly5zmmsop66bcjyrwp7ss3i2ws3z3ztgmk2pzpq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexac5auh2fnt2ru4fqre7u4gxg6nijg4dfkrgohajvlb3sra"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacydnjtuylu63z5wcafdoviykcf7dk7565teekyjtkbwcq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacw5cacqwyptppxzxre42tnolgtzbw2prbdu4i5wssuela"  #96
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacqc4d7f2qdqicruwwezvo5n7gefqku6d6paafsti4eufa"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacv7g4gep5j6qyn6bwqmsb6rkxhl5dxsbsajeyr6cry7iq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacpgcvkqochepk35qzj5r54rsu5n3e2hyfuckocbwqrqqa"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexaciljt6k3bmali3w4f2hrmeczihdyz3hlmkwb2x5g2y7ea"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexac3tlz3w7w4skpv7crqjnseo3eysf74ch7cmqomgjoc2ga"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexaco3tapphawic26np5qh7mzu2zvyi5cxqd6ukpzfek7qxa"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacyz7ccfherjjzu32gqhl6moi6blywfghxvrd3vduzssha"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacb6osvurme3gov7l7e6xroicnr4wrsdyozegbiaawa7nq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexaclhmljom22rhiay2wk4apm57te4syzczynhvfkeczo6vq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexachwkgnm7ikghkqxomzymlangfhrgbjb2d7wvfeyqfasqa"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacd2mknisroqxgd7mnspwqiywdoa7itczikelrfl2c63wq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacnvi432micuj2kmkr7xgqdo7ms5fhd5q343fbiof3yyvq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacvjesjotgvxvlgli6lbfn6bgioqjxefw4dms2khmqisuq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexactfaduxjazomhxsf7djpt65jj2nhsl7sbw42qt5vsngea"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacslop4fmow6nvjgwblxtta7x4thphuntuaybfhdfjklda"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexac2r5z4hx23xjpqpiiehwgkyna2x7ojcr2rw4izcf2ziwq"  ### 112
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacvbliap2qesq6sbxgmcb5td5gxvcyp3tys2b5idah3aoa"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacsppb4fczpdnytctl7wzcd56fh7nsdgn7hdco3delptzq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacu6qjgbgqd6qyuwmyzxib23crbgch5cl6wbv6pvtfmcnq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexac54ofjq2ixbdzngyv3b34hsxipgmnngjsrl2vandgmqva"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacgyr2fqx4c4mbrb66347hwfnyojh5gz27welpea4h3vqa"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacrn43mw2qai6eopmzcfk7nxodd6nn2om5qbswulirsfiq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacshcmxrm33xpxbv3vdfqh24et4vvzqk5cfyyaifrgp5oq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexaczadhcete3t6wcbkkpgexjikap7sisqsse47aigqfijba"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexac65cnrxpok3dntr4xcjg4dakohmaus745nipwia2l7dra"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacs5pecaobg7scfcki65vesmiw2jcrfzj3f5kzunbs3uxa"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacyrcku6yccduhvdob5eoyrhevjuevoyva4ekz7cywip5q"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacggopneegabk2jowbku5pjgntqumaeshii5bnyudj7i2a"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexac53fugt2k3lplickbaohbfchi6n357rnwcpbibavzd4cq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacnzikeksernhxgedlr6gsopptq5hpxzyjpzq6mxth5faa"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexaccdf3fgawnpjf4ugfexv5yo2x4m23jpn4j3gbb7tiexqa"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexackx5cstrx6r7hmwo4wpcuuxgvkqeykgak4ale24tgtl5a"  ###128
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacsb2ihmnulkhnn3kd6bex74tcwbwjvg2ntwowwbx3szna"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexac6n77c4mlxfww7lreejyp424vydpxsvooi22sind2bcua"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacufgsabah4jvdi6ibt7vtydf4byyawsj2cmwciwa27hka"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexac2btlatsjb5yjp24pwvqsnjuv2dwd3iexpke22qvvgynq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacqvydxrn35rcznxunt5jqgm3ityeon4ph2xwby3cavu3a"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacnrz3hkarsbjlnmpte54sbyu4slkreiyvyxsszzsj7fpq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacoqnthfbuexgk3amjwjjszlory73ryj4cxr4rt4v5nlgq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacng262oomd73yeiuecy6aykppoltw2knwbyvglt5ayena"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacjo6aull3pj3kvwxfxbta3kuyrwnfznqzb27r7plyxyzq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacuegle7ymif3m56fhrhpni5laqsbxhglbx3hfh6jvijtq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexaceypyec4al7occlp5k3qelw55opggzb4xu6b6efdp267q"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexac3u3yrgvsodbu6t5vhzxae5ygjpwjyru64ll3cuq7spgq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacpvdxccgronm7gdcapvy56wzys2zlmygyk3emmqjrceya"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexac7xtow5o3ihyomxrkrramcmnhcnx3va2w2zoe3q3rno2a"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacdv5kuitqdhlvxnwaavwkvznsdnfbkrijkltnqngu42ta"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacwaxcnx3iqvnjnsuavfhm4cjhp6bwyk64ddxfv36qemiq" # 144
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacykverkn73hepoy67ktiwkfdrjurshe4hcdczk3a46jaa"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacewkguh4go3xbsmlt5inmr4zbxtvhlyxyicfuifadessq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacizohwgsidjb3gbbpslzuqfmjczppuldp5ndxqifftj3a"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexachni7noitybhgztohccvf2vnogzk4o3d7yv2qm7f5m2aa"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacg75gv46agukynkqve3n3g23oduehspf6b4nzgk3pue5q"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacw7umgvonhnwfuhfej7jqm5mdaty3vexct3db3dku3xdq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacg2mrxapheqslsml2uzwj66ok5shzftksnm62ezjyqbpq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacgbe2cgjbggtauuiq4m5rrl6oqpwvuindnqp3kwatchsq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexac6lv7plxjt2w4tm4gt2osqgf6elsfqh33xckzvsauvpha"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexac6jzh3s55mc3yg6qaygkimpsmdcdyvbze6e3lkldc55zq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacgwpob3jh5qebyqwpnxoqpt7dbxmhxa3soazadg26suhq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacmprbvpje4bw5xj5bwga4kdg25ppkqgo5tfkajaf7ozrq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacd3f6xjhkfnw5oqyrkwnjzlrvjodwm5tiekuoet3p3wra"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexacdsmnmgatvf7koiyvdojwesqbgkhmn6y23nvaae3b3pkq"
+   # "ocid1.instance.oc1.iad.anuwcljs7deiexac7uk7n3f4p6py3ri2njxvvrysjs3uamtbkqul5iszyrwq"
 )
 
 action=START
 # action=STOP
 # action=RESET
 # bash scripts/start-stop-ashburn.sh
-
-# for i in "${instances[@]}"; do
-#    /home/ubuntu/bin/oci compute instance terminate --instance-id $i
-# done
-# wait
 for i in "${instances[@]}"; do
     /home/ubuntu/bin/oci compute instance action --action $action --instance-id $i | jq -r '.data."display-name"' &
 done

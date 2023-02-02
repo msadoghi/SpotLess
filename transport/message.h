@@ -12,7 +12,9 @@ struct Item_no;
 class Message
 {
 public:
-    virtual ~Message() { this->dest.clear(); }
+    virtual ~Message() {
+        this->dest.clear();
+    }
     static Message *create_message(char *buf);
     static Message *create_message(BaseQuery *query, RemReqType rtype);
     static Message *create_message(TxnManager *txn, RemReqType rtype);
@@ -21,7 +23,7 @@ public:
     static Message *create_message(LogRecord *record, RemReqType rtype);
     static Message *create_message(RemReqType rtype);
     static std::vector<Message *> *create_messages(char *buf);
-    static void release_message(Message *msg, uint64_t pos = 0);
+    static void release_message(Message *msg);
     RemReqType rtype;
     uint64_t txn_id;
     uint64_t batch_id;
@@ -36,17 +38,6 @@ public:
     uint64_t keySize = 1;
     string signature = "0";
     string pubKey = "0";
-
-#if THRESHOLD_SIGNATURE
-    secp256k1_ecdsa_signature psig_share;
-    bool sig_empty = true;
-    secp256k1_ecdsa_signature sig_share;
-#endif
-
-#if PVP
-    uint64_t instance_id;
-    bool force = false;
-#endif
 
     static uint64_t string_to_buf(char *buf, uint64_t ptr, string str);
     static uint64_t buf_to_string(char *buf, uint64_t ptr, string &str, uint64_t strSize);
@@ -111,9 +102,6 @@ public:
     string pkey;
     uint64_t pkeySz;
     uint64_t return_node;
-#if THRESHOLD_SIGNATURE
-    secp256k1_pubkey public_share;
-#endif
 };
 
 class ReadyServer : public Message
@@ -329,7 +317,7 @@ public:
     bool validate(uint64_t thd_id);
     string getString(uint64_t sender);
 
-    void add_request_msg(uint idx, Message *msg);
+    void add_request_msg(int idx, Message *msg);
 
     uint64_t view; // primary node id
 #if SHARPER
@@ -369,8 +357,6 @@ public:
 
     uint64_t end_index;
     uint64_t batch_size;
-
-    bool valid = true;
 };
 
 class CheckpointMessage : public Message
@@ -600,7 +586,6 @@ public:
     vector<ViewChangeMsg *> viewMsg;
     vector<BatchRequests *> preMsg;
 };
-
 /*******************************/
 
 // Entities for handling BatchRequests message during a view change.
@@ -614,294 +599,6 @@ extern vector<ViewChangeMsg *> view_change_msgs;
 void storeVCMsg(ViewChangeMsg *vmsg);
 void clearAllVCMsg();
 
-#endif //VIEW_CHANGES
-
-
-#if CONSENSUS == HOTSTUFF
-
-class HOTSTUFFPrepareMsg : public Message{
-public:
-    void copy_from_buf(char *buf);
-    void copy_to_buf(char *buf);
-    void copy_from_txn(TxnManager *txn);
-#if BANKING_SMART_CONTRACT
-    void copy_from_txn(TxnManager *txn, BankingSmartContractMessage *clqry);
-#else
-    void copy_from_txn(TxnManager *txn, YCSBClientQueryMessage *clqry);
-#endif
-    void copy_to_txn(TxnManager *txn){}
-    uint64_t get_size();
-    void init() {}
-    void init(uint64_t thd_id);
-    void release();
-
-    void sign(uint64_t dest_node = UINT64_MAX);
-    bool validate(uint64_t thd_id);
-    string getString(uint64_t sender);
-
-    void add_request_msg(uint idx, Message *msg);
-
-    uint64_t view;
-
-    Array<uint64_t> index;
-#if BANKING_SMART_CONTRACT
-    vector<BankingSmartContractMessage *> requestMsg;
-#else
-    vector<YCSBClientQueryMessage *> requestMsg;
-#endif
-    uint64_t hashSize; // Representative hash for the batch.
-    string hash;
-    uint32_t batch_size;
-    QuorumCertificate highQC;
-};
-
-class HOTSTUFFPrepareVoteMsg : public Message{
-    public:
-    void copy_from_buf(char *buf);
-    void copy_to_buf(char *buf);
-    void copy_from_txn(TxnManager *txn);
-    void copy_to_txn(TxnManager *txn){}
-    uint64_t get_size();
-    void init() {}
-    void release() {}
-    void sign(uint64_t dest_node = UINT64_MAX);
-    bool validate();
-    string toString();
-
-    uint64_t view;        // primary node id
-    uint64_t index;       // position in sequence of requests
-    string hash;          //request message digest
-    uint64_t hashSize;    //size of hash (for removing from buf)
-    uint64_t return_node; //id of node that sent this message
-
-    uint64_t end_index;
-    uint32_t batch_size;
-};
-
-class HOTSTUFFPreCommitMsg : public Message{
-public:
-    void copy_from_buf(char *buf);
-    void copy_to_buf(char *buf);
-    void copy_from_txn(TxnManager *txn);
-    void copy_to_txn(TxnManager *txn){}
-    uint64_t get_size();
-    void init() {}
-    void release() {}
-    void sign(uint64_t dest_node = UINT64_MAX);
-    bool validate();
-    string toString();
-
-    uint64_t view;        // primary node id
-    uint64_t index;       // position in sequence of requests
-    string hash;          //request message digest
-    uint64_t hashSize;    //size of hash (for removing from buf)
-    uint64_t return_node; //id of node that sent this message
-
-    uint64_t end_index;
-    uint32_t batch_size;
-
-    QuorumCertificate PreparedQC;
-};
-
-class HOTSTUFFPreCommitVoteMsg : public Message{
-public:
-    void copy_from_buf(char *buf);
-    void copy_to_buf(char *buf);
-    void copy_from_txn(TxnManager *txn);
-    void copy_to_txn(TxnManager *txn){}
-    uint64_t get_size();
-    void init() {}
-    void release() {}
-    void sign(uint64_t dest_node = UINT64_MAX);
-    bool validate();
-    string toString();
-
-    uint64_t view;        // primary node id
-    uint64_t index;       // position in sequence of requests
-    string hash;          //request message digest
-    uint64_t hashSize;    //size of hash (for removing from buf)
-    uint64_t return_node; //id of node that sent this message
-
-    uint64_t end_index;
-    uint32_t batch_size;
-};
-
-class HOTSTUFFCommitMsg : public Message{
-public:
-    void copy_from_buf(char *buf);
-    void copy_to_buf(char *buf);
-    void copy_from_txn(TxnManager *txn);
-    void copy_to_txn(TxnManager *txn){}
-    uint64_t get_size();
-    void init() {}
-    void release() {}
-    void sign(uint64_t dest_node = UINT64_MAX);
-    bool validate();
-    string toString();
-
-    uint64_t view;        // primary node id
-    uint64_t index;       // position in sequence of requests
-    string hash;          //request message digest
-    uint64_t hashSize;    //size of hash (for removing from buf)
-    uint64_t return_node; //id of node that sent this message
-
-    uint64_t end_index;
-    uint32_t batch_size;
-    
-    QuorumCertificate PreCommittedQC;
-};
-
-class HOTSTUFFCommitVoteMsg : public Message{
-public:
-    void copy_from_buf(char *buf);
-    void copy_to_buf(char *buf);
-    void copy_from_txn(TxnManager *txn);
-    void copy_to_txn(TxnManager *txn){}
-    uint64_t get_size();
-    void init() {}
-    void release() {}
-    void sign(uint64_t dest_node = UINT64_MAX);
-    bool validate();
-    string toString();
-
-    uint64_t view;        // primary node id
-    uint64_t index;       // position in sequence of requests
-    string hash;          //request message digest
-    uint64_t hashSize;    //size of hash (for removing from buf)
-    uint64_t return_node; //id of node that sent this message
-
-    uint64_t end_index;
-    uint32_t batch_size;
-};
-
-class HOTSTUFFDecideMsg : public Message{
-    public:
-    void copy_from_buf(char *buf);
-    void copy_to_buf(char *buf);
-    void copy_from_txn(TxnManager *txn);
-    void copy_to_txn(TxnManager *txn){}
-    uint64_t get_size();
-    void init() {}
-    void release(){}
-    void sign(uint64_t dest_node = UINT64_MAX);
-    bool validate();
-    string toString();
-
-    uint64_t view;        // primary node id
-    uint64_t index;       // position in sequence of requests
-    string hash;          //request message digest
-    uint64_t hashSize;    //size of hash (for removing from buf)
-    uint64_t return_node; //id of node that sent this message
-
-    uint64_t end_index;
-    uint32_t batch_size;
-    
-    QuorumCertificate CommittedQC;
-};
-
-class HOTSTUFFNewViewMsg : public Message{
-    public:
-    void copy_from_buf(char *buf);
-    void copy_to_buf(char *buf);
-    void copy_from_txn(TxnManager *txn);
-    void copy_to_txn(TxnManager *txn){}
-    uint64_t get_size();
-    void init() {}
-    void release();
-    void sign(uint64_t dest_node = UINT64_MAX);
-    bool validate();
-    string toString();
-    void digital_sign();
-
-    uint64_t view;        // primary node id
-    uint64_t index;       // position in sequence of requests
-    string hash;          //request message digest
-    uint64_t hashSize;    //size of hash (for removing from buf)
-    uint64_t return_node; //id of node that sent this message
-
-    uint64_t end_index;
-    uint32_t batch_size;
-    
-    bool non_vote = false;
-
-    QuorumCertificate highQC;
-};
-
-#if SEPARATE
-class HOTSTUFFProposalMsg : public Message{
-public:
-    void copy_from_buf(char *buf);
-    void copy_to_buf(char *buf);
-    void copy_from_txn(TxnManager *txn);
-#if BANKING_SMART_CONTRACT
-    void copy_from_txn(TxnManager *txn, BankingSmartContractMessage *clqry);
-#else
-    void copy_from_txn(TxnManager *txn, YCSBClientQueryMessage *clqry);
-#endif
-    void copy_to_txn(TxnManager *txn){}
-    uint64_t get_size();
-    void init() {}
-    void init(uint64_t thd_id);
-    void release();
-
-    void sign(uint64_t dest_node = UINT64_MAX);
-
-    bool validate(uint64_t thd_id);
-    string getString(uint64_t sender);
-
-    void add_request_msg(uint idx, Message *msg);
-
-    uint64_t view;
-
-    Array<uint64_t> index;
-#if BANKING_SMART_CONTRACT
-    vector<BankingSmartContractMessage *> requestMsg;
-#else
-    vector<YCSBClientQueryMessage *> requestMsg;
-#endif
-    uint64_t hashSize; // Representative hash for the batch.
-    string hash;
-    uint32_t batch_size;
-};
-
-class HOTSTUFFGenericMsg : public Message{
-    public:
-    void copy_from_buf(char *buf);
-    void copy_to_buf(char *buf);
-    void copy_from_txn(TxnManager *txn);
-    void copy_to_txn(TxnManager *txn){}
-    uint64_t get_size();
-    void init() {}
-    void release();
-    void sign(uint64_t dest_node = UINT64_MAX);
-    bool validate();
-    string toString();
-#if MAC_VERSION
-    void digital_sign();
-#endif
-
-    uint64_t view;        // primary node id
-    uint64_t index;       // position in sequence of requests
-    string hash;          //request message digest
-    uint64_t hashSize;    //size of hash (for removing from buf)
-    uint64_t return_node; //id of node that sent this message
-
-    uint64_t end_index;
-    uint32_t batch_size;
-
-    QuorumCertificate highQC;
-};
-
-#else
-class HOTSTUFFGenericMsg : public HOTSTUFFPrepareMsg{
-    /* HOTSTUFFGenericMsg in ResilientDB is very similar to HOTSTUFFPrepareMessage.
-    In order to simplify the implementation, we only give it a new name
-    */
-};
-#endif
-
-extern vector<vector<Message *>> new_view_msgs;
-
-#endif  //CONSENSUS == HOTSTUFF
+#endif // VIEW_CHANGE
 
 #endif

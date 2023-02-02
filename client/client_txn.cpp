@@ -11,7 +11,13 @@ int32_t Inflight_entry::inc_inflight()
 {
     int32_t result;
     sem_wait(&mutex);
-    if (num_inflight_txns < g_inflight_max)
+    int32_t value = g_inflight_max;
+#if MULTI_ON
+    if(g_client_node_cnt < g_node_cnt){
+        value = (g_inflight_max / g_node_cnt * g_client_node_cnt) / get_batch_size() * get_batch_size();
+    }
+#endif
+    if (num_inflight_txns < value)
     {
         result = ++num_inflight_txns;
     }

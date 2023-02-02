@@ -3,15 +3,15 @@
 // Specify the number of servers or replicas
 #define NODE_CNT 128
 
-// make clean; make -j8
+// make clean; make -j8; 
 // python scripts/StopSystem.py; python scripts/scp_binaries.py; python scripts/RunSystem.py
 // python scripts/scp_results.py
 // python3 scripts/results_analysis.py
-// ssh -i oracle2.key ubuntu@10.0.112.243
-// Number of worker threads at primary. For RBFT (6) and other algorithms (5). For PVP (NODE_CNT + 3).
-#define THREAD_CNT (PROPOSAL_THREAD? MULTI_THREADS+5: MULTI_INSTANCES+3)
-#define REM_THREAD_CNT 8
+// Number of worker threads at primary. For RBFT (6) and other algorithms (5) and RCC(NODE_CNT+3).
+#define THREAD_CNT (MULTI_ON ? MULTI_THREADS+3+CL_THD_CNT : 7)  
+#define REM_THREAD_CNT 6
 #define SEND_THREAD_CNT 4
+#define CL_THD_CNT 3
 #define CORE_CNT 8
 #define PART_CNT 1
 // Specify the number of clients.
@@ -26,7 +26,7 @@
 #define SHARD_SIZE 4
 #define CROSS_SHARD_PRECENTAGE 0
 #define INVOLVED_SHARDS_NUMBER 0
-#define MESSAGE_PER_BUFFER 52
+#define MESSAGE_PER_BUFFER 48
 
 #define LOAD_PER_SERVER 1
 #define REPLICA_CNT 0
@@ -46,7 +46,7 @@
 #define TIME_PROF_ENABLE false
 #define FIN_BY_TIME true
 // Number of transactions each client should send without waiting.
-#define MAX_TXN_IN_FLIGHT (200*BATCH_SIZE)
+#define MAX_TXN_IN_FLIGHT (400*BATCH_SIZE)
 #define SERVER_GENERATE_QUERIES false
 #define MEM_ALLIGN 8
 #define THREAD_ALLOC false
@@ -163,10 +163,10 @@
 #define PARTITIONED 0
 #define REPLICATED 1
 // To select the amount of time to warmup and run.
-#define DONE_TIMER 120 * BILLION
-#define WARMUP_TIMER  3 * BILLION
+#define DONE_TIMER 30 * BILLION
+#define WARMUP_TIMER  5 * BILLION
 // Select the consensus algorithm to run.
-#define CONSENSUS HOTSTUFF
+#define CONSENSUS PBFT
 #define DBFT 1
 #define PBFT 2
 #define ZYZZYVA 3
@@ -181,7 +181,7 @@
 // Enable or Disable pipeline at primary replica.
 #define ENABLE_PIPELINE true
 // Size of each batch.
-#define BATCH_SIZE 100
+#define BATCH_SIZE 10
 #define BATCH_ENABLE BSET
 #define BSET 1
 #define BUNSET 0
@@ -201,8 +201,8 @@
 // To allow view changes.
 #define VIEW_CHANGES false
 // The amount of timeout value.
-#define EXE_TIMEOUT  1*BILLION 
-#define CEXE_TIMEOUT 1*BILLION
+#define EXE_TIMEOUT 100000000000    //*10[Dakai]
+#define CEXE_TIMEOUT 120000000000      //*10
 // To turn the timer on.
 #define TIMER_ON false
 //Global variables to choose the encryptation algorithm
@@ -237,61 +237,21 @@
 // To allow testing of a Banking Smart Contracts.
 #define BANKING_SMART_CONTRACT false
 
-// Switching on MultiBFT or PVP
-#define MULTI_ON false
-#define PVP true
-#define MULTI_THREADS (MULTI_INSTANCES > 16 ? 16 : MULTI_INSTANCES)
-#define MULTI_INSTANCES NODE_CNT
-#define CHAINED true
+// Switching on MultiBFT
+#define MULTI_ON true
+#define MULTI_INSTANCES 1
+#define MULTI_THREADS (MULTI_INSTANCES>16 ? 16:MULTI_INSTANCES)
 
-// Entities for debugging
-#define PROCESS_PRINT false
-#define SEND_NEWVIEW_PRINT false
-#define PRINT_KEYEX false
+#define KDK false
+#define KDK_DEBUG1 false
+#define KDK_DEBUG2 false
+#define KDK_DEBUG3 true
+#define KDK_DEBUG5 true
 #define SEMA_TEST true
-
 #define FIX_INPUT_THREAD_BUG true
 #define FIX_CL_INPUT_THREAD_BUG true
 #define TRANSPORT_OPTIMIZATION true
-#define FIX_ED25519_BUG false
 
-#define AUTO_POST true
-#define PVP_RECOVERY false
-#define STOP_NODE_SET (false && PVP_RECOVERY)
-
-#define THRESHOLD_SIGNATURE true
-#define SECP256K1 true
-#define ENABLE_ENCRYPT true
-#define ENABLE_EXECUTE true
-
-#define FIX_MEM_LEAK true
-
-#define TS_SIMULATOR false
-#define TEMP_QUEUE true
-#define SYNC_DEBUG false
-#define PVP_FORCE true
-#define MAC_SYNC true
-#define SYNC_QC true
-#define SEPARATE true
-#define ROUNDS_IN_ADVANCE 0
-#define PROPOSAL_THREAD true
-#define MAC_VERSION true
-#define INPUT_OP false
-
-#define TIMER_MANAGER true
-#define INITIAL_TIMEOUT_LENGTH 1*BILLION
-#define PVP_FAIL true
-#define CRASH_VIEW 100
-
-#define EXCLUSIVE_BATCH true
-#define FAIL_DIVIDER 128
-#define FAIL_ID 2
-#define MAX_TIMER_LEN 200000000
-
-#define NEW_DIVIDER false
-#define DIV1 6
-#define DIV2 3
-#define LIMIT1 3
-#define LIMIT2 1
+#define IN_RECV false
 
 #endif

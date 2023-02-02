@@ -50,11 +50,6 @@ private:
 	std::vector<Socket *> recv_sockets_clients;
 	std::vector<Socket *> recv_sockets_servers[REM_THREAD_CNT - 1];
 
-#if INPUT_OP
-	std::mutex input_lock[NODE_CNT];
-	bool input_busy[NODE_CNT] = {false};
-#endif
-
 	uint64_t _node_cnt;
 	uint64_t _sock_cnt;
 	uint64_t _s_cnt;

@@ -119,8 +119,6 @@ void Stats_thd::clear()
     work_queue_dequeue_time = 0;
     work_queue_conflict_cnt = 0;
 
-    // new_txn_thd_waste_time = 0;
-
     // Worker thread
     worker_idle_time = 0;
     worker_activate_txn_time = 0;
@@ -426,8 +424,6 @@ void Stats_thd::combine(Stats_thd *stats)
     work_queue_enqueue_time += stats->work_queue_enqueue_time;
     work_queue_dequeue_time += stats->work_queue_dequeue_time;
     work_queue_conflict_cnt += stats->work_queue_conflict_cnt;
-    // new_txn_thd_waste_time += stats->new_txn_thd_waste_time;
-
 
     // Worker thread
     worker_idle_time += stats->worker_idle_time;
@@ -562,11 +558,9 @@ void Stats::free()
         _stats[i]->free();
         mem_allocator.free(_stats[i], 0);
     }
-#if FIX_MEM_LEAK
+
+    // delete[] _stats;
     delete _stats;
-#else
-    delete[] _stats;
-#endif
     totals->free();
     delete totals;
 }
@@ -689,6 +683,10 @@ void Stats::print(bool prog)
         interval_c_tput = (totals->cross_shard_txn_cnt - totals->previous_interval_cross_shard_txn_cnt) / (PROG_TIMER / BILLION);
     }
     fprintf(outf, "total_runtime=%f\n", totals->total_runtime / BILLION);
+    #if IN_RECV
+    fprintf(outf, "recv_try_cnt=%ld\n", recv_try_cnt);
+    fprintf(outf, "recv_fail_cnt=%ld\n", recv_fail_cnt);
+    #endif
     fprintf(outf, "--------------------------------\n");
     fprintf(outf, "interval_tput=%f\ttxn_cnt=%ld\n", interval_tput, totals->txn_cnt - totals->previous_interval_txn_cnt);
     g_is_sharding ? fprintf(outf, "interval_cput=%f\tc_txn_cnt=%ld\n", interval_c_tput, totals->cross_shard_txn_cnt - totals->previous_interval_cross_shard_txn_cnt): true;
@@ -912,10 +910,6 @@ void Stats_thd::print(FILE *outf, bool prog)
         fprintf(outf,
                 "idle_time_worker %ld=%f\n", i, idle_worker_times[i] / BILLION);
     }
-
-    // fprintf(outf,
-    //             "new_txn_waste_time =%f\n", new_txn_thd_waste_time / BILLION);
-
 
     // IO
     double msg_send_time_avg = 0;

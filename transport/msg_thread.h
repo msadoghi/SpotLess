@@ -42,35 +42,12 @@ struct mbuf
     }
     bool ready()
     {
-#if CONSENSUS == HOTSTUFF
-    #if PVP_FORCE
-        if (simulation->is_warmup_done() && ISSERVER)
-        {
-            if (cnt == MESSAGE_PER_BUFFER || (force && cnt)){
-                force = false;
-                // printf("%lu\n",cnt);
-                return true;
-            }
-            return false;
-        }
-        else{
-            if(cnt){
-                return true;
-            }
-            return false;
-        }
-    #else
-        if(cnt){
-            return true;
-        }
-        return false;
-    #endif
-#else
         if (simulation->is_warmup_done() && ISSERVER)
         {
             if (cnt == MESSAGE_PER_BUFFER || (force && cnt)){
                 force = false;
                 return true;
+
             }
             return false;
         }
@@ -82,7 +59,6 @@ struct mbuf
                 return true;
             return false;
         }
-#endif
     }
 };
 

@@ -4,8 +4,7 @@ HOSTS="$1"
 SCRIPT="$2"
 count=0
 # IDENTITY="~/Desktop/pvp/kdk.pem"
-#IDENTITY="~/kdkCA.pem"
-# IDENTITY="~/oracle2.key"
+# IDENTITY="~/kdkCA.pem"
 IDENTITY="~/kdk_oracle.key"
 
 for HOSTNAME in ${HOSTS}; do
@@ -17,4 +16,3 @@ while [ $count -gt 0 ]; do
 	wait $pids
 	count=`expr $count - 1`
 done
-

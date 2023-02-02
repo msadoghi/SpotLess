@@ -50,7 +50,6 @@ void MessageThread::run()
 {
     Message *msg = NULL;
     uint64_t dest_node_id;
-    vector<uint64_t> dest;
     vector<string> allsign;
     mbuf *sbuf;
 
@@ -78,8 +77,8 @@ void MessageThread::run()
     } 
 #endif
 
-    // dest = msg_queue.dequeue(get_thd_id(), allsign, msg);
     msg_queue.dequeue(get_thd_id(), allsign, msg);
+
     if (!msg)
     {
         check_and_send_batches();
@@ -89,16 +88,9 @@ void MessageThread::run()
         }
         return;
     }
-#if !SEMA_TEST
-    if (idle_starttime > 0 && simulation->is_warmup_done())
-    {
-        output_thd_idle_time[td_id] += get_sys_clock() - idle_starttime;
-        idle_starttime = 0;
-    }
-#endif
+
     assert(msg);
 
-    // for (uint64_t i = 0; i < dest.size(); i++)
     for (uint64_t i = 0; i < msg->dest.size(); i++)
     {
         dest_node_id = msg->dest[i];
@@ -110,6 +102,7 @@ void MessageThread::run()
                 continue;
             }
         }
+
         // Adding signature, if present.
         if (allsign.size() > 0)
         {
@@ -137,6 +130,7 @@ void MessageThread::run()
             msg->sigSize = msg->signature.size();
             msg->keySize = msg->pubKey.size();
         }
+
         sbuf = buffer[dest_node_id];
         if (!sbuf->fits(msg->get_size()))
         {
@@ -144,23 +138,16 @@ void MessageThread::run()
             cout << "not fitting " << sbuf->cnt << endl;
             send_batch(dest_node_id);
         }
-// #if VIEW_CHANGES
-//         if (msg->rtype == VIEW_CHANGE)
-//             sbuf->force = true;
-//         if (msg->rtype == NEW_VIEW)
-//             sbuf->force = true;
-// #endif
-        if (msg->rtype == PBFT_CHKPT_MSG){
+#if VIEW_CHANGES
+        if (msg->rtype == VIEW_CHANGE)
             sbuf->force = true;
-        }
-#if PVP_FORCE
-        else if(msg->rtype == HOTSTUFF_GENERIC_MSG){
-             sbuf->force = true;
-        }else if(msg->force == true){
+        if (msg->rtype == NEW_VIEW)
             sbuf->force = true;
-        }
 #endif
+        if (msg->rtype == PBFT_CHKPT_MSG)
+            sbuf->force = true;
         msg->copy_to_buf(&(sbuf->buffer[sbuf->ptr]));
+
         sbuf->cnt += 1;
         sbuf->ptr += msg->get_size();
 

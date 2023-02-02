@@ -11,7 +11,7 @@ class Message;
 class msg_entry
 {
 public:
-    ~msg_entry(){ this->allsign.clear(); }
+    ~msg_entry() { this->allsign.clear(); };
     Message *msg;
     uint64_t starttime;
     vector<string> allsign;
@@ -24,9 +24,8 @@ class MessageQueue
 public:
     void init();
     void release();
-    
+
     void enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t> &dest);
-    // vector<uint64_t> dequeue(uint64_t thd_id, vector<string> &allsign, Message *&msg);
     void dequeue(uint64_t thd_id, vector<string> &allsign, Message *&msg);
 
 private:

@@ -67,10 +67,7 @@ public:
     Message *sched_dequeue(uint64_t thd_id);
     void sequencer_enqueue(uint64_t thd_id, Message *msg);
     Message *sequencer_dequeue(uint64_t thd_id);
-#if TEMP_QUEUE
-    bool check_view(Message * msg);
-    void reenqueue(uint64_t instance_id);
-#endif
+
     uint64_t get_cnt() { return get_wq_cnt() + get_rem_wq_cnt() + get_new_wq_cnt(); }
     uint64_t get_wq_cnt() { return 0; }
     uint64_t get_sched_wq_cnt() { return 0; }
@@ -78,28 +75,15 @@ public:
     uint64_t get_new_wq_cnt() { return 0; }
 
 private:
+    // boost::lockfree::queue<work_queue_entry *> **work_queue;
+    // boost::lockfree::queue<work_queue_entry *> *new_txn_queue;
     boost::lockfree::queue<work_queue_entry *> **work_queue = nullptr;
-    #if !PVP
     boost::lockfree::queue<work_queue_entry *> *new_txn_queue = nullptr;
-    #else
-    boost::lockfree::queue<work_queue_entry *> **new_txn_queue = nullptr;
-    #endif
-
-#if TEMP_QUEUE
-    boost::lockfree::queue<work_queue_entry *> **temp_queue = nullptr;
-#endif
-
-    boost::lockfree::queue<work_queue_entry *> **prior_queue = nullptr;
-
+    boost::lockfree::queue<work_queue_entry *> *seq_queue;
+    boost::lockfree::queue<work_queue_entry *> **sched_queue;
+    uint64_t sched_ptr;
+    BaseQuery *last_sched_dq;
     uint64_t curr_epoch;
-
-#if EXCLUSIVE_BATCH
-    uint64_t idx = g_node_id;
-    std::mutex clb_lock[MULTI_INSTANCES];
-    uint64_t clb_cnt[MULTI_INSTANCES] = {0};
-
-#endif
-
 };
 
 #endif

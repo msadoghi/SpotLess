@@ -2,8 +2,8 @@
 import numpy as np
 
 DONE_TIMER=30
-MULTI_INSTANCE=96
-CLIENT_CNT=128
+MULTI_INSTANCE=128
+CLIENT_CNT=4
 worker_thread_cnt = MULTI_INSTANCE + 4
 Output_idle_times = list()
 idle_times = list()
@@ -12,15 +12,15 @@ txn_cnts = list()
 latencies = list()
 
 def deal_with(out_str, i):
-    # if out_str.find("idle_time_worker ") != -1:
-    #     out_str = out_str[len("idle_time_worker "):]
-    #     thd_id = out_str[:out_str.find("=")]
-    #     idle_time = out_str[out_str.find("=") + 1 : -1]
-    #     idle_times[int(thd_id)].append(float(idle_time))
-    # elif out_str.find("Output ") != -1:
-    #     idle_time = float(out_str[out_str.find(":") + 2: -1])
-    #     Output_idle_times.append(idle_time)
-    if out_str.find("tput         =") != -1:
+    if out_str.find("idle_time_worker ") != -1:
+        out_str = out_str[len("idle_time_worker "):]
+        thd_id = out_str[:out_str.find("=")]
+        idle_time = out_str[out_str.find("=") + 1 : -1]
+        idle_times[int(thd_id)].append(float(idle_time))
+    elif out_str.find("Output ") != -1:
+        idle_time = float(out_str[out_str.find(":") + 2: -1])
+        Output_idle_times.append(idle_time)
+    elif out_str.find("tput         =") != -1:
         tput = float(out_str[out_str.find("=") + 1 : out_str.find("txn_cnt=")])
         through_puts[i] = tput
     elif out_str.find("txn_cnt=") == 0:
@@ -98,13 +98,6 @@ def print_output():
 
 
 def print_throughput():
-    global through_puts
-    tputs = []
-    for tput in through_puts:
-        if tput == 0:
-            continue
-        tputs.append(tput)
-    through_puts = tputs
     result = "Max of Throughput is " + str(max(through_puts)) \
              + " from " + str(through_puts.index(max(through_puts))) + "\n\n"
     fw.write(result)
@@ -150,10 +143,6 @@ for i in range(worker_thread_cnt):
 
 for i in range(MULTI_INSTANCE):
     through_puts.append(0)
-    FAIL_DIVIDER = 128
-    FAIL_ID = 0
-    if i % FAIL_DIVIDER == FAIL_ID:
-        continue
     fo = open("results/" + str(i) + ".out", "r+")
     while True:
         line = fo.readline()

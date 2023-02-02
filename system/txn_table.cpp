@@ -13,7 +13,7 @@
 void TxnTable::init(Workload *wl)
 {
     txn_man_pool.init(wl,0);
-    txn_table_pool.init(wl,0);
+    txn_table_pool.init(wl,0);;
     DEBUG_M("TxnTable::init pool_node alloc\n");
     pool_size = indexSize + 1;
     pool = (pool_node **)mem_allocator.align_alloc(sizeof(pool_node *) * pool_size);
@@ -121,11 +121,13 @@ TxnManager *TxnTable::get_transaction_manager(uint64_t thd_id, uint64_t txn_id, 
     }
     else
     {
+
         // Allocate memory for a txn_node.
         txn_table_pool.get(txn_id, t_node);
 
         // Allocate memory for a txn manager.
         txn_man_pool.get(txn_id, txn_man);
+
         // Set fields for txn manager.
         txn_man->set_txn_id(txn_id);
         txn_man->set_batch_id(batch_id);
@@ -133,9 +135,6 @@ TxnManager *TxnTable::get_transaction_manager(uint64_t thd_id, uint64_t txn_id, 
         t_node->txn_man = txn_man;
         txn_man->txn_stats.starttime = get_sys_clock();
         txn_man->txn_stats.restart_starttime = txn_man->txn_stats.starttime;
-
-        txn_man->prepmsg = nullptr;
-        txn_man->propmsg = nullptr;
 
         // Put the txn manager in the list.
         LIST_PUT_TAIL(pool[pool_id]->head, pool[pool_id]->tail, t_node);
@@ -146,6 +145,7 @@ TxnManager *TxnTable::get_transaction_manager(uint64_t thd_id, uint64_t txn_id, 
         // unset modify bit for this pool: Unlock.
         ATOM_CAS(pool[pool_id]->modify, true, false);
     }
+
     INC_STATS(thd_id, txn_table_get_time, get_sys_clock() - starttime);
     INC_STATS(thd_id, txn_table_get_cnt, 1);
     return txn_man;
@@ -155,9 +155,8 @@ void TxnTable::release_transaction_manager(uint64_t thd_id, uint64_t txn_id, uin
 {
     uint64_t starttime = get_sys_clock();
     DEBUG_Q("release txm_mgr: thd_id=%lu, txn_id=%lu, batch_id=%lu\n", thd_id, txn_id, batch_id);
-    //printf("release txm_mgr: thd_id=%lu, txn_id=%lu, batch_id=%lu\n", thd_id, txn_id, batch_id);
-    fflush(stdout);
     uint64_t pool_id = txn_id % pool_size;
+
     // Lock the pool before access.
     // set modify bit for this pool: txn_id % pool_size
     while (!ATOM_CAS(pool[pool_id]->modify, false, true))
@@ -186,15 +185,16 @@ void TxnTable::release_transaction_manager(uint64_t thd_id, uint64_t txn_id, uin
     //assert(t_node);
     if (t_node == NULL)
     {
-        // cout << "txn: " << txn_id;
-        // assert(0);
-    }else{
-        assert(t_node->txn_man);
-        // Releasing the txn manager.
-        txn_man_pool.put(txn_id, t_node->txn_man);
-        // Releasing the node associated with the txn_mann
-        txn_table_pool.put(txn_id, t_node);
+        cout << "txn: " << txn_id;
+        assert(0);
     }
+    assert(t_node->txn_man);
+
+    // Releasing the txn manager.
+    txn_man_pool.put(txn_id, t_node->txn_man);
+
+    // Releasing the node associated with the txn_mann
+    txn_table_pool.put(txn_id, t_node);
 
     INC_STATS(thd_id, txn_table_release_time, get_sys_clock() - starttime);
     INC_STATS(thd_id, txn_table_release_cnt, 1);

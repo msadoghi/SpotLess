@@ -22,24 +22,11 @@ class ServerTimer
 	// Stores time of arrival for each transaction.
 	std::vector<Timer *> txn_map;
 	bool timer_state;
-	std::mutex tlock;
-	
+
 public:
-
-#if PVP_RECOVERY
-	bool waiting_prepare;
-	uint64_t last_new_view_time;
-	bool timeout = false;
-#endif
-
-#if CONSENSUS == HOTSTUFF && PVP_RECOVERY
-	bool checkTimer(Timer*& ptimer);
-#endif
-
 	void startTimer(string digest, Message *clqry);
 	void endTimer(string digest);
 	bool checkTimer();
-
 	void pauseTimer();
 	void resumeTimer();
 	Timer *fetchPendingRequests(uint64_t idx);
@@ -52,7 +39,7 @@ class ClientTimer
 {
 	// Stores time of arrival for each transaction.
 	std::vector<Timer *> txn_map;
-	std::mutex tlock;
+
 public:
 	void startTimer(uint64_t timestp, ClientQueryBatch *cqry);
 	void endTimer(uint64_t timestp);
@@ -63,11 +50,8 @@ public:
 
 /************************************/
 
-extern ClientTimer *client_timer;
-#if !PVP
 extern ServerTimer *server_timer;
-#else
-extern ServerTimer *server_timer[MULTI_INSTANCES];
-#endif
+extern ClientTimer *client_timer;
+extern std::mutex tlock;
 
 #endif // TIMER_ON

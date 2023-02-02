@@ -161,7 +161,7 @@ hostip_phx = [
 "10.0.0.183",   #phnx_16core_159
 ]
 
-hostip_machines = hostip_phx[:]
+hostip_machines = hostip_phx[:129]
 
 # python scripts/ifconfig.py
 # python scripts/StopSystem.py

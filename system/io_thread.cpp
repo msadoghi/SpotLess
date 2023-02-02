@@ -18,9 +18,11 @@ void InputThread::managekey(KeyExchange *keyex)
 {
     string algorithm = keyex->pkey.substr(0, 4);
     keyex->pkey = keyex->pkey.substr(4, keyex->pkey.size() - 4);
+    #if PRINT_KEYEX
     cout << "Algo: " << algorithm << " :: " << keyex->return_node << endl;
     cout << "Storing the key: " << keyex->pkey << " ::size: " << keyex->pkey.size() << endl;
     fflush(stdout);
+    #endif
 
 #if CRYPTO_METHOD_CMAC_AES
     if (algorithm == "CMA-")
@@ -61,7 +63,6 @@ void InputThread::setup()
 #endif
 
     std::vector<Message *> *msgs;
-
     while (!simulation->is_setup_done())
     {
 #if FIX_INPUT_THREAD_BUG
@@ -74,17 +75,17 @@ void InputThread::setup()
 #endif
         if (msgs == NULL)
             continue;
-
         while (!msgs->empty())
         {
             Message *msg = msgs->front();
-
             if (msg->rtype == INIT_DONE)
             {
-                printf("Received INIT_DONE from node %ld by %ld\n", msg->return_node_id, get_thd_id() - g_thread_cnt);
+                printf("Received INIT_DONE from node %ld\n", msg->return_node_id);
                 fflush(stdout);
                 simulation->process_setup_msg();
+                #if FIX_MEM_LEAK
                 Message::release_message(msg);
+                #endif
             }
             else
             {
@@ -219,11 +220,11 @@ RC InputThread::client_recv_loop()
 
             //cout<<"Node: "<<msg->return_node_id <<" :: Txn: "<< msg->txn_id <<"\n";
             //fflush(stdout);
-            #if !MULTI_ON
-            return_node_offset = get_client_view();
+            #if !PVP
+            return_node_offset = get_view_primary(((ClientResponseMessage *)msg)->view);
             #else
             uint64_t instance_id = msg->txn_id / get_batch_size() % get_totInstances();
-            return_node_offset = instance_id;
+            return_node_offset = get_view_primary(((ClientResponseMessage *)msg)->view, instance_id);
             #endif
             
 #if RING_BFT
@@ -239,11 +240,10 @@ RC InputThread::client_recv_loop()
             // Check if the response is valid.
             assert(clrsp->validate());
             uint64_t response_count = 0;
-            
+
             #if FIX_CL_INPUT_THREAD_BUG
             client_response_lock.lock();
             #endif
-            
             if (client_responses_directory.exists(msg->txn_id))
             {
                 ClientResponseMessage *old_clrsp = client_responses_directory.get(msg->txn_id);
@@ -265,7 +265,6 @@ RC InputThread::client_recv_loop()
                 delete_msg_buffer(buf);
                 client_responses_directory.add(msg->txn_id, (ClientResponseMessage *)deepMsg);
             }
-
             #if FIX_CL_INPUT_THREAD_BUG
             client_response_lock.unlock();
             #endif
@@ -273,11 +272,6 @@ RC InputThread::client_recv_loop()
 //            cout << "msg->txn_id" << msg->txn_id << "   " << response_count << endl;
             if (response_count == g_min_invalid_nodes + 1)
             {
-                // #if KDK_DEBUG1
-                // cout << "msg->txn_id " << msg->txn_id << "   " << response_count << endl;
-                // cout << "time1 " << get_sys_clock()    << " - time2 " << clrsp->client_ts[get_batch_size() - 1] << endl;
-                // cout << "= " << (get_sys_clock() - clrsp->client_ts[get_batch_size() - 1])/1000000 << endl;
-                // #endif
                 // If true, set this as the next transaction completed.
                 set_last_valid_txn(msg->txn_id);
 #if TIMER_ON
@@ -287,41 +281,24 @@ RC InputThread::client_recv_loop()
                 // cout << "validated: " << clrsp->txn_id << "   " << clrsp->return_node_id << "\n";
                 // fflush(stdout);
 
-#if VIEW_CHANGES
-                // cout << "Client_View:" << get_client_view() << endl;
-                // cout << "View: " << clrsp->view << "\n";
-                // fflush(stdout);
-
-                // This should happen only once after the view change.
-                if (get_client_view() != clrsp->view)
-                {
-                    // Extract the number of pending requests.
-                    uint64_t pending = client_man.get_inflight(get_client_view());
-                    for (uint64_t j = 0; j < pending; j++)
-                    {
-                        client_man.inc_inflight(clrsp->view);
-                    }
-
-                    // Move to new view.
-                    set_client_view(clrsp->view);
-                    return_node_offset = get_client_view();
-                }
-#endif
-
 #if CLIENT_RESPONSE_BATCH == true
+                // cout << "return_node_offset = " << return_node_offset << endl;
                 for (uint64_t k = 0; k < g_batch_size; k++)
                 {
                     if (simulation->is_warmup_done())
                     {
+                        fflush(stdout);
+
                         INC_STATS(get_thd_id(), txn_cnt, 1);
                         uint64_t timespan = get_sys_clock() - clrsp->client_ts[k];
                         INC_STATS(get_thd_id(), txn_run_time, timespan);
                         sumlat = sumlat + timespan;
                         txncmplt++;
-                        // cout << timespan / BILLION << endl;
+                        fflush(stdout);
                     }
                     inf = client_man.dec_inflight(return_node_offset);
                 }
+                
                 #if FIX_CL_INPUT_THREAD_BUG
                 client_response_lock.lock();
                 #endif
@@ -333,6 +310,11 @@ RC InputThread::client_recv_loop()
                 client_response_lock.unlock();
                 #endif
 
+                #if CONSENSUS == HOTSTUFF
+                // go to next view
+//              set_client_view(rsp_view + 1);
+                dec_in_round(return_node_offset);
+                #endif
 #else // !CLIENT_RESPONSE_BATCH
 
                 INC_STATS(get_thd_id(), txn_cnt, 1);
@@ -390,7 +372,6 @@ RC InputThread::server_recv_loop()
 #else
         msgs = tport_man.recv_msg(get_thd_id());
 #endif
-
         if (msgs == NULL)
         {
             if (idle_starttime == 0)
@@ -421,14 +402,21 @@ RC InputThread::server_recv_loop()
                 INC_STATS(_thd_id, msg_cl_in, 1);
             }
 #endif
-
+#if CONSENSUS == HOTSTUFF
+            if (msg->rtype == CL_BATCH)
+            {
+                // For CL_BATCH msgs in HOTSTUFF, the txn_id is assigned after the msg in dequeued from the new_txn_queue
+                fflush(stdout);
+                INC_STATS(_thd_id, msg_cl_in, 1);
+            }
+#else
             if (msg->rtype == CL_BATCH)
             {
                 // Linearizing requests.
                 msg->txn_id = get_and_inc_next_idx();
                 INC_STATS(_thd_id, msg_cl_in, 1);
             }
-
+#endif
             work_queue.enqueue(get_thd_id(), msg, false);
             msgs->erase(msgs->begin());
         }
@@ -441,9 +429,7 @@ RC InputThread::server_recv_loop()
     for(uint i=0; i<g_thread_cnt; i++){
         sem_post(&worker_queue_semaphore[i]);
     }
-#if CONSENSUS == HOTSTUFF
     sem_post(&new_txn_semaphore);
-#endif
     sem_post(&execute_semaphore);
 #endif
 
@@ -477,11 +463,12 @@ void OutputThread::setup()
     commonVar++;
     batchMTX.unlock();
     messager->idle_starttime = 0;
+
 #if SEMA_TEST
 #if TRANSPORT_OPTIMIZATION
-    uint64_t td_id =  (io_thd_id - g_thread_cnt - g_rem_thread_cnt) % g_this_send_thread_cnt;
+        uint64_t td_id =  (io_thd_id - g_thread_cnt - g_rem_thread_cnt) % g_this_send_thread_cnt;
 #else
-    uint64_t td_id =  io_thd_id % g_this_send_thread_cnt;
+        uint64_t td_id =  io_thd_id % g_this_send_thread_cnt;
 #endif
     while (!simulation->is_setup_done())
     {
@@ -517,7 +504,7 @@ RC OutputThread::run()
         messager->run();
     }
 
-    // printf("Output %ld: %f\n", _thd_id, output_thd_idle_time[_thd_id % g_send_thread_cnt] / BILLION);
+    //printf("Output %ld: %f\n", _thd_id, output_thd_idle_time[_thd_id % g_send_thread_cnt] / BILLION);
     fflush(stdout);
     return FINISH;
 }

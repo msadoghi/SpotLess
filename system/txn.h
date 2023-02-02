@@ -6,7 +6,6 @@
 #include "array.h"
 #include "message.h"
 #include "smart_contract.h"
-#include "work_queue.h"
 
 class Workload;
 class Thread;
@@ -67,6 +66,9 @@ public:
     //PBFT Stats
     double time_start_pre_prepare;
     double time_start_prepare;
+    #if CONSENSUS == HOTSTUFF
+    double time_start_precommit;
+    #endif
     double time_start_commit;
     double time_start_execute;
 };
@@ -163,6 +165,48 @@ public:
     uint64_t get_commit_rsp_cnt(int shard);
 #endif
 
+#if CONSENSUS == HOTSTUFF
+    HOTSTUFFPrepareMsg *prepmsg;
+    void set_primarybatch(HOTSTUFFPrepareMsg *prep);
+    QuorumCertificate preparedQC;
+    QuorumCertificate precommittedQC;
+    QuorumCertificate committedQC;
+#if CHAINED || SHIFT_QC
+    QuorumCertificate genericQC;
+#endif
+    uint64_t prepare_vote_cnt;
+    vector<uint64_t> vote_prepare;
+    uint64_t precommit_vote_cnt;
+    vector<uint64_t> vote_precommit;
+    uint64_t commit_vote_cnt;
+    vector<uint64_t> vote_commit;
+    uint64_t new_view_vote_cnt;
+    vector<uint64_t> vote_new_view;
+    void setPreparedQC(HOTSTUFFPreCommitMsg *pcmsg);
+    void setPreCommittedQC(HOTSTUFFCommitMsg *cmsg);
+    void setCommittedQC(HOTSTUFFDecideMsg *dmsg);
+    QuorumCertificate get_preparedQC();
+    QuorumCertificate get_precommittedQC();
+    QuorumCertificate get_committedQC();
+    bool precommited = false;
+    bool is_precommitted();
+    void set_precommitted();
+    bool new_viewed = false;
+    bool is_new_viewed();
+    void set_new_viewed();
+    void send_hotstuff_precommit_msgs();
+    void send_hotstuff_commit_msgs();
+    void send_hotstuff_decide_msgs();
+    void send_hotstuff_prepare_vote();
+    void send_hotstuff_precommit_vote();
+    void send_hotstuff_commit_vote();
+#if !STOP_NODE_SET
+    bool send_hotstuff_newview();
+#else
+    bool send_hotstuff_newview(bool &failednode);
+#endif
+#endif
+
     uint64_t decr_prep_rsp_cnt();
     uint64_t get_prep_rsp_cnt();
     bool is_prepared();
@@ -186,6 +230,8 @@ public:
     void send_pbft_commit_msgs();
 
 #if MULTI_ON
+    // An additional field called instance_id, 
+    // which is used to determine which instance the transaction belongs to
     uint64_t instance_id;
 #endif
 

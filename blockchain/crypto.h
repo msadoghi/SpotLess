@@ -54,7 +54,19 @@ inline void ED25519GenerateKeys(string &skey, string &pkey)
 {
     AutoSeededRandomPool prng;
     // Initilize singer;
+#if FIX_ED25519_BUG
+    while(true){
+        try:{
+            signer.AccessPrivateKey().GenerateRandom(prng);
+            break;
+        }catch(Exception & e){
+            cout << e.what() << endl;
+        }
+    }
+#else
     signer.AccessPrivateKey().GenerateRandom(prng);
+#endif
+    
     const ed25519PrivateKey &privKey = dynamic_cast<const ed25519PrivateKey &>(signer.GetPrivateKey());
 
     // Initialize keys just in case we need them
@@ -385,6 +397,7 @@ inline void signingClientNode(string message, string &signature, string &pkey, u
 
 inline void signingNodeNode(string message, string &signature, string &pkey, uint64_t dest_node)
 {
+
 #if CRYPTO_METHOD_CMAC_AES
     signature = CmacSignString(cmacPrivateKeys[dest_node], message);
     pkey = cmacPrivateKeys[dest_node];

@@ -29,6 +29,7 @@ void MessageQueue::init()
         sthd_m_cache.push_back(NULL);
 }
 
+#if FIX_MEM_LEAK
 void MessageQueue::release()
  {
      if(m_queue){
@@ -62,7 +63,8 @@ void MessageQueue::release()
          delete ctr;
          ctr = nullptr;
      }
- }
+}
+#endif
 
 void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t> &dest)
 {
@@ -190,6 +192,36 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t>
         }
         break;
 #endif
+        
+#if CONSENSUS==HOTSTUFF && THRESHOLD_SIGNATURE
+    case HOTSTUFF_PREP_MSG:
+        ((HOTSTUFFPrepareMsg *)msg)->sign(dest[0]);
+        break;
+    case HOTSTUFF_PREP_VOTE_MSG:
+        ((HOTSTUFFPrepareVoteMsg *)msg)->sign(dest[0]);
+        break;
+    case HOTSTUFF_PRECOMMIT_MSG:
+        ((HOTSTUFFPreCommitMsg *)msg)->sign(dest[0]);
+        break;
+    case HOTSTUFF_PRECOMMIT_VOTE_MSG:
+        ((HOTSTUFFPreCommitVoteMsg *)msg)->sign(dest[0]);
+        break;
+    case HOTSTUFF_COMMIT_MSG:
+        ((HOTSTUFFCommitMsg *)msg)->sign(dest[0]);
+        break;
+    case HOTSTUFF_COMMIT_VOTE_MSG:
+        ((HOTSTUFFCommitVoteMsg *)msg)->sign(dest[0]);
+        break;
+    case HOTSTUFF_DECIDE_MSG:
+        ((HOTSTUFFDecideMsg *)msg)->sign(dest[0]);
+        break;
+    case HOTSTUFF_NEW_VIEW_MSG:
+        ((HOTSTUFFNewViewMsg *)msg)->sign(dest[0]);
+        break;
+    case HOTSTUFF_GENERIC_MSG:
+        ((HOTSTUFFGenericMsg *)msg)->sign(dest[0]);
+        break;
+#endif
     default:
         break;
     }
@@ -219,7 +251,7 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t>
             sem_post(&output_semaphore[rand]);
         }
         #endif
-
+        
         INC_STATS(thd_id, msg_queue_enq_cnt, 1);
         break;
     }
@@ -240,6 +272,17 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t>
 #if VIEW_CHANGES
     case VIEW_CHANGE:
     case NEW_VIEW:
+#endif
+#if CONSENSUS == HOTSTUFF
+    case HOTSTUFF_PREP_MSG:
+    case HOTSTUFF_PREP_VOTE_MSG:
+    case HOTSTUFF_PRECOMMIT_MSG:
+    case HOTSTUFF_PRECOMMIT_VOTE_MSG:
+    case HOTSTUFF_COMMIT_MSG:
+    case HOTSTUFF_COMMIT_VOTE_MSG:
+    case HOTSTUFF_DECIDE_MSG:
+    case HOTSTUFF_NEW_VIEW_MSG:
+    case HOTSTUFF_GENERIC_MSG:
 #endif
     {
         // Putting in queue of all the output threads as destinations differ.
@@ -280,17 +323,21 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t>
 
             INC_STATS(thd_id, msg_queue_enq_cnt, 1);
         }
+
 #if TRANSPORT_OPTIMIZATION
         if(dest.size() == 1 && dest[0] % g_this_send_thread_cnt != j){
             delete_msg_buffer(buf);
             break;
         }
 #endif
+
         // Putting in queue of the last output thread.
+
         for (uint64_t i = 0; i < dest.size(); i++)
         {
             entry->msg->dest.push_back(dest[i]);
         }
+
         entry->starttime = get_sys_clock();
         while (!m_queue[j]->push(entry) && !simulation->is_done())
         {
@@ -301,7 +348,7 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t>
             // After a msg is enqueued, increase the value of output_semaphore by 1
             sem_post(&output_semaphore[j]);
         #endif
-
+        
         INC_STATS(thd_id, msg_queue_enq_cnt, 1);
 
         delete_msg_buffer(buf);
@@ -311,13 +358,12 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t>
         break;
     }
 }
-
 void MessageQueue::dequeue(uint64_t thd_id, vector<string> &allsign, Message *&msg)
+// vector<uint64_t> MessageQueue::dequeue(uint64_t thd_id, vector<string> &allsign, Message *&msg)
 {
     msg_entry *entry = NULL;
-    vector<uint64_t> dest;
+    // vector<uint64_t> dest;
     bool valid = false;
-
 #if TRANSPORT_OPTIMIZATION
     uint64_t td_id = 0;
     if(ISSERVER)
@@ -339,7 +385,6 @@ void MessageQueue::dequeue(uint64_t thd_id, vector<string> &allsign, Message *&m
 #else
     valid = m_queue[td_id % g_this_send_thread_cnt]->pop(entry);
 #endif
-
     uint64_t curr_time = get_sys_clock();
     if (valid)
     {
@@ -367,14 +412,15 @@ void MessageQueue::dequeue(uint64_t thd_id, vector<string> &allsign, Message *&m
 #endif
 
         msg = entry->msg;
-        for (uint64_t i = 0; i < msg->dest.size(); i++)
-        {
-            dest.push_back(msg->dest[i]);
-        }
-        for (uint64_t i = 0; i < entry->allsign.size(); i++)
-        {
-            allsign.push_back(entry->allsign[i]);
-        }
+        allsign = entry->allsign;
+        // for (uint64_t i = 0; i < msg->dest.size(); i++)
+        // {
+        //     dest.push_back(msg->dest[i]);
+        // }
+        // for (uint64_t i = 0; i < entry->allsign.size(); i++)
+        // {
+        //     allsign.push_back(entry->allsign[i]);
+        // }
 
         //printf("MQ Dequeue: %d :: Thd: %ld \n",msg->rtype,thd_id);
         //fflush(stdout);
@@ -383,6 +429,11 @@ void MessageQueue::dequeue(uint64_t thd_id, vector<string> &allsign, Message *&m
         INC_STATS(thd_id, msg_queue_cnt, 1);
         msg->mq_time = curr_time - entry->starttime;
         DEBUG_M("MessageQueue::enqueue msg_entry free\n");
+    //     entry->allsign.clear();
+    //     mem_allocator.free(entry, sizeof(struct msg_entry));
+    // }
+    // else
+    // {
         delete entry;
         return;
     }

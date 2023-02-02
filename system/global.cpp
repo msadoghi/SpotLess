@@ -17,12 +17,14 @@
 mem_alloc mem_allocator;
 Stats stats;
 SimManager *simulation;
-// Query_queue query_queue;
+#if !FIX_MEM_LEAK
+Query_queue query_queue;
+TxnManPool txn_man_pool;
+TxnTablePool txn_table_pool;
+#endif
 Client_query_queue client_query_queue;
 Transport tport_man;
-// TxnManPool txn_man_pool;
 TxnPool txn_pool;
-// TxnTablePool txn_table_pool;
 QryPool qry_pool;
 TxnTable txn_table;
 QWorkQueue work_queue;
@@ -187,7 +189,7 @@ void inc_next_index()
 	g_next_index++;
 	gnextMTX.unlock();
 }
-//[Dakai]
+
 void inc_next_index(uint64_t val) {
 	gnextMTX.lock();
 	g_next_index += val;
@@ -203,9 +205,25 @@ uint64_t curr_next_index()
 	return cval;
 }
 
-#if IN_RECV
-uint64_t recv_try_cnt = 0;
-uint64_t recv_fail_cnt = 0;
+#if CONSENSUS == HOTSTUFF
+#if !PVP
+// Entities for handling hotstuff_new_view_msgs
+uint32_t g_last_stable_new_viewed = 0;
+void set_curr_new_viewed(uint64_t txn_id){
+	g_last_stable_new_viewed = txn_id;
+}
+uint64_t get_curr_new_viewed(){
+	return g_last_stable_new_viewed;
+}
+#else
+uint32_t g_last_stable_new_viewed[MULTI_INSTANCES] = {0};
+void set_curr_new_viewed(uint64_t txn_id, uint64_t instance_id){
+	g_last_stable_new_viewed[instance_id] = txn_id;
+}
+uint64_t get_curr_new_viewed(uint64_t instance_id){
+	return g_last_stable_new_viewed[instance_id];
+}
+#endif
 #endif
 
 // Entities for handling checkpoints.
@@ -234,20 +252,13 @@ uint64_t get_last_deleted_txn()
 	return last_deleted_txn_man;
 }
 
-void inc_last_deleted_txn(uint64_t del_range)
+void inc_last_deleted_txn()
 {
-	if(del_range > last_deleted_txn_man)
- 		last_deleted_txn_man = del_range;
+	last_deleted_txn_man++;
 }
 
 // Information about batching threads.
-std::mutex g_checkpointing_lock;
-uint g_checkpointing_thd = 2;
-uint64_t txn_chkpt_holding[2] = {0};
-bool is_chkpt_holding[2] = {false}; 
-bool is_chkpt_stalled[2] = {false};
-sem_t chkpt_semaphore[2];
-
+uint g_checkpointing_thd = 1;
 uint64_t expectedExecuteCount = g_batch_size - 2;
 uint64_t expectedCheckpoint = TXN_PER_CHKPT - 5;
 uint64_t get_expectedExecuteCount()
@@ -256,7 +267,7 @@ uint64_t get_expectedExecuteCount()
 }
 
 void set_expectedExecuteCount(uint64_t val)
-{
+{	
 	expectedExecuteCount = val;
 #if SEMA_TEST
 	execute_msg_heap_pop();	//remvoe the last executed msg from the heap
@@ -289,12 +300,11 @@ uint64_t get_and_inc_next_idx()
 	uint64_t val;
 	next_idx_lock.lock();
   	val = next_idx;
-	next_idx += get_totInstances(); //In RCC, not increase by 1 but the number of instances
+	next_idx += get_totInstances(); //[Dakai] due to MULTI, not increase by 1 but the number of instances
 	next_idx_lock.unlock();
   	return val;
   }
 #endif
-
 
 void set_next_idx(uint64_t val)
 {
@@ -333,8 +343,7 @@ vector<uint64_t> nodes_to_send(uint64_t beg, uint64_t end)
 // STORAGE OF CLIENT DATA
 uint64_t ClientDataStore[SYNTH_TABLE_SIZE] = {0};
 
-// Entities for MULTI_ON
-#if MULTI_ON
+#if MULTI_ON || PVP
 
 uint64_t totInstances = MULTI_INSTANCES;
 uint64_t multi_threads = MULTI_THREADS;
@@ -345,6 +354,7 @@ uint64_t get_multi_threads() {
       return multi_threads;
 }
 
+#if MULTI_ON
 uint64_t current_primaries[MULTI_INSTANCES];
 
 void set_primary(uint64_t nid, uint64_t idx) {
@@ -367,19 +377,19 @@ void initialize_primaries() {
 bool isPrimary(uint64_t id) {
 	return primaries[id];
 }
+#endif //MULTI_ON
 
-#endif // MUTLI_ON
+#endif // MUTLI_ON || PVP
 
 
+#if CONSENSUS == HOTSTUFF
 #if SEMA_TEST
 // Entities for semaphore optimizations. The value of the semaphores means 
 // the number of msgs in the corresponding queues of the worker_threads.
 // Only worker_threads with msgs in their queues will be allocated with CPU resources.
 sem_t worker_queue_semaphore[THREAD_CNT];
-#if CONSENSUS == HOTSTUFF
 // new_txn_semaphore is the number of instances that a replica is primary and has not sent a prepare msg.
 sem_t new_txn_semaphore;
-#endif
 // execute_semaphore is whether the next msg to execute has been in the queue.
 sem_t execute_semaphore;
 // Entities for semaphore opyimizations on output_thread. The output_thread will be not allocated
@@ -387,6 +397,69 @@ sem_t execute_semaphore;
 sem_t output_semaphore[SEND_THREAD_CNT];
 // Semaphore indicating whether the setup is done
 sem_t setup_done_barrier;
+
+#if AUTO_POST
+#if !PVP
+bool auto_posted = false;
+std::mutex auto_posted_lock;
+void set_auto_posted(bool value){
+	auto_posted_lock.lock();
+    auto_posted = value;
+    auto_posted_lock.unlock();
+}
+bool is_auto_posted(){
+	bool value = false;
+    auto_posted_lock.lock();
+    value = auto_posted;
+    auto_posted_lock.unlock();
+    return value;
+}
+void* auto_post(void *ptr){
+	while(!simulation->is_setup_done()){
+		sleep(1);
+	}
+    while (!simulation->is_done()){
+        usleep(500000);
+        if(!is_auto_posted()){
+            set_auto_posted(true);
+            sem_post(&worker_queue_semaphore[0]);
+        }
+    }
+    return NULL;
+}
+#else
+bool auto_posted[MULTI_THREADS] = {false};
+std::mutex auto_posted_lock[MULTI_THREADS];
+void set_auto_posted(bool value, uint64_t instance_id){
+	auto_posted_lock[instance_id].lock();
+    auto_posted[instance_id] = value;
+    auto_posted_lock[instance_id].unlock();
+}
+bool is_auto_posted(uint64_t instance_id){
+	bool value = false;
+    auto_posted_lock[instance_id].lock();
+    value = auto_posted[instance_id];
+    auto_posted_lock[instance_id].unlock();
+    return value;
+}
+void* auto_post(void *ptr){
+	while(!simulation->is_setup_done()){
+		sleep(1);
+	}
+    while (!simulation->is_done()){
+        usleep(500000);
+		for(uint thd_id=0; thd_id<get_multi_threads(); thd_id++){
+			if(!is_auto_posted(thd_id)){
+            	set_auto_posted(true, thd_id);
+            	sem_post(&worker_queue_semaphore[thd_id]);
+        	}
+		}
+    }
+    return NULL;
+}
+#endif
+#endif
+
 uint64_t init_msg_sent[SEND_THREAD_CNT] = {0};
 void dec_init_msg_sent(uint64_t td_id){
 	init_msg_sent[td_id]--;
@@ -395,13 +468,19 @@ uint64_t get_init_msg_sent(uint64_t td_id ){
 	return init_msg_sent[td_id];
 }
 void init_init_msg_sent(){
-    for(uint i = 0; i < g_node_cnt; i++){
+    for(uint i = 0; i < g_total_node_cnt; i++){
         if(i==g_node_id)
             continue;
         init_msg_sent[i%SEND_THREAD_CNT] += 3;
     }
+#if THRESHOLD_SIGNATURE
+	for(uint i = 0; i < g_node_cnt; i++){
+		if(i==g_node_id)
+            continue;
+		init_msg_sent[i%SEND_THREAD_CNT] += 1;
+	}
+#endif
 }
-
 
 // A min heap storing txn_id of execute_msgs
 std::priority_queue<uint64_t , vector<uint64_t>, greater<uint64_t> > execute_msg_heap;
@@ -424,8 +503,240 @@ void execute_msg_heap_pop(){
     execute_msg_heap.pop();
     execute_msg_heap_lock.unlock();
 }
+#endif
+
+uint64_t expectedInstance;
+
+//Entities for client in HOTSTUFF and PVP.
+//next_to_send is just the id of primary in the next round.
+uint64_t next_to_send = g_node_id % g_node_cnt;
+uint64_t get_next_to_send(){
+    return next_to_send;
+}
+void inc_next_to_send(){
+	next_to_send = (next_to_send + 1) % g_node_cnt;
+}
+
+//in_round is the value of batches that are sent but have not received enough responses.
+uint64_t in_round[NODE_CNT] = {0};
+std::mutex in_round_lock;
+
+uint64_t get_in_round(uint32_t node_id){
+	in_round_lock.lock();
+	uint64_t value = in_round[node_id];
+	in_round_lock.unlock();
+	return value;
+}
+
+void inc_in_round(uint32_t node_id){
+	in_round_lock.lock();
+	in_round[node_id]++;
+	in_round_lock.unlock();
+}
+
+void dec_in_round(uint32_t node_id){
+	in_round_lock.lock();
+	in_round[node_id]--;
+	in_round_lock.unlock();
+}
+
+#if THRESHOLD_SIGNATURE
+
+secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
+unsigned char private_key[32];
+secp256k1_pubkey public_key;
+map<uint64_t, secp256k1_pubkey> public_keys;
+string get_secp_hash(string hash, RemReqType type){
+	if(type == HOTSTUFF_PREP_MSG || type == HOTSTUFF_PREP_VOTE_MSG)
+		return hash;
+	if(type == HOTSTUFF_PRECOMMIT_MSG || type == HOTSTUFF_PRECOMMIT_VOTE_MSG){
+		for ( size_t i = 0; i < 32 ; i++){      
+			hash[i] = (hash[i] + 1) % 255;
+		}
+	}else if(type == HOTSTUFF_COMMIT_MSG || type == HOTSTUFF_COMMIT_VOTE_MSG){
+		for ( size_t i = 0; i < 32 ; i++){      
+			hash[i] = (hash[i] + 2) % 255;
+		}
+	}else if(type == HOTSTUFF_DECIDE_MSG || type == HOTSTUFF_NEW_VIEW_MSG || type == HOTSTUFF_GENERIC_MSG){
+		for ( size_t i = 0; i < 32 ; i++){      
+			hash[i] = (hash[i] + 3) % 255;
+		}
+	}
+	return hash;
+}
+
+
+bool QuorumCertificate::ThresholdSignatureVerify(RemReqType rtype){
+#if ENABLE_ENCRYPT
+	unsigned char message[32];
+	memcpy(message, get_secp_hash(batch_hash, rtype).c_str(), 32);
+	for(auto it = signature_share_map.begin(); it != signature_share_map.end(); it++){
+		if(!secp256k1_ecdsa_verify(ctx, &(it->second), message, &public_keys[it->first])){
+			cout << it->first << endl;
+			fflush(stdout);
+			return false;
+		}
+	}
+#endif
+	return true;
+}
 
 #endif
+
+#if !PVP
+std::mutex hash_QC_lock;
+unordered_map<string, QuorumCertificate> hash_to_QC;
+unordered_map<string, uint64_t> hash_to_txnid;
+unordered_map<string, uint64_t> hash_to_view;
+#else
+std::mutex hash_QC_lock[MULTI_INSTANCES];
+vector<unordered_map<string, QuorumCertificate>> hash_to_QC;
+vector<unordered_map<string, uint64_t>> hash_to_txnid;
+vector<unordered_map<string, uint64_t>> hash_to_view;
+#endif
+
+
+#if !PVP
+// if sent is true, a replica considers itself not as the next primary
+// if sent is false, a replica considers itself as the next primary
+bool sent = true;
+// g_preparedQC is just the preparedQC in HOTSTUFF
+QuorumCertificate g_preparedQC;
+
+bool SafeNode(const QuorumCertificate &highQC){
+	//Liveness Rule
+	if(highQC.viewNumber>g_lockedQC.viewNumber || (highQC.viewNumber == 0 && g_lockedQC.genesis)){
+        return true;
+	}	
+	//Safety Rule
+    else if(highQC.viewNumber == g_lockedQC.viewNumber && highQC.batch_hash == g_lockedQC.batch_hash){
+        return true;
+    }
+    return false;
+}
+
+uint64_t get_view_primary(uint64_t view){
+	return view % g_node_cnt;
+}
+
+bool get_sent(){
+	return sent;
+}
+
+void set_sent(bool value){
+	if(!value){
+		fflush(stdout);
+	}
+	sent = value;
+}
+
+uint64_t get_next_idx_hotstuff(){
+	if(g_preparedQC.genesis){
+		return 0;
+	}
+	return hash_to_txnid[g_preparedQC.batch_hash] / get_batch_size() + 1;
+}
+
+void set_g_preparedQC(const QuorumCertificate& QC){
+	g_preparedQC = QC;
+}
+
+const QuorumCertificate& get_g_preparedQC(){
+	return g_preparedQC;
+}
+
+QuorumCertificate g_lockedQC;
+
+void set_g_lockedQC(const QuorumCertificate& QC){
+	g_lockedQC = QC;
+}
+
+const QuorumCertificate& get_g_lockedQC(){
+	return g_lockedQC;
+}
+
+#if SHIFT_QC && !CHAINED
+QuorumCertificate g_genericQC;
+
+void set_g_genericQC(const QuorumCertificate& QC){
+	g_genericQC = QC;
+}
+
+const QuorumCertificate& get_g_genericQC(){
+	return g_genericQC;
+}
+#endif
+
+#else
+bool sent[MULTI_INSTANCES] = {true};
+QuorumCertificate g_preparedQC[MULTI_INSTANCES];
+
+bool SafeNode(const QuorumCertificate &highQC, uint64_t instance_id){
+	//Liveness Rule
+	if(highQC.viewNumber>g_lockedQC[instance_id].viewNumber 
+	 || (highQC.viewNumber == 0 && g_lockedQC[instance_id].genesis)){
+        return true;
+	}	
+	//Safety Rule
+    else if(highQC.viewNumber == g_lockedQC[instance_id].viewNumber
+	 && highQC.batch_hash == g_lockedQC[instance_id].batch_hash){
+        return true;
+    }
+    return false;
+}
+
+uint64_t get_view_primary(uint64_t view, uint64_t instance_id){
+	return (view + instance_id) % g_node_cnt;
+}
+
+bool get_sent(uint64_t instance_id){
+	return sent[instance_id];
+}
+
+void set_sent(bool value, uint64_t instance_id){
+	sent[instance_id] = value;
+}
+
+uint64_t get_next_idx_hotstuff(uint64_t instance_id){
+	if(g_preparedQC[instance_id].genesis){
+		return instance_id;
+	}
+	return hash_to_txnid[instance_id][g_preparedQC[instance_id].batch_hash] / get_batch_size() + get_totInstances();
+}
+
+void set_g_preparedQC(const QuorumCertificate& QC, uint64_t instance_id){
+	g_preparedQC[instance_id] = QC;
+}
+
+const QuorumCertificate& get_g_preparedQC(uint64_t instance_id){
+	return g_preparedQC[instance_id];
+}
+
+QuorumCertificate g_lockedQC[MULTI_INSTANCES];
+
+void set_g_lockedQC(const QuorumCertificate& QC, uint64_t instance_id){
+	g_lockedQC[instance_id] = QC;
+}
+
+const QuorumCertificate& get_g_lockedQC(uint64_t instance_id){
+	return g_lockedQC[instance_id];
+}
+
+#if SHIFT_QC && !CHAINED
+QuorumCertificate g_genericQC[MULTI_INSTANCES];
+
+void set_g_genericQC(const QuorumCertificate& QC, uint64_t instance_id){
+	g_genericQC[instance_id] = QC;
+}
+
+const QuorumCertificate& get_g_genericQC(uint64_t instance_id){
+	return g_genericQC[instance_id];
+}
+#endif
+
+#endif	// PVP
+
+#endif	// CONSENSUS == HOTSTUFF
 
 
 // returns the current view.
@@ -434,11 +745,15 @@ uint64_t get_current_view(uint64_t thd_id)
 	return get_view(thd_id);
 }
 
-//[Dakai]
-#if VIEW_CHANGES || KDK_DEBUG5
 // For updating view of different threads.
+#if !PVP
 std::mutex newViewMTX[THREAD_CNT + REM_THREAD_CNT + SEND_THREAD_CNT];
 uint64_t newView[THREAD_CNT + REM_THREAD_CNT + SEND_THREAD_CNT] = {0};
+#else
+std::mutex newViewMTX[MULTI_INSTANCES];
+uint64_t newView[MULTI_INSTANCES] = {0};
+#endif
+
 uint64_t get_view(uint64_t thd_id)
 {
 	uint64_t nchange = 0;
@@ -453,8 +768,18 @@ void set_view(uint64_t thd_id, uint64_t val)
 	newViewMTX[thd_id].lock();
 	newView[thd_id] = val;
 	newViewMTX[thd_id].unlock();
+
+	#if TEMP_QUEUE
+	#if !PVP
+	if(thd_id ==0 ){
+	#else
+	if(thd_id < get_totInstances()){
+	#endif
+ 		work_queue.reenqueue(thd_id, false);
+ 	}
+ 	#endif
 }
-#endif
+//#endif
 
 // Size of the batch
 uint64_t g_batch_size = BATCH_SIZE;
@@ -631,10 +956,18 @@ uint64_t get_client_view()
 }
 #endif
 
-#if LOCAL_FAULT || VIEW_CHANGES
+#if PVP_RECOVERY
+uint64_t fail_count = 0;
+#endif
+
+#if LOCAL_FAULT || VIEW_CHANGES || PVP_RECOVERY
 // Server parameters for tracking failed replicas
 std::mutex stopMTX[SEND_THREAD_CNT];
 vector<vector<uint64_t>> stop_nodes; // List of nodes that have stopped.
+#if STOP_NODE_SET
+std::mutex stop_lock;
+set<uint64_t> stop_node_set;
+#endif
 
 // Client parameters for tracking failed replicas.
 std::mutex clistopMTX;

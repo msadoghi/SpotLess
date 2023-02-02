@@ -31,6 +31,9 @@ void clean();
 
 int main(int argc, char *argv[])
 {
+#if PVP
+    assert(CONSENSUS == HOTSTUFF);
+#endif
     // 0. initialize global data structure
     parser(argc, argv);
 #if SEED != 0
@@ -72,21 +75,31 @@ int main(int argc, char *argv[])
     simulation->init();
     printf("Done\n");
     fflush(stdout);
-#if BANKING_SMART_CONTRACT
-    // Workload *m_wl = new SCWorkload;
-    SCWorkload wl;
-#else
-    // Workload *m_wl = new YCSBWorkload;
-    YCSBWorkload wl;
-#endif
-
-    // m_wl->init();
+#if FIX_MEM_LEAK
+    #if BANKING_SMART_CONTRACT
+        SCWorkload wl;
+    #else
+        YCSBWorkload wl;
+    #endif
     wl.init();
+#else
+    #if BANKING_SMART_CONTRACT
+        Workload *m_wl = new SCWorkload;
+    #else
+        Workload *m_wl = new YCSBWorkload;
+    #endif
+    m_wl->init();
+#endif
+    
     printf("Workload initialized!\n");
     fflush(stdout);
 
 #if NETWORK_TEST
+    #if FIX_MEM_LEAK
+    tport_man.init(g_node_id, &wl);
+    #else
     tport_man.init(g_node_id, m_wl);
+    #endif
     sleep(3);
     if (g_node_id == 0)
         network_test();
@@ -135,25 +148,38 @@ int main(int argc, char *argv[])
 
 #if TIMER_ON
     printf("Initializing timers... ");
+#if !PVP
     server_timer = new ServerTimer();
+#else
+    for(uint i=0; i < get_totInstances(); i++){
+        server_timer[i] = new ServerTimer();
+        #if PVP_RECOVERY
+        server_timer[i]->last_new_view_time = get_sys_clock();
+        #endif
+    }
+#endif
 #endif
 
-#if LOCAL_FAULT || VIEW_CHANGES
-    // Adding a stop_nodes entry for each output thread.
-    for (uint i = 0; i < g_send_thread_cnt; i++)
-    {
-        vector<uint64_t> temp;
-        stop_nodes.push_back(temp);
-    }
+// #if LOCAL_FAULT || VIEW_CHANGES || PVP_RECOVERY
+//     // Adding a stop_nodes entry for each output thread.
+//     for (uint i = 0; i < g_send_thread_cnt; i++)
+//     {
+//         vector<uint64_t> temp;
+//         stop_nodes.push_back(temp);
+//     }
+// #endif
+
+#if MULTI_ON || PVP
+  set_next_idx(g_node_id);  
 #endif
 
 #if MULTI_ON
-  set_next_idx(g_node_id);  
   for(uint64_t i=0; i<get_totInstances(); i++) {
     set_primary(i,i);
   }
-
+  
   initialize_primaries();
+
 #endif  
 
     for (uint64_t i = 0; i < g_node_cnt + g_client_node_cnt; i++)
@@ -191,7 +217,7 @@ int main(int argc, char *argv[])
         }
         receivedKeys[i]++;
     }
-    //cout << "_____________ED25519 PRIV KEY: " << g_priv_key << endl;
+    // cout << "_____________ED25519 PRIV KEY: " << g_priv_key << endl;
     // cout << "_____________ED25519 PUBLIC KEY: " << g_public_key << endl;
     fflush(stdout);
 
@@ -310,6 +336,12 @@ int main(int argc, char *argv[])
     pthread_setname_np(p_thds[id - 1], "s_logger");
 #endif
 
+#if AUTO_POST && PVP_RECOVERY
+    pthread_t sema_thread;
+    pthread_create(&sema_thread, NULL, auto_post, NULL);
+    pthread_join(sema_thread, NULL);
+#endif
+
     for (uint64_t i = 0; i < all_thd_cnt; i++)
         pthread_join(p_thds[i], NULL);
 
@@ -337,7 +369,6 @@ int main(int argc, char *argv[])
     //txn_table_pool.free_all();
     //qry_pool.free_all();
     //stats.free();
-    clean();
     return 0;
 }
 
@@ -363,7 +394,7 @@ void clean(){
      delete simulation;
      delete BlockChain;
  #if TIMER_ON
-     delete server_timer;
+    //  delete server_timer;
  #endif
  #if EXT_DB == SQL || EXT_DB == SQL_PERSISTENT
      db->Close("");

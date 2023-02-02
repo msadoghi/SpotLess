@@ -99,6 +99,8 @@ public:
     double work_queue_dequeue_time;
     uint64_t work_queue_conflict_cnt;
 
+    // double new_txn_thd_waste_time;
+
     // Worker thread
     double worker_idle_time;
     double worker_activate_txn_time;

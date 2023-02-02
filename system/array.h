@@ -11,9 +11,11 @@ public:
     Array() : items(NULL), capacity(0), count(0)
     {
     }
+#if FIX_MEM_LEAK
     ~Array(){
-        release();
+         release();
     }
+#endif
     void init(uint64_t size)
     {
         DEBUG_M("Array::init %ld*%ld\n", sizeof(T), size);
@@ -71,9 +73,18 @@ public:
 
     void add(const T& item)
     {
+#if PVP_RECOVERY
+        if(count < capacity){
+            items[count] = item;
+            ++count;
+        }else if (count == capacity){
+            items[count - 1] = item;
+        }
+#else
         assert(count < capacity);
         items[count] = item;
         ++count;
+#endif
     }
 
     void add()
@@ -94,7 +105,7 @@ public:
         items[idx] = item;
     }
 
-    bool contains(T item)
+    bool contains(const T& item)
     {
         for (uint64_t i = 0; i < count; i++)
         {

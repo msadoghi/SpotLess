@@ -30,7 +30,7 @@ RC WorkerThread::process_client_batch(Message *msg)
 {
     ClientQueryBatch *clbtch = (ClientQueryBatch *)msg;
 
-    #if KDK_DEBUG1
+    #if PROCESS_PRINT
     printf("ClientQueryBatch: %ld, THD: %ld :: CL: %ld :: RQ: %ld\n", msg->txn_id, get_thd_id(), msg->return_node_id, clbtch->cqrySet[0]->requests[0]->key);
     fflush(stdout);
     #endif
@@ -41,6 +41,19 @@ RC WorkerThread::process_client_batch(Message *msg)
 #if VIEW_CHANGES
     // If message forwarded to the non-primary.
     #if MULTI_ON
+/*
+Change for RCC
+We have changed the condition to decide whether a client_batch is sent to non-primary
+In RCC, the txn_id of a ClientBacth msg is actually its batch_id.
+And the batch_id is assigned by the primary receiving it.
+For example: here are 2 primaries.
+primary 0 will assign a list of batch_id: 0, 2, 4, 6, ...
+primary 1 will assign another list of batch_id: 1, 3, 5, 7, ...
+Then, the msgs received would be pushed into work_queue.
+Thus, we should not use the old condition, since the views of the primaries are all 0.
+Instead, the primary should check whether the batch_id of a client_batch msg is assigned by itself.
+Similarly, it only works for normal case.
+*/
     if (!(get_primary(clbtch->txn_id%get_totInstances()) == g_node_id))
     #else
     if (g_node_id != get_current_view(get_thd_id()))
@@ -79,14 +92,18 @@ RC WorkerThread::process_batch(Message *msg)
     uint64_t cntime = get_sys_clock();
 
     BatchRequests *breq = (BatchRequests *)msg;
-    #if KDK_DEBUG1
+    #if PROCESS_PRINT
     printf("BatchRequests: TID:%ld : VIEW: %ld : THDB: %ld\n",breq->txn_id, breq->view, get_thd_id());
     fflush(stdout);
     #endif
 
     // Assert that only a non-primary replica has received this message.
     #if MULTI_ON
-    assert(!isPrimary(g_node_id) || !(breq->view == g_node_id));
+    /*
+    Change for RCC
+    Similar to the change in process_client_batch.
+    */
+    assert(!(isPrimary(g_node_id) && get_primary((breq->txn_id/get_batch_size())%get_totInstances()) == g_node_id));
     #else
     assert(g_node_id != get_current_view(get_thd_id()));
     #endif
@@ -196,8 +213,8 @@ RC WorkerThread::process_batch(Message *msg)
  */
 RC WorkerThread::process_pbft_prep_msg(Message *msg)
 {
-    #if KDK_DEBUG1
-    // cout << "PBFTPrepMessage: TID: " << msg->txn_id << " FROM: " << msg->return_node_id << " THDP: " << get_thd_id() << endl;
+    #if PROCESS_PRINT
+    cout << "PBFTPrepMessage: TID: " << msg->txn_id << " FROM: " << msg->return_node_id << " THDP: " << get_thd_id() << endl;
     fflush(stdout);
     #endif
     // Start the counter for prepare phase.
@@ -286,8 +303,8 @@ bool WorkerThread::committed_local(PBFTCommitMessage *msg)
  */
 RC WorkerThread::process_pbft_commit_msg(Message *msg)
 {
-    #if KDK_DEBUG1
-    // cout << "PBFTCommitMessage: TID " << msg->txn_id << " FROM: " << msg->return_node_id << " THDC: " << get_thd_id() << "\n";
+    #if PROCESS_PRINT
+    cout << "PBFTCommitMessage: TID " << msg->txn_id << " FROM: " << msg->return_node_id << " THDC: " << get_thd_id() << "\n";
     fflush(stdout);
     #endif
 

@@ -76,10 +76,6 @@ int main(int argc, char *argv[])
     return 0;
 #endif
 
-#if MULTI_ON
-    set_client_view(g_node_id % get_totInstances());
-#endif	
-
     fflush(stdout);
     client_man.init();
     printf("Done\n");
@@ -132,7 +128,7 @@ int main(int argc, char *argv[])
         receivedKeys[i]++;
     }
     //cout << "_____________ED25519 PRIV KEY IS: " << g_priv_key << endl;
-    cout << "_____________ED25519 PUBLIC KEY IS: " << g_public_key << endl;
+    //cout << "_____________ED25519 PUBLIC KEY IS: " << g_public_key << endl;
     fflush(stdout);
 #endif
 

@@ -4,7 +4,7 @@ HOSTS="$1"
 SCRIPT="$2"
 count=0
 # IDENTITY="~/Desktop/pvp/kdk.pem"
-# IDENTITY="~/kdkCA.pem"
+#IDENTITY="~/kdkCA.pem"
 IDENTITY="~/kdk_oracle.key"
 
 for HOSTNAME in ${HOSTS}; do

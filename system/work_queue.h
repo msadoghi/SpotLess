@@ -68,6 +68,12 @@ public:
     void sequencer_enqueue(uint64_t thd_id, Message *msg);
     Message *sequencer_dequeue(uint64_t thd_id);
 
+#if TEMP_QUEUE
+    bool check_view(Message * msg);
+    void temp_store_newview(Message * msg);
+    void reenqueue(uint64_t instance_id, bool is_newview);
+#endif
+
     uint64_t get_cnt() { return get_wq_cnt() + get_rem_wq_cnt() + get_new_wq_cnt(); }
     uint64_t get_wq_cnt() { return 0; }
     uint64_t get_sched_wq_cnt() { return 0; }
@@ -75,14 +81,23 @@ public:
     uint64_t get_new_wq_cnt() { return 0; }
 
 private:
-    // boost::lockfree::queue<work_queue_entry *> **work_queue;
-    // boost::lockfree::queue<work_queue_entry *> *new_txn_queue;
     boost::lockfree::queue<work_queue_entry *> **work_queue = nullptr;
+    #if !PVP
     boost::lockfree::queue<work_queue_entry *> *new_txn_queue = nullptr;
-    boost::lockfree::queue<work_queue_entry *> *seq_queue;
-    boost::lockfree::queue<work_queue_entry *> **sched_queue;
-    uint64_t sched_ptr;
-    BaseQuery *last_sched_dq;
+    #else
+    boost::lockfree::queue<work_queue_entry *> **new_txn_queue = nullptr;
+    #endif
+
+#if TEMP_QUEUE
+    #if !PVP
+        boost::lockfree::queue<work_queue_entry *> *temp_queue = nullptr;
+        boost::lockfree::queue<work_queue_entry *> *new_view_queue = nullptr;
+    #else
+        boost::lockfree::queue<work_queue_entry *> **temp_queue = nullptr;
+        boost::lockfree::queue<work_queue_entry *> **new_view_queue = nullptr;
+    #endif
+#endif
+
     uint64_t curr_epoch;
 };
 

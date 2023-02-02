@@ -55,7 +55,7 @@ RC WorkerThread::process_client_batch(Message *msg)
     }
 
     // Partial failure of Primary 0.
-    fail_primary(msg, 10 * BILLION);
+    // fail_primary(msg, 5 * BILLION);
 #endif
 
     // Initialize all transaction mangers and Send BatchRequests message.

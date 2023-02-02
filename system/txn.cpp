@@ -8,6 +8,8 @@
 #include "message.h"
 #include "ycsb_query.h"
 #include "array.h"
+#include "timer.h"
+#include "work_queue.h"
 
 void TxnStats::init()
 {
@@ -39,7 +41,6 @@ void TxnStats::init()
 
 void TxnStats::clear_short()
 {
-
     work_queue_time_short = 0;
     cc_block_time_short = 0;
     cc_time_short = 0;
@@ -147,11 +148,19 @@ void TxnManager::init(uint64_t pool_id, Workload *h_wl)
     txn_ready = true;
 
     prepared = false;
+
     committed_local = false;
     prep_rsp_cnt = 2 * g_min_invalid_nodes;
     commit_rsp_cnt = prep_rsp_cnt + 1;
-    chkpt_cnt = 1;
+    chkpt_cnt = 2 * g_min_invalid_nodes;
     chkpt_flag = false;
+
+#if CONSENSUS == HOTSTUFF
+    prepare_vote_cnt = 2 * g_min_invalid_nodes;
+    precommit_vote_cnt = 2 * g_min_invalid_nodes;
+    commit_vote_cnt = 2 * g_min_invalid_nodes;
+    new_view_vote_cnt = 2 * g_min_invalid_nodes;
+#endif
 
 #if RING_BFT
     this->is_cross_shard = false;
@@ -205,6 +214,7 @@ void TxnManager::release(uint64_t pool_id)
 #endif
 
     uint64_t tid = get_txn_id();
+
 #if BANKING_SMART_CONTRACT
     delete this->smart_contract;
 #else
@@ -221,8 +231,18 @@ void TxnManager::release(uint64_t pool_id)
 
     prep_rsp_cnt = 2 * g_min_invalid_nodes;
     commit_rsp_cnt = prep_rsp_cnt + 1;
-    chkpt_cnt = 1;
+    chkpt_cnt = 2 * g_min_invalid_nodes;
     chkpt_flag = false;
+
+#if CONSENSUS == HOTSTUFF
+    precommited = false;
+    new_viewed = false;
+    prepare_vote_cnt = 2 * g_min_invalid_nodes;
+    precommit_vote_cnt = 2 * g_min_invalid_nodes;
+    commit_vote_cnt = 2 * g_min_invalid_nodes;
+    new_view_vote_cnt = 2 * g_min_invalid_nodes;
+#endif
+
     release_all_messages(tid);
 
 #if RING_BFT
@@ -237,7 +257,7 @@ void TxnManager::release(uint64_t pool_id)
         commit_rsp_cnt_arr[i] = prep_rsp_cnt_arr[i];
     }
 #endif
-    txn_stats.init();
+
 }
 
 void TxnManager::reset_query()
@@ -413,6 +433,7 @@ uint64_t TxnManager::get_chkpt_cnt()
 /* Helper functions for PBFT. */
 void TxnManager::set_prepared()
 {
+    //printf("set_prepared %ld at %lf\n", this->txn->txn_id, simulation->seconds_from_start(get_sys_clock()));
     prepared = true;
 }
 
@@ -438,7 +459,12 @@ uint64_t TxnManager::get_prep_rsp_cnt()
 
 void TxnManager::set_committed()
 {
+    //printf("set_committed %ld at %lf\n", this->txn->txn_id, simulation->seconds_from_start(get_sys_clock()));
     committed_local = true;
+// #if TEMP_QUEUE
+//     uint64_t instance_id = get_txn_id() / get_batch_size() % get_totInstances();
+//     work_queue.reenqueue(instance_id, true);
+// #endif
 }
 
 bool TxnManager::is_committed()
@@ -612,11 +638,28 @@ void TxnManager::release_all_messages(uint64_t txn_id)
         if (!this->is_cross_shard)
             Message::release_message(batchreq);
 
+#elif CONSENSUS == HOTSTUFF
+        vote_prepare.clear();
+        vote_precommit.clear();
+        vote_commit.clear();
+        vote_new_view.clear(); 
+    #if THRESHOLD_SIGNATURE
+        preparedQC.signature_share_map.clear();
+        precommittedQC.signature_share_map.clear();
+        committedQC.signature_share_map.clear();
+        #if CHAINED || SHIFT_QC
+        genericQC.signature_share_map.clear();
+        #endif
+    #endif
+        // Message::release_message(prepmsg);
+        if(prepmsg){
+             Message::release_message(prepmsg);
+         }
 #else
         // Message::release_message(batchreq);
         if(batchreq){
-            Message::release_message(batchreq);
-        }
+             Message::release_message(batchreq);
+         }
 #endif
 
         PBFTCommitMessage *cmsg;
@@ -639,23 +682,290 @@ void TxnManager::send_checkpoint_msgs()
     Message *msg = Message::create_message(this, PBFT_CHKPT_MSG);
     CheckpointMessage *ckmsg = (CheckpointMessage *)msg;
 
-//     vector<uint64_t> dest;
-//     for (uint64_t i = 0; i < g_node_cnt; i++)
-//     {
-// #if RING_BFT || SHARPER
-//         if (!is_in_same_shard(i, g_node_id))
-//         {
-//             continue;
-//         }
-// #endif
-//         if (i == g_node_id)
-//         {
-//             continue;
-//         }
-//         dest.push_back(i);
-//     }
+    vector<uint64_t> dest;
+    for (uint64_t i = 0; i < g_node_cnt; i++)
+    {
+#if RING_BFT || SHARPER
+        if (!is_in_same_shard(i, g_node_id))
+        {
+            continue;
+        }
+#endif
+        if (i == g_node_id)
+        {
+            continue;
+        }
+        dest.push_back(i);
+    }
 
-//     msg_queue.enqueue(get_thd_id(), ckmsg, dest);
-//     dest.clear();
-    work_queue.enqueue(get_thd_id(), ckmsg, false);
+    msg_queue.enqueue(get_thd_id(), ckmsg, dest);
+    dest.clear();
 }
+
+
+#if CONSENSUS == HOTSTUFF
+bool TxnManager::is_precommitted(){
+    return precommited;
+}
+
+void TxnManager::set_precommitted(){
+    precommited = true;
+}
+
+bool TxnManager::is_new_viewed(){
+    return new_viewed;
+}
+
+void TxnManager::set_new_viewed(){
+    new_viewed = true;
+}
+
+void TxnManager::set_primarybatch(HOTSTUFFPrepareMsg *prep){
+    char *buf = create_msg_buffer(prep);
+    Message *deepMsg = deep_copy_msg(buf, prep); 
+    prepmsg = (HOTSTUFFPrepareMsg*)deepMsg;
+    delete_msg_buffer(buf);
+}
+
+void TxnManager::setPreparedQC(HOTSTUFFPreCommitMsg *pcmsg){
+    this->preparedQC = pcmsg->PreparedQC;
+    string batch_hash = this->get_hash();
+#if !PVP
+    hash_QC_lock.lock();
+    if(!hash_to_QC.count(batch_hash)){
+        hash_to_QC.insert(make_pair<string&,QuorumCertificate&>(batch_hash, this->preparedQC));
+    }else if(hash_to_QC[batch_hash].type < this->preparedQC.type){
+        hash_to_QC[batch_hash] = this->preparedQC;
+    }
+    hash_QC_lock.unlock();
+#else
+    uint64_t instance_id = pcmsg->txn_id / get_batch_size() % get_totInstances();
+    hash_QC_lock[instance_id].lock();
+    if(!hash_to_QC[instance_id].count(batch_hash)){
+        hash_to_QC[instance_id].insert(make_pair<string&,QuorumCertificate&>(batch_hash, this->preparedQC));
+    }else if(hash_to_QC[instance_id][batch_hash].type < this->preparedQC.type){
+        hash_to_QC[instance_id][batch_hash] = this->preparedQC;
+    }
+    hash_QC_lock[instance_id].unlock();
+#endif
+    assert(this->preparedQC.type == PREPARE);
+}
+
+void TxnManager::setPreCommittedQC(HOTSTUFFCommitMsg *cmsg){
+    this->precommittedQC = cmsg->PreCommittedQC;
+    string batch_hash = this->get_hash();
+#if !PVP
+    hash_QC_lock.lock();
+    if(!hash_to_QC.count(batch_hash)){
+        hash_to_QC.insert(make_pair<string&,QuorumCertificate&>(batch_hash, this->precommittedQC));
+    }
+    else if(hash_to_QC[batch_hash].type < this->precommittedQC.type){
+        hash_to_QC[batch_hash] = this->precommittedQC;
+    }
+    hash_QC_lock.unlock();
+#else
+    uint64_t instance_id = cmsg->txn_id / get_batch_size() % get_totInstances();
+    hash_QC_lock[instance_id].lock();
+    if(!hash_to_QC[instance_id].count(batch_hash)){
+        hash_to_QC[instance_id].insert(make_pair<string&,QuorumCertificate&>(batch_hash, this->precommittedQC));
+    }else if(hash_to_QC[instance_id][batch_hash].type < this->precommittedQC.type){
+        hash_to_QC[instance_id][batch_hash] = this->precommittedQC;
+    }
+    hash_QC_lock[instance_id].unlock();
+#endif
+    assert(this->precommittedQC.type == PRECOMMIT);
+}
+
+void TxnManager::setCommittedQC(HOTSTUFFDecideMsg *dmsg){
+    this->committedQC = dmsg->CommittedQC;
+    string batch_hash = this->get_hash();
+#if !PVP
+    hash_QC_lock.lock();
+    if(!hash_to_QC.count(batch_hash)){
+        hash_to_QC.insert(make_pair<string&,QuorumCertificate&>(batch_hash, this->committedQC));
+    }
+    else if(hash_to_QC[batch_hash].type < this->committedQC.type){
+        hash_to_QC[batch_hash] = this->committedQC;
+    }
+    hash_QC_lock.unlock();
+#else
+    uint64_t instance_id = dmsg->txn_id / get_batch_size() % get_totInstances();
+    hash_QC_lock[instance_id].lock();
+    if(!hash_to_QC[instance_id].count(batch_hash)){
+        hash_to_QC[instance_id].insert(make_pair<string&,QuorumCertificate&>(batch_hash, this->committedQC));
+    }
+    else if(hash_to_QC[instance_id][batch_hash].type < this->committedQC.type){
+        hash_to_QC[instance_id][batch_hash] = this->committedQC;
+    }
+    hash_QC_lock[instance_id].unlock();
+#endif
+    assert(this->committedQC.type == COMMIT);
+}
+
+QuorumCertificate TxnManager::get_preparedQC(){
+    return preparedQC;
+}
+
+QuorumCertificate TxnManager::get_precommittedQC(){
+    return precommittedQC;
+}
+
+QuorumCertificate TxnManager::get_committedQC(){
+    return committedQC;
+}
+
+void TxnManager::send_hotstuff_prepare_vote(){
+    // printf("%ld Send HOTSTUFF_PREP_VOTE_MSG message to primary %ld\n", get_txn_id(), return_id);
+    // fflush(stdout);
+
+    Message *msg = Message::create_message(this, HOTSTUFF_PREP_VOTE_MSG);
+    HOTSTUFFPrepareVoteMsg *pvmsg = (HOTSTUFFPrepareVoteMsg *)msg;
+
+    vector<uint64_t> dest;
+    dest.push_back(return_id);
+
+    msg_queue.enqueue(get_thd_id(), pvmsg, dest);
+    dest.clear();
+}
+
+void TxnManager::send_hotstuff_precommit_msgs(){
+    Message *msg = Message::create_message(this, HOTSTUFF_PRECOMMIT_MSG);
+    HOTSTUFFPreCommitMsg *pcmsg = (HOTSTUFFPreCommitMsg *)msg;
+    
+    vector<uint64_t> dest;
+    for(uint i=0; i<g_node_cnt; i++){
+        if(i==g_node_id){
+            pcmsg->sign(i);
+#if THRESHOLD_SIGNATURE
+            this->precommittedQC.signature_share_map[g_node_id] = pcmsg->sig_share;
+#endif
+            vote_precommit.push_back(i);
+            continue;
+        }
+        dest.push_back(i);
+    }
+    msg_queue.enqueue(get_thd_id(), pcmsg, dest);
+    dest.clear();
+}
+
+void TxnManager::send_hotstuff_precommit_vote(){
+    // printf("%ld Send HOTSTUFF_PRECOMMIT_VOTE_MSG message to primary %ld\n", get_txn_id(), return_id);
+    // fflush(stdout);
+
+    Message *msg = Message::create_message(this, HOTSTUFF_PRECOMMIT_VOTE_MSG);
+    HOTSTUFFPreCommitVoteMsg *pvmsg = (HOTSTUFFPreCommitVoteMsg *)msg;
+
+    vector<uint64_t> dest;
+    dest.push_back(return_id);
+
+    msg_queue.enqueue(get_thd_id(), pvmsg, dest);
+    dest.clear();
+}
+
+void TxnManager::send_hotstuff_commit_msgs(){
+    Message *msg = Message::create_message(this, HOTSTUFF_COMMIT_MSG);
+    HOTSTUFFCommitMsg *cmsg = (HOTSTUFFCommitMsg *)msg;
+    
+    vector<uint64_t> dest;
+    for(uint i=0; i<g_node_cnt; i++){
+        if(i == g_node_id){
+            cmsg->sign(i);
+#if THRESHOLD_SIGNATURE
+            this->committedQC.signature_share_map[g_node_id] = cmsg->sig_share;
+#endif
+            vote_commit.push_back(i);
+            continue;
+        }
+        dest.push_back(i);
+    }
+    msg_queue.enqueue(get_thd_id(), cmsg, dest);
+    dest.clear();
+}
+
+void TxnManager::send_hotstuff_commit_vote(){
+    // printf("%ld Send HOTSTUFF_COMMIT_VOTE_MSG message to primary %ld\n", get_txn_id(), return_id);
+    // fflush(stdout);
+
+    Message *msg = Message::create_message(this, HOTSTUFF_COMMIT_VOTE_MSG);
+    HOTSTUFFCommitVoteMsg *pvmsg = (HOTSTUFFCommitVoteMsg *)msg;
+
+    vector<uint64_t> dest;
+    dest.push_back(return_id);
+
+    msg_queue.enqueue(get_thd_id(), pvmsg, dest);
+    dest.clear();
+}
+
+void TxnManager::send_hotstuff_decide_msgs(){
+    Message *msg = Message::create_message(this, HOTSTUFF_DECIDE_MSG);
+    HOTSTUFFDecideMsg *dmsg = (HOTSTUFFDecideMsg *)msg;
+    
+    vector<uint64_t> dest;
+    for(uint i=0; i<g_node_cnt; i++){
+        if(i==g_node_id)
+            continue;
+        dest.push_back(i);
+    }
+    msg_queue.enqueue(get_thd_id(), dmsg, dest);
+    dest.clear();
+}
+
+
+#if !STOP_NODE_SET
+bool TxnManager::send_hotstuff_newview(){
+#else
+bool TxnManager::send_hotstuff_newview(bool &failednode){
+#endif
+    
+#if !PVP
+    uint64_t dest_node_id = get_view_primary(get_current_view(0) + 1);
+#else
+    uint64_t instance_id = this->get_txn_id() / get_batch_size() % get_totInstances();
+    uint64_t dest_node_id = get_view_primary(get_current_view(instance_id) + 1, instance_id);
+#endif
+
+#if STOP_NODE_SET
+    failednode = false;
+    stop_lock.lock();
+    if(stop_node_set.count(dest_node_id)){
+        failednode = true;
+    }
+    stop_lock.unlock();
+    if(failednode)  return true;
+#endif
+
+    Message *msg = Message::create_message(this, HOTSTUFF_NEW_VIEW_MSG);
+    HOTSTUFFNewViewMsg *nvmsg = (HOTSTUFFNewViewMsg *)msg;
+    if(g_node_id == dest_node_id)
+    {
+#if CHAINED || SHIFT_QC
+        nvmsg->sign(g_node_id);
+        this->genericQC.signature_share_map[g_node_id] = nvmsg->sig_share;
+#endif
+        return false;
+    }
+
+    #if SEND_NEWVIEW_PRINT
+    printf("%ld Send HOTSTUFF_NEW_VIEW_MSG message to %ld   %f\n", get_txn_id(), dest_node_id, simulation->seconds_from_start(get_sys_clock()));
+    fflush(stdout);
+    #endif
+
+    vector<uint64_t> dest;
+    dest.push_back(dest_node_id);   //send new view to the next primary 
+
+    msg_queue.enqueue(get_thd_id(), nvmsg, dest);
+    dest.clear();
+#if TIMER_ON
+    #if !PVP
+    server_timer->waiting_prepare = true;
+    server_timer->last_new_view_time = get_sys_clock();
+    #else
+    server_timer[instance_id]->waiting_prepare = true;
+    server_timer[instance_id]->last_new_view_time = get_sys_clock();
+    #endif
+#endif
+    return true;
+}
+
+
+#endif

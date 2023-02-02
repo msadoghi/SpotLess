@@ -15,6 +15,7 @@ void mem_alloc::free(void *ptr, uint64_t size)
     std::free(ptr);
 #else
     je_free(ptr);
+    // yesfree(ptr);
 #endif
 }
 
@@ -26,6 +27,7 @@ void *mem_alloc::alloc(uint64_t size)
     ptr = malloc(size);
 #else
     ptr = je_malloc(size);
+    // ptr = yesmalloc(size);
 #endif
     DEBUG_M("alloc %ld 0x%lx\n", size, (uint64_t)ptr);
     assert(ptr != NULL);
@@ -44,6 +46,7 @@ void *mem_alloc::realloc(void *ptr, uint64_t size)
     void *_ptr = std::realloc(ptr, size);
 #else
     void *_ptr = je_realloc(ptr, size);
+    // void *_ptr = yesrealloc(ptr, size);
 #endif
     DEBUG_M("realloc %ld 0x%lx\n", size, (uint64_t)_ptr);
     return _ptr;

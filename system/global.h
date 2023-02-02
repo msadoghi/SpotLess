@@ -14,6 +14,7 @@
 #include <typeinfo>
 #include <list>
 #include <map>
+#include <unordered_map>
 #include <set>
 #include <queue>
 #include <string>
@@ -41,6 +42,10 @@
 
 #include "semaphore.h"
 
+#if THRESHOLD_SIGNATURE
+#include <secp256k1.h>
+#endif
+
 using namespace std;
 
 class mem_alloc;
@@ -62,6 +67,10 @@ class CommitCertificateMessage;
 class ClientResponseMessage;
 class RingBFTCommit;
 
+#if CONSENSUS == HOTSTUFF
+
+#endif  // CONSENSUS == HOTSTUFF
+
 typedef uint32_t UInt32;
 typedef int32_t SInt32;
 typedef uint64_t UInt64;
@@ -75,12 +84,14 @@ typedef uint64_t ts_t; // time stamp type
 extern mem_alloc mem_allocator;
 extern Stats stats;
 extern SimManager *simulation;
-// extern Query_queue query_queue;
+#if !FIX_MEM_LEAK
+extern Query_queue query_queue;
+extern TxnManPool txn_man_pool;
+extern TxnTablePool txn_table_pool;
+#endif
 extern Client_query_queue client_query_queue;
 extern Transport tport_man;
-// extern TxnManPool txn_man_pool;
 extern TxnPool txn_pool;
-// extern TxnTablePool txn_table_pool;
 extern QryPool qry_pool;
 extern TxnTable txn_table;
 extern QWorkQueue work_queue;
@@ -223,6 +234,18 @@ enum RemReqType
     PBFT_COMMIT_MSG, // Commit
     PBFT_CHKPT_MSG,   // Checkpoint and Garbage Collection
 
+#if CONSENSUS == HOTSTUFF
+    HOTSTUFF_PREP_MSG,
+    HOTSTUFF_PREP_VOTE_MSG,
+    HOTSTUFF_PRECOMMIT_MSG,
+    HOTSTUFF_PRECOMMIT_VOTE_MSG,
+    HOTSTUFF_COMMIT_MSG,
+    HOTSTUFF_COMMIT_VOTE_MSG,
+    HOTSTUFF_DECIDE_MSG,
+    HOTSTUFF_NEW_VIEW_MSG,
+    HOTSTUFF_GENERIC_MSG
+#endif
+
 };
 
 /* Thread */
@@ -327,15 +350,149 @@ string calculateHash(string str);
 extern uint64_t g_next_index; //index of the next txn to be executed
 extern std::mutex gnextMTX;
 void inc_next_index();
-//[Dakai]
 void inc_next_index(uint64_t val);
 uint64_t curr_next_index();
 
-#if IN_RECV
-extern uint64_t recv_try_cnt;
-extern uint64_t recv_fail_cnt;
+#if CONSENSUS == HOTSTUFF
+
+enum QCType{
+    PREPARE,
+    PRECOMMIT,
+    COMMIT
+};
+
+class QuorumCertificate{
+public:
+    QCType type;
+    bool genesis;
+    uint64_t viewNumber;
+    string batch_hash;
+    string parent_hash;
+
+#if THRESHOLD_SIGNATURE
+    map<uint64_t, secp256k1_ecdsa_signature> signature_share_map;
 #endif
 
+    QuorumCertificate(uint _g_node_cnt = 0):type(PREPARE), viewNumber(0),  batch_hash(""), parent_hash(""){
+        genesis = false;
+        if(_g_node_cnt){
+            genesis = true;
+        }
+    }
+
+    ~QuorumCertificate(){
+        signature_share_map.clear();
+    }
+
+    uint64_t get_size(){
+        uint64_t size = sizeof(bool);
+        size += sizeof(QCType); 
+        size += sizeof(uint64_t);
+        size += 2*sizeof(size_t);
+        size += batch_hash.length();
+        size += parent_hash.length();
+#if THRESHOLD_SIGNATURE
+        if(!genesis){
+#if TS_SIMULATOR
+            size_t map_size = signature_share_map.size() & 1;
+#else
+            size_t map_size = signature_share_map.size();
+#endif
+            size += sizeof(map_size);
+            size += map_size * sizeof(uint64_t);
+            size += map_size * sizeof(secp256k1_ecdsa_signature);
+        }
+#endif
+        return size;
+    }
+
+    uint64_t copy_from_buf(uint64_t ptr, char *buf){
+        COPY_VAL(type, buf, ptr);
+    	COPY_VAL(genesis, buf, ptr);
+        COPY_VAL(viewNumber, buf, ptr);
+		size_t ssize;
+        COPY_VAL(ssize, buf, ptr);
+
+        batch_hash.resize(ssize);
+        for(uint j=0; j<ssize; j++){
+		    batch_hash[j] = buf[ptr+j];
+	    }
+        ptr += ssize;
+        COPY_VAL(ssize, buf, ptr);
+        parent_hash.resize(ssize);
+
+        for(uint j=0; j<ssize; j++){
+		    parent_hash[j] = buf[ptr+j];
+	    }
+        ptr += ssize;
+#if THRESHOLD_SIGNATURE
+        if(!genesis){
+            size_t map_size;
+            uint64_t node_id;
+            secp256k1_ecdsa_signature sig_share;
+            COPY_VAL(map_size, buf, ptr);
+            for(size_t i=0 ; i<map_size; i++){
+                COPY_VAL(node_id, buf, ptr);
+                COPY_VAL(sig_share, buf, ptr);
+                signature_share_map[i] = sig_share;
+            }
+        }
+#endif
+        return ptr;
+    }
+
+    uint64_t copy_to_buf(uint64_t ptr, char *buf){
+        COPY_BUF(buf, type, ptr);
+    	COPY_BUF(buf, genesis, ptr);
+        COPY_BUF(buf, viewNumber, ptr);
+        size_t ssize = batch_hash.length();
+        COPY_BUF(buf, ssize, ptr);
+        for(uint j=0; j<ssize; j++){
+			buf[ptr+j] = batch_hash[j];
+	    }
+	    ptr += ssize;
+        ssize = parent_hash.length();
+        COPY_BUF(buf, ssize, ptr);
+        for(uint j=0; j<ssize; j++){
+			buf[ptr+j] = parent_hash[j];
+	    }
+	    ptr += ssize;
+
+#if THRESHOLD_SIGNATURE
+        if(!genesis){
+#if TS_SIMULATOR
+            size_t map_size = signature_share_map.size() & 1;
+#else
+            size_t map_size = signature_share_map.size();
+#endif
+            uint i = 0;
+            COPY_BUF(buf, map_size, ptr);
+            for(auto it = signature_share_map.begin(); it != signature_share_map.end() && i < map_size; ++it, ++i){
+                COPY_BUF(buf, it->first, ptr);
+                COPY_BUF(buf, it->second, ptr);
+            }
+        }       
+#endif
+        return ptr;
+    }
+
+#if THRESHOLD_SIGNATURE
+    bool ThresholdSignatureVerify(RemReqType rtype);
+#endif
+};
+
+
+// Entities for handling hotstuff_new_view_msgs
+#if !PVP
+extern uint32_t g_last_stable_new_viewed;
+void set_curr_new_viewed(uint64_t txn_id);
+uint64_t get_curr_new_viewed();
+#else
+extern uint32_t g_last_stable_new_viewed[MULTI_INSTANCES];
+void set_curr_new_viewed(uint64_t txn_id, uint64_t instance_id);
+uint64_t get_curr_new_viewed(uint64_t instance_id);
+#endif
+#endif
 
 // Entities for handling checkpoints.
 extern uint32_t g_last_stable_chkpt; //index of the last stable checkpoint
@@ -346,15 +503,10 @@ extern uint32_t g_txn_per_chkpt; // fixed interval of collecting checkpoints.
 uint64_t txn_per_chkpt();
 
 extern uint64_t lastDeletedTxnMan; // index of last deleted txn manager.
-void inc_last_deleted_txn(uint64_t del_range);
+void inc_last_deleted_txn();
 uint64_t get_last_deleted_txn();
 
-extern std::mutex g_checkpointing_lock;
- extern uint g_checkpointing_thd;
- extern uint64_t txn_chkpt_holding[2];
- extern bool is_chkpt_holding[2];
- extern bool is_chkpt_stalled[2];
- extern sem_t chkpt_semaphore[2];
+extern uint g_checkpointing_thd;
 extern uint64_t expectedExecuteCount;
 extern uint64_t expectedCheckpoint;
 uint64_t get_expectedExecuteCount();
@@ -379,13 +531,14 @@ vector<uint64_t> nodes_to_send(uint64_t beg, uint64_t end); // Destination for m
 // STORAGE OF CLIENT DATA
 extern uint64_t ClientDataStore[SYNTH_TABLE_SIZE];
 
-// [Dakai]
 // Entities for MULTI_ON
-#if MULTI_ON
+#if MULTI_ON || PVP
 extern uint64_t totInstances;	// Number of parallel instances.
 extern uint64_t multi_threads;  // Number of threads to manage these instances
 uint64_t get_totInstances();
 uint64_t get_multi_threads();
+
+#if MULTI_ON
 extern uint64_t current_primaries[MULTI_INSTANCES]; // List of primaries.
 void set_primary(uint64_t nid, uint64_t idx);
 uint64_t get_primary(uint64_t idx);
@@ -395,15 +548,17 @@ void initialize_primaries();
 bool isPrimary(uint64_t id);
 #endif
 
+#endif
+
+
+#if CONSENSUS == HOTSTUFF
 #if SEMA_TEST
 // Entities for semaphore optimizations. The value of the semaphores means 
 // the number of msgs in the corresponding queues of the worker_threads.
 // Only worker_threads with msgs in their queues will be allocated with CPU resources.
 extern sem_t worker_queue_semaphore[THREAD_CNT];
-#if CONSENSUS == HOTSTUFF
 // new_txn_semaphore is the number of instances that a replica is primary and has not sent a prepare msg.
 extern sem_t new_txn_semaphore;
-#endif
 // execute_semaphore is whether the next msg to execute has been in the queue.
 extern sem_t execute_semaphore;
 // Entities for semaphore opyimizations on output_thread. The output_thread will be not allocated
@@ -411,6 +566,22 @@ extern sem_t execute_semaphore;
 extern sem_t output_semaphore[SEND_THREAD_CNT];
 // Semaphore indicating whether the setup is done
 extern sem_t setup_done_barrier;
+
+#if AUTO_POST
+#if !PVP
+extern bool auto_posted;
+extern std::mutex auto_posted_lock;
+extern void set_auto_posted(bool value);
+extern bool is_auto_posted();
+#else
+extern bool auto_posted[MULTI_THREADS];
+extern std::mutex auto_posted_lock[MULTI_THREADS];
+extern void set_auto_posted(bool value, uint64_t instance_id);
+extern bool is_auto_posted(uint64_t instance_id);
+#endif
+extern void* auto_post(void *ptr);
+#endif
+
 extern uint64_t init_msg_sent[SEND_THREAD_CNT];
 extern void dec_init_msg_sent(uint64_t td_id);
 extern uint64_t get_init_msg_sent(uint64_t td_id);
@@ -423,19 +594,114 @@ uint64_t execute_msg_heap_top();
 void execute_msg_heap_pop();
 #endif
 
+extern uint64_t expectedInstance;
+
+//Entities for client in HOTSTUFF and PVP.
+//next_to_send is just the id of primary in the next round.
+extern uint64_t next_to_send;
+uint64_t get_next_to_send();
+void inc_next_to_send();
+
+//in_round is the value of batches that are sent but have not received enough responses.
+extern uint64_t in_round[NODE_CNT];
+uint64_t get_in_round(uint32_t node_id);
+void inc_in_round(uint32_t node_id);
+void dec_in_round(uint32_t node_id);
+
+#if THRESHOLD_SIGNATURE
+
+extern secp256k1_context *ctx;
+extern unsigned char private_key[32];
+extern secp256k1_pubkey public_key;
+extern map<uint64_t, secp256k1_pubkey> public_keys;
+extern string get_secp_hash(string hash, RemReqType type);
+
+#endif
+
+#if !PVP
+extern std::mutex hash_QC_lock;
+extern unordered_map<string, QuorumCertificate> hash_to_QC;
+extern unordered_map<string, uint64_t> hash_to_txnid;
+extern unordered_map<string, uint64_t> hash_to_view;
+#else
+extern std::mutex hash_QC_lock[MULTI_INSTANCES];
+extern vector<unordered_map<string, QuorumCertificate>> hash_to_QC;
+extern vector<unordered_map<string, uint64_t>> hash_to_txnid;
+extern vector<unordered_map<string, uint64_t>> hash_to_view;
+#endif
+
+
+#if !PVP
+// if sent is true, a replica considers itself not as the next primary
+// if sent is false, a replica considers itself as the next primary
+extern bool sent;
+extern QuorumCertificate g_preparedQC;
+bool get_sent();
+void set_sent(bool value);
+
+// g_preparedQC is just the preparedQC in HOTSTUFF
+const QuorumCertificate& get_g_preparedQC();
+void set_g_preparedQC(const QuorumCertificate& QC);
+uint64_t get_next_idx_hotstuff();
+
+extern QuorumCertificate g_lockedQC;
+const QuorumCertificate& get_g_lockedQC();
+void set_g_lockedQC(const QuorumCertificate& QC);
+
+#if SHIFT_QC && !CHAINED
+extern QuorumCertificate g_genericQC;
+const QuorumCertificate& get_g_genericQC();
+void set_g_genericQC(const QuorumCertificate& QC);
+#endif
+
+extern bool SafeNode(const QuorumCertificate &highQC);
+
+extern uint64_t get_view_primary(uint64_t view);
+
+#else
+extern bool sent[MULTI_INSTANCES];
+extern QuorumCertificate g_preparedQC[MULTI_INSTANCES];
+bool get_sent(uint64_t instance_id);
+void set_sent(bool value, uint64_t instance_id);
+
+const QuorumCertificate& get_g_preparedQC(uint64_t instance_id);
+void set_g_preparedQC(const QuorumCertificate& QC, uint64_t instance_id);
+uint64_t get_next_idx_hotstuff(uint64_t instance_id);
+
+extern QuorumCertificate g_lockedQC[MULTI_INSTANCES];
+const QuorumCertificate& get_g_lockedQC(uint64_t instance_id);
+void set_g_lockedQC(const QuorumCertificate& QC, uint64_t instance_id);
+
+#if SHIFT_QC && !CHAINED
+extern QuorumCertificate g_genericQC[MULTI_INSTANCES];
+const QuorumCertificate& get_g_genericQC(uint64_t instance_id);
+void set_g_genericQC(const QuorumCertificate& QC, uint64_t instance_id);
+#endif
+
+extern bool SafeNode(const QuorumCertificate &highQC, uint64_t instance_id);
+extern uint64_t get_view_primary(uint64_t view, uint64_t instance_id);
+#endif
+
+#endif
+
 // Entities related to RBFT protocol.
 
 // Entities pertaining to the current view.
 uint64_t get_current_view(uint64_t thd_id);
 
-#if VIEW_CHANGES || KDK_DEBUG5
+//#if VIEW_CHANGES || MULTI_ON || PVP
 // For updating view for input threads, batching threads, execute thread
 // and checkpointing thread.
+#if !PVP
 extern std::mutex newViewMTX[THREAD_CNT + REM_THREAD_CNT + SEND_THREAD_CNT];
 extern uint64_t view[THREAD_CNT + REM_THREAD_CNT + SEND_THREAD_CNT];
+#else
+extern std::mutex newViewMTX[MULTI_INSTANCES];
+extern uint64_t view[MULTI_INSTANCES];
+#endif
 uint64_t get_view(uint64_t thd_id);
 void set_view(uint64_t thd_id, uint64_t val);
-#endif
+//#endif
 
 // Size of the batch.
 extern uint64_t g_batch_size;
@@ -488,10 +754,18 @@ void set_client_view(uint64_t nview);
 uint64_t get_client_view();
 #endif
 
-#if LOCAL_FAULT || VIEW_CHANGES
+#if PVP_RECOVERY
+extern uint64_t fail_count;
+#endif
+
+#if LOCAL_FAULT || VIEW_CHANGES || PVP_RECOVERY
 // Server parameters for tracking failed replicas
-extern std::mutex stopMTX[SEND_THREAD_CNT];
-extern vector<vector<uint64_t>> stop_nodes; // List of nodes that have stopped.
+// extern std::mutex stopMTX[SEND_THREAD_CNT];
+// extern vector<vector<uint64_t>> stop_nodes; // List of nodes that have stopped.
+#if STOP_NODE_SET
+    extern std::mutex stop_lock;
+    extern set<uint64_t> stop_node_set;
+#endif
 
 // Client parameters for tracking failed replicas.
 extern std::mutex clistopMTX;
@@ -530,3 +804,4 @@ enum BSCType
 #endif
 
 #endif
+

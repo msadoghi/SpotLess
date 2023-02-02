@@ -61,15 +61,18 @@ void TxnManPool::put(uint64_t txn_id, TxnManager *item)
     uint64_t pool_id = txn_id % g_total_thread_cnt;
     item->release(pool_id);
     int tries = 0;
+
     while (!pool[pool_id]->push(item) && tries++ < TRY_LIMIT)
     {
     }
+
     if (tries >= TRY_LIMIT)
     {
         // mem_allocator.free(item, sizeof(TxnManager));
         // // Delete
         delete item;
     }
+    
 }
 
 void TxnManPool::free_all()
@@ -200,8 +203,8 @@ void QryPool::get(uint64_t pool_id, BaseQuery *&item)
         // qry->init();
         // item = (BaseQuery *)qry;
 
-        //cout << "alloc qry " << pool_id << "\n";
-        //fflush(stdout);
+        // //cout << "alloc qry " << pool_id << "\n";
+        // //fflush(stdout);
         item = new YCSBQuery();
     }
     ((YCSBQuery*)item)->init();

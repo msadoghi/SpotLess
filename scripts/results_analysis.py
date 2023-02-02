@@ -1,10 +1,10 @@
 #!/usr/bin/python
 import numpy as np
 
-DONE_TIMER=30
+DONE_TIMER=15
 MULTI_INSTANCE=128
-CLIENT_CNT=4
-worker_thread_cnt = MULTI_INSTANCE + 4
+CLIENT_CNT=1
+worker_thread_cnt = MULTI_INSTANCE + 3
 Output_idle_times = list()
 idle_times = list()
 through_puts = list()
@@ -12,24 +12,24 @@ txn_cnts = list()
 latencies = list()
 
 def deal_with(out_str, i):
-    if out_str.find("idle_time_worker ") != -1:
-        out_str = out_str[len("idle_time_worker "):]
-        thd_id = out_str[:out_str.find("=")]
-        idle_time = out_str[out_str.find("=") + 1 : -1]
-        idle_times[int(thd_id)].append(float(idle_time))
-    elif out_str.find("Output ") != -1:
-        idle_time = float(out_str[out_str.find(":") + 2: -1])
-        Output_idle_times.append(idle_time)
-    elif out_str.find("tput         =") != -1:
+    # if out_str.find("idle_time_worker ") != -1:
+    #     out_str = out_str[len("idle_time_worker "):]
+    #     thd_id = out_str[:out_str.find("=")]
+    #     idle_time = out_str[out_str.find("=") + 1 : -1]
+    #     idle_times[int(thd_id)].append(float(idle_time))
+    # elif out_str.find("Output ") != -1:
+    #     idle_time = float(out_str[out_str.find(":") + 2: -1])
+    #     Output_idle_times.append(idle_time)
+    if out_str.find("tput         =") != -1:
         tput = float(out_str[out_str.find("=") + 1 : out_str.find("txn_cnt=")])
         through_puts[i] = tput
     elif out_str.find("txn_cnt=") == 0:
         txn_cnts.append(int(out_str[len("txn_cnt="):]))
 
 
-# def deal_with2(out_str, i):
-#     if out_str.find("AVG Latency: ") == 0:
-#         latencies.append(float(out_str[len("AVG Latency: "):]))
+def deal_with2(out_str, i):
+    if out_str.find("AVG Latency: ") == 0:
+        latencies.append(float(out_str[len("AVG Latency: "):]))
 
 
 def print_max(i):
@@ -151,14 +151,14 @@ for i in range(MULTI_INSTANCE):
         deal_with(str(line), i)
     fo.close()
 
-# for i in range(MULTI_INSTANCE, MULTI_INSTANCE + CLIENT_CNT):
-#     fo = open("results/" + str(i) + ".out", "r+")
-#     while True:
-#         line = fo.readline()
-#         if not line:
-#             break
-#         deal_with2(str(line), i)
-#     fo.close()
+for i in range(MULTI_INSTANCE, MULTI_INSTANCE + CLIENT_CNT):
+    fo = open("results/" + str(i) + ".out", "r+")
+    while True:
+        line = fo.readline()
+        if not line:
+            break
+        deal_with2(str(line), i)
+    fo.close()
 
 # fw.write("==========WorkerThreads============\n")
 

@@ -5,7 +5,7 @@ precentages=(0 5 10 20 40 80 100)
 name="S"
 runs=2
 nodes=420
-clients=75
+clients=325
 
 for i in "${precentages[@]}"
 do

@@ -6,7 +6,6 @@
 // make clean; make -j8
 // python scripts/StopSystem.py; python scripts/scp_binaries.py; python scripts/RunSystem.py
 // python scripts/scp_results.py
-// python3 scripts/results_analysis.py
 
 // Number of worker threads at primary. For RBFT (6) and other algorithms (5). For PVP (NODE_CNT + 3).
 #define THREAD_CNT (PVP ? MULTI_THREADS+3: 4)
@@ -26,7 +25,7 @@
 #define SHARD_SIZE 4
 #define CROSS_SHARD_PRECENTAGE 0
 #define INVOLVED_SHARDS_NUMBER 0
-#define MESSAGE_PER_BUFFER 32
+#define MESSAGE_PER_BUFFER 24
 
 #define LOAD_PER_SERVER 1
 #define REPLICA_CNT 0
@@ -181,7 +180,7 @@
 // Enable or Disable pipeline at primary replica.
 #define ENABLE_PIPELINE true
 // Size of each batch.
-#define BATCH_SIZE 10
+#define BATCH_SIZE 5
 #define BATCH_ENABLE BSET
 #define BSET 1
 #define BUNSET 0
@@ -255,7 +254,7 @@
 #define TRANSPORT_OPTIMIZATION true
 #define FIX_ED25519_BUG false
 
-#define AUTO_POST false
+#define AUTO_POST true
 #define PVP_RECOVERY false
 #define STOP_NODE_SET (false && PVP_RECOVERY)
 
@@ -268,8 +267,22 @@
 
 #define SHIFT_QC false
 
-#define TS_SIMULATOR true
+#define TS_SIMULATOR false
 #define TEMP_QUEUE true
-#define NARWHAL false
+
+#define TIMER_MANAGER true
+#define INITIAL_TIMEOUT_LENGTH 1*BILLION
+#define CRASH_VIEW 200
+#define PVP_FAIL true
+#define MAX_TIMER_LEN 20000000
+#define CRASH_DIVIDER 5
+#define CRASH_ID 1
+
+#define NEW_DIVIDER true
+#define DIV1 12
+#define DIV2 2
+#define LIMIT1 8
+#define LIMIT2 1
+
 
 #endif

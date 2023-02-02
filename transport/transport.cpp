@@ -52,7 +52,6 @@ string Transport::get_path()
     else
         path = string(cpath);
 #endif
-    //NOTXT
     path += "ifconfig.txt";
     return path;
 }
@@ -273,6 +272,7 @@ void Transport::init()
                 std::pair<uint64_t, uint64_t> sender = std::make_pair(node_id, server_thread_id);
                 Socket *sock = connect(node_id, port_id);
                 send_sockets.insert(std::make_pair(sender, sock));
+                // printf("Socket insert: {%ld,%ld}: %ld\n", node_id, server_thread_id, (uint64_t)sock);
                 DEBUG("Socket insert: {%ld,%ld}: %ld\n", node_id, server_thread_id, (uint64_t)sock);
             }
         }
@@ -300,19 +300,26 @@ void Transport::send_msg(uint64_t send_thread_id, uint64_t dest_node_id, void *s
     // Copy messages to nanomsg buffer
     // void *buf = nn_allocmsg(size, 0);
     // memcpy(buf, sbuf, size);
+    // printf("%ld Sending batch of %d bytes to node %ld on socket %ld\n", send_thread_id, size, dest_node_id, (uint64_t)socket);
     DEBUG("%ld Sending batch of %d bytes to node %ld on socket %ld\n", send_thread_id, size, dest_node_id, (uint64_t)socket);
     INC_GLOB_STATS_ARR(bytes_sent, dest_node_id, size);
 
-#if VIEW_CHANGES || LOCAL_FAULT || PVP_RECOVERY
+#if VIEW_CHANGES || LOCAL_FAULT
     bool failednode = false;
 
     if (ISSERVER)
     {
-        stop_lock.lock();
-        if(stop_node_set.count(dest_node_id)){
-            failednode = true;
-        }        
-        stop_lock.unlock();
+        uint64_t tid = send_thread_id % g_send_thread_cnt;
+        stopMTX[tid].lock();
+        for (uint i = 0; i < stop_nodes[tid].size(); i++)
+        {
+            if (dest_node_id == stop_nodes[tid][i])
+            {
+                failednode = true;
+                break;
+            }
+        }
+        stopMTX[tid].unlock();
     }
     else
     {
@@ -327,8 +334,18 @@ void Transport::send_msg(uint64_t send_thread_id, uint64_t dest_node_id, void *s
         }
         clistopMTX.unlock();
     }
+
     if (!failednode)
     {
+
+        // uint64_t ptr = 0;
+        // RemReqType rtype;
+        // ptr += sizeof(rtype);
+        // ptr += sizeof(rtype);
+        // ptr += sizeof(rtype);
+        // memcpy(&rtype, &((char *)buf)[ptr], sizeof(rtype));
+        // cout << rtype << endl;
+
         int rc = -1;
         uint64_t time = get_sys_clock();
         while ((rc < 0 && (get_sys_clock() - time < MSG_TIMEOUT || !simulation->is_setup_done())) && (!simulation->is_setup_done() || !simulation->is_done()))
@@ -340,9 +357,10 @@ void Transport::send_msg(uint64_t send_thread_id, uint64_t dest_node_id, void *s
             cout << "Adding failed node: " << dest_node_id << "\n";
             if (ISSERVER)
             {
-                stop_lock.lock();
-                stop_node_set.insert(dest_node_id);
-                stop_lock.unlock();
+                uint64_t tid = send_thread_id % g_send_thread_cnt;
+                stopMTX[tid].lock();
+                stop_nodes[tid].push_back(dest_node_id);
+                stopMTX[tid].unlock();
             }
             else
             {
@@ -361,7 +379,8 @@ void Transport::send_msg(uint64_t send_thread_id, uint64_t dest_node_id, void *s
 #endif
 
     //nn_freemsg(sbuf);
-    DEBUG("%ld Batch of %d bytes sent to node %ld\n", send_thread_id, size, dest_node_id);
+    //printf("%ld Batch of %d bytes sent to node %ld\n", send_thread_id, size, dest_node_id);
+    //DEBUG("%ld Batch of %d bytes sent to node %ld\n", send_thread_id, size, dest_node_id);
 
     INC_STATS(send_thread_id, msg_send_time, get_sys_clock() - starttime);
     INC_STATS(send_thread_id, msg_send_cnt, 1);
@@ -376,6 +395,7 @@ std::vector<Message *> *Transport::recv_msg(uint64_t thd_id)
 
     uint64_t ctr, start_ctr;
     uint64_t starttime = get_sys_clock();
+
     if (!ISSERVER)
     {
         uint64_t rand = (starttime % recv_sockets.size()) / g_this_rem_thread_cnt;
@@ -411,7 +431,6 @@ std::vector<Message *> *Transport::recv_msg(uint64_t thd_id)
         }
     }
     start_ctr = ctr;
-
     while (bytes <= 0 && (!simulation->is_setup_done() || (simulation->is_setup_done() && !simulation->is_done())))
     {
         Socket *socket;
@@ -435,6 +454,10 @@ std::vector<Message *> *Transport::recv_msg(uint64_t thd_id)
             }
             else
             {
+                #if IN_RECV
+                if(simulation->is_warmup_done())
+                    recv_try_cnt++;
+                #endif
                 uint64_t abs_tid = thd_id % (g_rem_thread_cnt - 1);
                 socket = recv_sockets_servers[abs_tid][ctr];
             }
@@ -464,6 +487,10 @@ std::vector<Message *> *Transport::recv_msg(uint64_t thd_id)
                 {
                     uint64_t abs_tid = thd_id % (g_rem_thread_cnt - 1);
                     ctr = get_next_socket(thd_id, recv_sockets_servers[abs_tid].size());
+                    #if IN_RECV
+                    if(simulation->is_warmup_done())
+                        recv_fail_cnt++;
+                    #endif
                 }
                 if (ctr == start_ctr)
                     break;
@@ -481,6 +508,7 @@ std::vector<Message *> *Transport::recv_msg(uint64_t thd_id)
     INC_STATS(thd_id, msg_recv_cnt, 1);
 
     starttime = get_sys_clock();
+
     msgs = Message::create_messages((char *)buf);
     DEBUG("Batch of %d bytes recv from node %ld; Time: %f\n", bytes, msgs->front()->return_node_id, simulation->seconds_from_start(get_sys_clock()));
     INC_GLOB_STATS_ARR(bytes_received, msgs->front()->return_node_id, bytes);

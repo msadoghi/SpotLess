@@ -49,6 +49,7 @@ Message *Message::create_message(TxnManager *txn, RemReqType rtype)
 	Message *msg = create_message(rtype);
 	msg->mcopy_from_txn(txn);
 	msg->copy_from_txn(txn);
+
 	// copy latency here
 	msg->lat_work_queue_time = txn->txn_stats.work_queue_time_short;
 	msg->lat_msg_queue_time = txn->txn_stats.msg_queue_time_short;
@@ -164,36 +165,6 @@ Message *Message::create_message(RemReqType rtype)
 		break;
 #endif
 
-#if CONSENSUS == HOTSTUFF
-	case HOTSTUFF_PREP_MSG:
-		msg = new HOTSTUFFPrepareMsg;
-		break;
-    case HOTSTUFF_PREP_VOTE_MSG:
-		msg = new HOTSTUFFPrepareVoteMsg;
-		break;
-    case HOTSTUFF_PRECOMMIT_MSG:
-		msg = new HOTSTUFFPreCommitMsg;
-		break;
-    case HOTSTUFF_PRECOMMIT_VOTE_MSG:
-		msg = new HOTSTUFFPreCommitVoteMsg;
-		break;
-    case HOTSTUFF_COMMIT_MSG:
-		msg = new HOTSTUFFCommitMsg;
-		break;
-    case HOTSTUFF_COMMIT_VOTE_MSG:
-		msg = new HOTSTUFFCommitVoteMsg;
-		break;
-    case HOTSTUFF_DECIDE_MSG:
-		msg = new HOTSTUFFDecideMsg;
-		break;
-    case HOTSTUFF_NEW_VIEW_MSG:
-		msg = new HOTSTUFFNewViewMsg;
-		break;
-	case HOTSTUFF_GENERIC_MSG:
-		msg = new HOTSTUFFGenericMsg;
-		break;
-
-#endif
 	default:
 		cout << "FALSE TYPE: " << rtype << "\n";
 		fflush(stdout);
@@ -277,7 +248,6 @@ void Message::mcopy_from_buf(char *buf)
 
 	COPY_VAL(sigSize, buf, ptr);
 	COPY_VAL(keySize, buf, ptr);
-		
 	signature.pop_back();
 	pubKey.pop_back();
 
@@ -292,7 +262,6 @@ void Message::mcopy_from_buf(char *buf)
 		COPY_VAL(v, buf, ptr);
 		pubKey += v;
 	}
-
 #if SHARPER
 	COPY_VAL(is_cross_shard, buf, ptr);
 #endif
@@ -479,62 +448,6 @@ void Message::release_message(Message *msg)
 	case RING_COMMIT:
 	{
 		RingBFTCommit *m_msg = (RingBFTCommit *)msg;
-		m_msg->release();
-		delete m_msg;
-		break;
-	}
-#endif
-#if CONSENSUS == HOTSTUFF
-	case HOTSTUFF_PREP_MSG:{
-		HOTSTUFFPrepareMsg *m_msg = (HOTSTUFFPrepareMsg *)msg;
-		m_msg->release();
-		delete m_msg;
-		break;
-	}
-	case HOTSTUFF_PREP_VOTE_MSG:{
-		HOTSTUFFPrepareVoteMsg *m_msg = (HOTSTUFFPrepareVoteMsg *)msg;
-		m_msg->release();
-		delete m_msg;
-		break;
-	}
-	case HOTSTUFF_PRECOMMIT_MSG:{
-		HOTSTUFFPreCommitMsg *m_msg = (HOTSTUFFPreCommitMsg *)msg;
-		m_msg->release();
-		delete m_msg;
-		break;
-	}
-	case HOTSTUFF_PRECOMMIT_VOTE_MSG:{
-		HOTSTUFFPreCommitVoteMsg *m_msg = (HOTSTUFFPreCommitVoteMsg *)msg;
-		m_msg->release();
-		delete m_msg;
-		break;
-	}
-	case HOTSTUFF_COMMIT_MSG:{
-		HOTSTUFFCommitMsg *m_msg = (HOTSTUFFCommitMsg *)msg;
-		m_msg->release();
-		delete m_msg;
-		break;
-	}
-	case HOTSTUFF_COMMIT_VOTE_MSG:{
-		HOTSTUFFCommitVoteMsg *m_msg = (HOTSTUFFCommitVoteMsg *)msg;
-		m_msg->release();
-		delete m_msg;
-		break;
-	}
-	case HOTSTUFF_DECIDE_MSG:{
-		HOTSTUFFDecideMsg *m_msg = (HOTSTUFFDecideMsg *)msg;
-		m_msg->release();
-		delete m_msg;
-		break;
-	}
-	case HOTSTUFF_NEW_VIEW_MSG:{
-		HOTSTUFFNewViewMsg *m_msg = (HOTSTUFFNewViewMsg *)msg;
-		m_msg->release();
-		delete m_msg;
-		break;
-	}
-	case HOTSTUFF_GENERIC_MSG:{
-		HOTSTUFFGenericMsg *m_msg = (HOTSTUFFGenericMsg *)msg;
 		m_msg->release();
 		delete m_msg;
 		break;
@@ -992,28 +905,8 @@ void ClientResponseMessage::release()
 void ClientResponseMessage::copy_from_txn(TxnManager *txn)
 {
 	Message::mcopy_from_txn(txn);
-#if CONSENSUS == HOTSTUFF
-	#if !PVP
-		hash_QC_lock.lock();
-		#if CHAINED
-		view = hash_to_view[txn->get_hash()];
-		#else
-		view = hash_to_QC[txn->get_hash()].viewNumber;
-		#endif
-		hash_QC_lock.unlock();
-	#else
-		uint64_t instance_id = txn->get_txn_id() / get_batch_size() % get_totInstances();
-		hash_QC_lock[instance_id].lock();
-		#if CHAINED
-		view = hash_to_view[instance_id][txn->get_hash()];
-		#else
-		view = hash_to_QC[instance_id][txn->get_hash()].viewNumber;
-		#endif
-		hash_QC_lock[instance_id].unlock();
-	#endif
-#else
+
 	view = get_current_view(txn->get_thd_id());
-#endif
 
 #if CLIENT_RESPONSE_BATCH
 	this->index.add(txn->get_txn_id());
@@ -1268,11 +1161,6 @@ uint64_t KeyExchange::get_size()
 	size += sizeof(uint64_t);
 	size += pkey.size();
 	size += sizeof(uint64_t);
-#if THRESHOLD_SIGNATURE
-	if(pkey == "SECP"){
-		size += sizeof(secp256k1_pubkey);
-	}
-#endif
 	return size;
 }
 
@@ -1297,11 +1185,6 @@ void KeyExchange::copy_from_buf(char *buf)
 		pkey += v;
 	}
 	COPY_VAL(return_node, buf, ptr);
-#if THRESHOLD_SIGNATURE
-	if(pkey == "SECP"){
-		COPY_VAL(public_share, buf, ptr);
-	}
-#endif
 }
 
 void KeyExchange::copy_to_buf(char *buf)
@@ -1316,11 +1199,6 @@ void KeyExchange::copy_to_buf(char *buf)
 		COPY_BUF(buf, v, ptr);
 	}
 	COPY_BUF(buf, return_node, ptr);
-#if THRESHOLD_SIGNATURE
-	if(pkey == "SECP"){
-		COPY_BUF(buf, public_share, ptr);
-	}
-#endif
 }
 
 #if CLIENT_BATCH
@@ -1387,7 +1265,7 @@ void ClientQueryBatch::copy_from_buf(char *buf)
 		COPY_VAL(involved_shards[i], buf, ptr);
 	}
 #endif
-	
+
 	for (uint64_t i = 0; i < cqrySet.size(); i++)
     {
         Message::release_message(cqrySet[i]);
@@ -1534,7 +1412,7 @@ uint64_t BatchRequests::get_size()
 	return size;
 }
 
-void BatchRequests::add_request_msg(uint idx, Message * msg){
+void BatchRequests::add_request_msg(int idx, Message * msg){
      if(requestMsg[idx]){
  		Message::release_message(requestMsg[idx]);
      }
@@ -1543,19 +1421,14 @@ void BatchRequests::add_request_msg(uint idx, Message * msg){
  #else
  	requestMsg[idx] = static_cast<YCSBClientQueryMessage*>(msg);
  #endif
-}
+ }
 
 // Initialization
 void BatchRequests::init(uint64_t thd_id)
 {
 // Only primary should create this message
 #if MULTI_ON
-	// Whichever replica sends this message, adds itself as the view.
-	/*
-	Change for RCC
-	the view of pre-prepare msgs is always 0, similarly, only for normal case.
-	*/
-	this->view = 0;
+	this->view = g_node_id;
 #elif SHARPER
 	assert(view_to_primary(get_current_view(thd_id)) == g_node_id);
 	this->view = get_current_view(thd_id);
@@ -1651,8 +1524,8 @@ void BatchRequests::copy_from_buf(char *buf)
 #endif
 
 	uint64_t elem;
-	release();
 	// Initialization
+	release();
 	index.init(get_batch_size());
 	requestMsg.resize(get_batch_size());
 
@@ -1797,7 +1670,7 @@ bool BatchRequests::validate(uint64_t thd_id)
 	//fflush(stdout);
 
 	//is the view the same as the view observed by this message
-#if !RBFT_ON
+#if !RBFT_ON && !MULTI_ON
 	if (this->view != get_current_view(thd_id))
 	{
 		cout << "this->view: " << this->view << endl;
@@ -1833,12 +1706,8 @@ void ExecuteMessage::copy_from_txn(TxnManager *txn)
 {
 	// Constructing txn manager for one transaction less than end index.
 	this->txn_id = txn->get_txn_id() - 1;
-	#if !PVP
+
 	this->view = get_current_view(txn->get_thd_id());
-	#else
-	uint64_t instance_id = this->txn_id / get_batch_size() % get_totInstances();
-	this->view = get_current_view(instance_id);
-	#endif
 	this->index = txn->get_txn_id() + 1 - get_batch_size();
 	this->end_index = txn->get_txn_id();
 	this->batch_size = get_batch_size();
@@ -1912,13 +1781,9 @@ void CheckpointMessage::copy_from_txn(TxnManager *txn)
 	this->txn_id = txn->get_txn_id() - 5;
 
 	//index of first request executed since last chkpt.
-	#if CONSENSUS == HOTSTUFF
-	this->index = curr_next_index() - get_batch_size();
-	#else
 	this->index = curr_next_index() - txn_per_chkpt();
-	#endif
 	this->return_node = g_node_id;
-	this->end_index = curr_next_index() - 1;
+	this->end_index = curr_next_index();
 
 	// Now implemted in msg_queue::enqueue
 	//this->sign();
@@ -2074,7 +1939,12 @@ uint64_t PBFTPrepMessage::get_size()
 void PBFTPrepMessage::copy_from_txn(TxnManager *txn)
 {
 	Message::mcopy_from_txn(txn);
+#if MULTI_ON
+  	this->view = txn->instance_id;
+#else
 	this->view = get_current_view(txn->get_thd_id());
+  	//this->view = get_current_view(local_view[txn->get_thd_id()]);
+#endif  
 	this->end_index = txn->get_txn_id();
 	this->index = this->end_index + 1 - get_batch_size();
 	this->hash = txn->get_hash();
@@ -2193,7 +2063,11 @@ uint64_t PBFTCommitMessage::get_size()
 void PBFTCommitMessage::copy_from_txn(TxnManager *txn)
 {
 	Message::mcopy_from_txn(txn);
+	#if MULTI_ON
+  	this->view = txn->instance_id;
+    #else
 	this->view = get_current_view(txn->get_thd_id());
+	#endif
 	this->end_index = txn->get_txn_id();
 	this->index = this->end_index + 1 - get_batch_size();
 	this->hash = txn->get_hash();
@@ -2906,1181 +2780,5 @@ void clearAllVCMsg()
 
 /************************************/
 
-#if CONSENSUS == HOTSTUFF
-
-uint64_t HOTSTUFFPrepareMsg::get_size()
-{
-	uint64_t size = Message::mget_size();
-	size += sizeof(view);
-	size += sizeof(uint64_t) * index.size();
-	size += sizeof(uint64_t);
-	size += hash.length();
-
-	for (uint i = 0; i < get_batch_size(); i++)
-	{
-		size += requestMsg[i]->get_size();
-	}
-
-	size += sizeof(batch_size);
-	size += highQC.get_size();
-
-#if THRESHOLD_SIGNATURE
-	size += sizeof(sig_share);
-#endif
-
-	return size;
-}
-
-void HOTSTUFFPrepareMsg::add_request_msg(uint idx, Message * msg){
-     if(requestMsg[idx]){
- 		Message::release_message(requestMsg[idx]);
-     }
- #if BANKING_SMART_CONTRACT
- 	requestMsg[idx] = static_cast<BankingSmartContractMessage *>(msg);
- #else
- 	requestMsg[idx] = static_cast<YCSBClientQueryMessage*>(msg);
- #endif
- }
-
-// Initialization
-void HOTSTUFFPrepareMsg::init(uint64_t instance_id)
-{
-	// Only primary should create this message
-	#if !PVP
-	assert(get_view_primary(get_current_view(0)) == g_node_id);
-	#else
-	assert(get_view_primary(get_current_view(instance_id), instance_id) == g_node_id);
-	#endif
-	this->view = get_current_view(instance_id);
-	this->index.init(get_batch_size());
-	this->requestMsg.resize(get_batch_size());
-}
-
-void HOTSTUFFPrepareMsg::copy_from_txn(TxnManager *txn)
-{
-	// Setting txn_id 2 less than the actual value.
-	this->txn_id = txn->get_txn_id() - 2;
-	this->batch_size = get_batch_size();
-
-	// Storing the representative hash of the batch.
-	this->hash = txn->hash;
-	this->hashSize = txn->hashSize;
-	// Use these lines for testing plain hash function.
-	//string message = "anc_def";
-	//this->hash.add(calculateHash(message));
-}
-
-#if BANKING_SMART_CONTRACT
-void HOTSTUFFPrepareMsg::copy_from_txn(TxnManager *txn, BankingSmartContractMessage *clqry)
-{
-	// Index of the transaction in this bacth.
-	uint64_t txnid = txn->get_txn_id();
-	uint64_t idx = txnid % get_batch_size();
-
-	// TODO: Some memory is getting consumed while storing client query.
-	char *bfr = (char *)malloc(clqry->get_size());
-	clqry->copy_to_buf(bfr);
-	Message *tmsg = Message::create_message(bfr);
-	BankingSmartContractMessage *yqry = (BankingSmartContractMessage *)tmsg;
-	free(bfr);
-
-	// this->requestMsg[idx] = yqry;
-	add_request_msg(idx, yqry);
-	this->index.add(txnid);
-}
-#else
-void HOTSTUFFPrepareMsg::copy_from_txn(TxnManager *txn, YCSBClientQueryMessage *clqry)
-{
-	// Index of the transaction in this bacth.
-	uint64_t txnid = txn->get_txn_id();
-	uint64_t idx = txnid % get_batch_size();
-
-	// TODO: Some memory is getting consumed while storing client query.
-	char *bfr = (char *)malloc(clqry->get_size());
-	clqry->copy_to_buf(bfr);
-	Message *tmsg = Message::create_message(bfr);
-	YCSBClientQueryMessage *yqry = (YCSBClientQueryMessage *)tmsg;
-	free(bfr);
-
-	// this->requestMsg[idx] = yqry;
-	add_request_msg(idx, yqry);
-	this->index.add(txnid);
-}
-#endif
-
-string HOTSTUFFPrepareMsg::getString(uint64_t sender){
-	string message = std::to_string(sender);
-	for (uint i = 0; i < get_batch_size(); i++)
-	{
-		message += std::to_string(index[i]);
-		message += requestMsg[i]->getRequestString();
-	}
-	message += hash;
-
-	return message;
-}
-
-void HOTSTUFFPrepareMsg::sign(uint64_t dest_node)
-{
-#if USE_CRYPTO
-	#if THRESHOLD_SIGNATURE && ENABLE_ENCRYPT
-		unsigned char message[32];
-		memcpy(message, get_secp_hash(this->hash, this->rtype).c_str(), 32);
-		assert(secp256k1_ecdsa_sign(ctx, &sig_share, message, private_key, NULL, NULL));
-	#endif
-#else
-	this->signature = "0";
-#endif
-	this->sigSize = this->signature.size();
-	this->keySize = this->pubKey.size();
-}
-
-void HOTSTUFFPrepareMsg::copy_from_buf(char *buf)
-{
-	Message::mcopy_from_buf(buf);
-
-	uint64_t ptr = Message::mget_size();
-	COPY_VAL(view, buf, ptr);
-
-	uint64_t elem;
-	release();
-	// Initialization
-	index.init(get_batch_size());
-	requestMsg.resize(get_batch_size());
-
-	for (uint i = 0; i < get_batch_size(); i++)
-	{
-		COPY_VAL(elem, buf, ptr);
-		index.add(elem);
-
-		Message *msg = create_message(&buf[ptr]);
-		ptr += msg->get_size();
-// #if BANKING_SMART_CONTRACT
-// 		requestMsg[i] = (BankingSmartContractMessage *)msg;
-// #else
-// 		requestMsg[i] = (YCSBClientQueryMessage *)msg;
-// #endif
-		add_request_msg(i, msg);
-	}
-
-	COPY_VAL(hashSize, buf, ptr);
-	ptr = buf_to_string(buf, ptr, hash, hashSize);
-
-	COPY_VAL(batch_size, buf, ptr);
-	ptr = highQC.copy_from_buf(ptr, buf);
-
-#if THRESHOLD_SIGNATURE
-	COPY_VAL(sig_share, buf, ptr);
-#endif
-
-	assert(ptr == get_size());
-}
-
-
-void HOTSTUFFPrepareMsg::copy_to_buf(char *buf)
-{
-	Message::mcopy_to_buf(buf);
-
-	uint64_t ptr = Message::mget_size();
-	COPY_BUF(buf, view, ptr);
-
-	uint64_t elem;
-	for (uint i = 0; i < get_batch_size(); i++)
-	{
-		elem = index[i];
-		COPY_BUF(buf, elem, ptr);
-
-		//copy client request stored in message to buf
-		requestMsg[i]->copy_to_buf(&buf[ptr]);
-		ptr += requestMsg[i]->get_size();
-	}
-
-	COPY_BUF(buf, hashSize, ptr);
-
-	char v;
-	for (uint j = 0; j < hash.size(); j++)
-	{
-		v = hash[j];
-		COPY_BUF(buf, v, ptr);
-	}
-
-	COPY_BUF(buf, batch_size, ptr);
-	ptr = highQC.copy_to_buf(ptr, buf);
-	
-#if THRESHOLD_SIGNATURE
-	COPY_BUF(buf, sig_share, ptr);
-#endif
-
-	assert(ptr == get_size());
-}
-
-
-//makes sure message is valid, returns true for false
-bool HOTSTUFFPrepareMsg::validate(uint64_t thd_id)
-{
-
-#if USE_CRYPTO
-
-#if THRESHOLD_SIGNATURE
-	unsigned char message[32];
-	memcpy(message, get_secp_hash(this->hash, this->rtype).c_str(), 32);
-	assert(secp256k1_ecdsa_verify(ctx, &sig_share, message, &public_keys[return_node_id]));
-#endif
-
-#endif
-
-	// String of transactions in a batch to generate hash.
-	string batchStr;
-	for (uint i = 0; i < get_batch_size(); i++)
-	{
-		// Append string representation of this txn.
-		batchStr += this->requestMsg[i]->getString();
-	}
-
-	// Is hash of request message valid
-	if (this->hash != calculateHash(batchStr))
-	{
-		assert(0);
-		return false;
-	}
-
-	//verify threshold signature of highQC
-#if THRESHOLD_SIGNATURE
-#if !CHAINED
-	assert(highQC.genesis || (highQC.ThresholdSignatureVerify(HOTSTUFF_PREP_MSG)));
-#else
-	assert(highQC.genesis || (highQC.ThresholdSignatureVerify(HOTSTUFF_NEW_VIEW_MSG)));
-#endif
-#endif
-
-#if SHIFT_QC && !CHAINED
-	if(highQC.genesis == false)
-		assert(genericQC.ThresholdSignatureVerify(HOTSTUFF_NEW_VIEW_MSG));
-#endif
-
-	return true;
-}
-
-void HOTSTUFFPrepareMsg::release()
-{
-	index.release();
-	for (uint64_t i = 0; i < requestMsg.size(); i++)
-	{
-		Message::release_message(requestMsg[i]);
-	}
-	requestMsg.clear();
-}
-
-
-uint64_t HOTSTUFFPrepareVoteMsg::get_size()
-{
-	uint64_t size = Message::mget_size();
-	size += sizeof(view);
-	size += sizeof(index);
-	size += hash.length();
-	size += sizeof(hashSize);
-	size += sizeof(return_node);
-	size += sizeof(end_index);
-	size += sizeof(batch_size);
-
-#if THRESHOLD_SIGNATURE
-	size += sizeof(sig_share);
-#endif
-
-	return size;
-}
-
-string HOTSTUFFPrepareVoteMsg::toString()
-{
-	string signString = std::to_string(this->view);
-	signString += '_' + std::to_string(this->index) + '_' +
-				  this->hash + '_' + std::to_string(this->return_node) +
-				  '_' + to_string(this->end_index);
-
-	return signString;
-}
-
-void HOTSTUFFPrepareVoteMsg::sign(uint64_t dest_node)
-{
-#if USE_CRYPTO
-	#if THRESHOLD_SIGNATURE && ENABLE_ENCRYPT
-		unsigned char message[32];
-		memcpy(message, get_secp_hash(this->hash, this->rtype).c_str(), 32);
-		assert(secp256k1_ecdsa_sign(ctx, &sig_share, message, private_key, NULL, NULL));
-	#endif
-#else
-	this->signature = "0";
-#endif
-	this->sigSize = this->signature.size();
-	this->keySize = this->pubKey.size();
-}
-
-void HOTSTUFFPrepareVoteMsg::copy_from_txn(TxnManager *txn){
-	Message::mcopy_from_txn(txn);
-	#if !PVP
-	uint64_t instance_id = 0;
-	#else
-	uint64_t instance_id = this->txn_id / get_batch_size() % get_totInstances();
-	#endif
-	this->view = get_current_view(instance_id);
-	this->end_index = txn->get_txn_id();
-	this->index = this->end_index + 1 - get_batch_size();
-	this->hash = txn->get_hash();
-	this->hashSize = txn->get_hashSize();
-	this->return_node = g_node_id;
-	this->batch_size = get_batch_size();
-}
-
-void HOTSTUFFPrepareVoteMsg::copy_from_buf(char *buf)
-{
-	Message::mcopy_from_buf(buf);
-
-	uint64_t ptr = Message::mget_size();
-
-	COPY_VAL(view, buf, ptr);
-	COPY_VAL(index, buf, ptr);
-	COPY_VAL(hashSize, buf, ptr);
-
-	ptr = buf_to_string(buf, ptr, hash, hashSize);
-
-	COPY_VAL(return_node, buf, ptr);
-	COPY_VAL(end_index, buf, ptr);
-	COPY_VAL(batch_size, buf, ptr);
-
-#if THRESHOLD_SIGNATURE
-	COPY_VAL(sig_share, buf, ptr);
-#endif
-
-	assert(ptr == get_size());
-}
-
-void HOTSTUFFPrepareVoteMsg::copy_to_buf(char *buf)
-{
-	Message::mcopy_to_buf(buf);
-
-	uint64_t ptr = Message::mget_size();
-
-	COPY_BUF(buf, view, ptr);
-	COPY_BUF(buf, index, ptr);
-	COPY_BUF(buf, hashSize, ptr);
-
-	char v;
-	for (uint64_t i = 0; i < hash.size(); i++)
-	{
-		v = hash[i];
-		COPY_BUF(buf, v, ptr);
-	}
-
-	COPY_BUF(buf, return_node, ptr);
-
-	COPY_BUF(buf, end_index, ptr);
-	COPY_BUF(buf, batch_size, ptr);
-
-#if THRESHOLD_SIGNATURE
-	COPY_BUF(buf, sig_share, ptr);
-#endif
-
-	assert(ptr == get_size());
-}
-
-//makes sure message is valid, returns true or false;
-bool HOTSTUFFPrepareVoteMsg::validate()
-{
-#if USE_CRYPTO
-
-#if THRESHOLD_SIGNATURE
-	unsigned char message[32];
-	memcpy(message, get_secp_hash(this->hash, this->rtype).c_str(), 32);
-	assert(secp256k1_ecdsa_verify(ctx, &sig_share, message, &public_keys[return_node_id]));
-#endif
-
-#endif
-
-	return true;
-}
-
-uint64_t HOTSTUFFPreCommitMsg::get_size(){
-	uint64_t size = Message::mget_size();
-
-	size += sizeof(view);
-	size += sizeof(index);
-	size += hash.length();
-	size += sizeof(hashSize);
-	size += sizeof(return_node);
-	size += sizeof(end_index);
-	size += sizeof(batch_size);
-	size += PreparedQC.get_size();
-
-#if THRESHOLD_SIGNATURE
-	size += sizeof(sig_share);
-#endif
-
-	return size;
-}
-
-string HOTSTUFFPreCommitMsg::toString()
-{
-	string signString = std::to_string(this->view);
-	signString += '_' + std::to_string(this->index) + '_' +
-				  this->hash + '_' + std::to_string(this->return_node) +
-				  '_' + to_string(this->end_index);
-
-	return signString;
-}
-
-void HOTSTUFFPreCommitMsg::sign(uint64_t dest_node)
-{
-#if USE_CRYPTO
-	#if THRESHOLD_SIGNATURE && ENABLE_ENCRYPT
-		unsigned char message[32];
-		memcpy(message, get_secp_hash(this->hash, this->rtype).c_str(), 32);
-		assert(secp256k1_ecdsa_sign(ctx, &sig_share, message, private_key, NULL, NULL));
-	#endif
-#else
-	this->signature = "0";
-#endif
-	this->sigSize = this->signature.size();
-	this->keySize = this->pubKey.size();
-}
-
-void HOTSTUFFPreCommitMsg::copy_from_txn(TxnManager *txn){
-	Message::mcopy_from_txn(txn);
-	#if !PVP
-	uint64_t instance_id = 0;
-	#else
-	uint64_t instance_id = this->txn_id / get_batch_size() % get_totInstances();
-	#endif
-	this->view = get_current_view(instance_id);
-	this->end_index = txn->get_txn_id();
-	this->index = this->end_index + 1 - get_batch_size();
-	this->hash = txn->get_hash();
-	this->hashSize = txn->get_hashSize();
-	this->return_node = g_node_id;
-	this->batch_size = get_batch_size();
-	this->PreparedQC = txn->get_preparedQC();
-}
-
-void HOTSTUFFPreCommitMsg::copy_from_buf(char *buf)
-{
-	Message::mcopy_from_buf(buf);
-
-	uint64_t ptr = Message::mget_size();
-
-	COPY_VAL(view, buf, ptr);
-	COPY_VAL(index, buf, ptr);
-	COPY_VAL(hashSize, buf, ptr);
-
-	ptr = buf_to_string(buf, ptr, hash, hashSize);
-
-	COPY_VAL(return_node, buf, ptr);
-	COPY_VAL(end_index, buf, ptr);
-	COPY_VAL(batch_size, buf, ptr);
-	ptr = PreparedQC.copy_from_buf(ptr, buf);
-
-#if THRESHOLD_SIGNATURE
-	COPY_VAL(sig_share, buf, ptr);
-#endif
-
-	assert(ptr == get_size());
-}
-
-void HOTSTUFFPreCommitMsg::copy_to_buf(char *buf)
-{
-	Message::mcopy_to_buf(buf);
-
-	uint64_t ptr = Message::mget_size();
-
-	COPY_BUF(buf, view, ptr);
-	COPY_BUF(buf, index, ptr);
-	COPY_BUF(buf, hashSize, ptr);
-
-	char v;
-	for (uint64_t i = 0; i < hash.size(); i++)
-	{
-		v = hash[i];
-		COPY_BUF(buf, v, ptr);
-	}
-
-	COPY_BUF(buf, return_node, ptr);
-
-	COPY_BUF(buf, end_index, ptr);
-	COPY_BUF(buf, batch_size, ptr);
-
-	ptr = PreparedQC.copy_to_buf(ptr, buf);
-
-#if THRESHOLD_SIGNATURE
-	COPY_BUF(buf, sig_share, ptr);
-#endif
-
-	assert(ptr == get_size());
-}
-
-//makes sure message is valid, returns true or false;
-bool HOTSTUFFPreCommitMsg::validate()
-{
-#if USE_CRYPTO
-
-#if THRESHOLD_SIGNATURE
-	unsigned char message[32];
-	memcpy(message, get_secp_hash(this->hash, this->rtype).c_str(), 32);
-	assert(secp256k1_ecdsa_verify(ctx, &sig_share, message, &public_keys[return_node_id]));
-#endif
-
-#endif
-
-	return true;
-}
-
-uint64_t HOTSTUFFPreCommitVoteMsg::get_size()
-{
-	uint64_t size = Message::mget_size();
-	size += sizeof(view);
-	size += sizeof(index);
-	size += hash.length();
-	size += sizeof(hashSize);
-	size += sizeof(return_node);
-	size += sizeof(end_index);
-	size += sizeof(batch_size);
-
-#if THRESHOLD_SIGNATURE
-	size += sizeof(sig_share);
-#endif
-
-	return size;
-}
-
-string HOTSTUFFPreCommitVoteMsg::toString()
-{
-	string signString = std::to_string(this->view);
-	signString += '_' + std::to_string(this->index) + '_' +
-				  this->hash + '_' + std::to_string(this->return_node) +
-				  '_' + to_string(this->end_index);
-
-	return signString;
-}
-
-void HOTSTUFFPreCommitVoteMsg::sign(uint64_t dest_node)
-{
-#if USE_CRYPTO
-	#if THRESHOLD_SIGNATURE && ENABLE_ENCRYPT
-		unsigned char message[32];
-		memcpy(message, get_secp_hash(this->hash, this->rtype).c_str(), 32);
-		assert(secp256k1_ecdsa_sign(ctx, &sig_share, message, private_key, NULL, NULL));
-	#endif
-#else
-	this->signature = "0";
-#endif
-	this->sigSize = this->signature.size();
-	this->keySize = this->pubKey.size();
-}
-
-void HOTSTUFFPreCommitVoteMsg::copy_from_txn(TxnManager *txn){
-	Message::mcopy_from_txn(txn);
-	#if !PVP
-	uint64_t instance_id = 0;
-	#else
-	uint64_t instance_id = this->txn_id / get_batch_size() % get_totInstances();
-	#endif
-	this->view = get_current_view(instance_id);
-	this->end_index = txn->get_txn_id();
-	this->index = this->end_index + 1 - get_batch_size();
-	this->hash = txn->get_hash();
-	this->hashSize = txn->get_hashSize();
-	this->return_node = g_node_id;
-	this->batch_size = get_batch_size();
-}
-
-void HOTSTUFFPreCommitVoteMsg::copy_to_buf(char *buf)
-{
-	Message::mcopy_to_buf(buf);
-
-	uint64_t ptr = Message::mget_size();
-
-	COPY_BUF(buf, view, ptr);
-	COPY_BUF(buf, index, ptr);
-	COPY_BUF(buf, hashSize, ptr);
-
-	char v;
-	for (uint64_t i = 0; i < hash.size(); i++)
-	{
-		v = hash[i];
-		COPY_BUF(buf, v, ptr);
-	}
-
-	COPY_BUF(buf, return_node, ptr);
-
-	COPY_BUF(buf, end_index, ptr);
-	COPY_BUF(buf, batch_size, ptr);
-
-#if THRESHOLD_SIGNATURE
-	COPY_BUF(buf, sig_share, ptr);
-#endif
-
-	assert(ptr == get_size());
-}
-
-void HOTSTUFFPreCommitVoteMsg::copy_from_buf(char *buf)
-{
-	Message::mcopy_from_buf(buf);
-
-	uint64_t ptr = Message::mget_size();
-
-	COPY_VAL(view, buf, ptr);
-	COPY_VAL(index, buf, ptr);
-	COPY_VAL(hashSize, buf, ptr);
-
-	ptr = buf_to_string(buf, ptr, hash, hashSize);
-
-	COPY_VAL(return_node, buf, ptr);
-	COPY_VAL(end_index, buf, ptr);
-	COPY_VAL(batch_size, buf, ptr);
-
-#if THRESHOLD_SIGNATURE
-	COPY_VAL(sig_share, buf, ptr);
-#endif
-
-	assert(ptr == get_size());
-}
-
-//makes sure message is valid, returns true or false;
-bool HOTSTUFFPreCommitVoteMsg::validate()
-{
-#if USE_CRYPTO
-
-#if THRESHOLD_SIGNATURE
-	unsigned char message[32];
-	memcpy(message, get_secp_hash(this->hash, this->rtype).c_str(), 32);
-	assert(secp256k1_ecdsa_verify(ctx, &sig_share, message, &public_keys[return_node_id]));
-#endif
-
-#endif
-
-	return true;
-}
-
-uint64_t HOTSTUFFCommitMsg::get_size(){
-	uint64_t size = Message::mget_size();
-
-	size += sizeof(view);
-	size += sizeof(index);
-	size += hash.length();
-	size += sizeof(hashSize);
-	size += sizeof(return_node);
-	size += sizeof(end_index);
-	size += sizeof(batch_size);
-	size += PreCommittedQC.get_size();
-
-#if THRESHOLD_SIGNATURE
-	size += sizeof(sig_share);
-#endif
-
-	return size;
-}
-
-string HOTSTUFFCommitMsg::toString()
-{
-	string signString = std::to_string(this->view);
-	signString += '_' + std::to_string(this->index) + '_' +
-				  this->hash + '_' + std::to_string(this->return_node) +
-				  '_' + to_string(this->end_index);
-
-	return signString;
-}
-
-void HOTSTUFFCommitMsg::sign(uint64_t dest_node)
-{
-#if USE_CRYPTO
-	#if THRESHOLD_SIGNATURE && ENABLE_ENCRYPT
-		unsigned char message[32];
-		memcpy(message, get_secp_hash(this->hash, this->rtype).c_str(), 32);
-		assert(secp256k1_ecdsa_sign(ctx, &sig_share, message, private_key, NULL, NULL));
-	#endif
-#else
-	this->signature = "0";
-#endif
-	this->sigSize = this->signature.size();
-	this->keySize = this->pubKey.size();
-}
-
-void HOTSTUFFCommitMsg::copy_from_txn(TxnManager *txn){
-	Message::mcopy_from_txn(txn);
-	#if !PVP
-	uint64_t instance_id = 0;
-	#else
-	uint64_t instance_id = this->txn_id / get_batch_size() % get_totInstances();
-	#endif
-	this->view = get_current_view(instance_id);
-	this->end_index = txn->get_txn_id();
-	this->index = this->end_index + 1 - get_batch_size();
-	this->hash = txn->get_hash();
-	this->hashSize = txn->get_hashSize();
-	this->return_node = g_node_id;
-	this->batch_size = get_batch_size();
-	this->PreCommittedQC = txn->get_precommittedQC();
-}
-
-void HOTSTUFFCommitMsg::copy_from_buf(char *buf)
-{
-	Message::mcopy_from_buf(buf);
-
-	uint64_t ptr = Message::mget_size();
-
-	COPY_VAL(view, buf, ptr);
-	COPY_VAL(index, buf, ptr);
-	COPY_VAL(hashSize, buf, ptr);
-
-	ptr = buf_to_string(buf, ptr, hash, hashSize);
-
-	COPY_VAL(return_node, buf, ptr);
-	COPY_VAL(end_index, buf, ptr);
-	COPY_VAL(batch_size, buf, ptr);
-	ptr = PreCommittedQC.copy_from_buf(ptr, buf);
-
-#if THRESHOLD_SIGNATURE
-	COPY_VAL(sig_share, buf, ptr);
-#endif
-
-	assert(ptr == get_size());
-}
-
-void HOTSTUFFCommitMsg::copy_to_buf(char *buf)
-{
-	Message::mcopy_to_buf(buf);
-
-	uint64_t ptr = Message::mget_size();
-
-	COPY_BUF(buf, view, ptr);
-	COPY_BUF(buf, index, ptr);
-	COPY_BUF(buf, hashSize, ptr);
-
-	char v;
-	for (uint64_t i = 0; i < hash.size(); i++)
-	{
-		v = hash[i];
-		COPY_BUF(buf, v, ptr);
-	}
-
-	COPY_BUF(buf, return_node, ptr);
-
-	COPY_BUF(buf, end_index, ptr);
-	COPY_BUF(buf, batch_size, ptr);
-	ptr = PreCommittedQC.copy_to_buf(ptr, buf);
-	
-#if THRESHOLD_SIGNATURE
-	COPY_BUF(buf, sig_share, ptr);
-#endif
-
-	assert(ptr == get_size());
-}
-
-//makes sure message is valid, returns true or false;
-bool HOTSTUFFCommitMsg::validate()
-{
-#if USE_CRYPTO
-
-#if THRESHOLD_SIGNATURE
-	unsigned char message[32];
-	memcpy(message, get_secp_hash(this->hash, this->rtype).c_str(), 32);
-	assert(secp256k1_ecdsa_verify(ctx, &sig_share, message, &public_keys[return_node_id]));
-#endif
-
-#endif
-
-	return true;
-}
-
-uint64_t HOTSTUFFCommitVoteMsg::get_size()
-{
-	uint64_t size = Message::mget_size();
-	size += sizeof(view);
-	size += sizeof(index);
-	size += hash.length();
-	size += sizeof(hashSize);
-	size += sizeof(return_node);
-	size += sizeof(end_index);
-	size += sizeof(batch_size);
-
-#if THRESHOLD_SIGNATURE
-	size += sizeof(sig_share);
-#endif
-
-	return size;
-}
-
-string HOTSTUFFCommitVoteMsg::toString()
-{
-	string signString = std::to_string(this->view);
-	signString += '_' + std::to_string(this->index) + '_' +
-				  this->hash + '_' + std::to_string(this->return_node) +
-				  '_' + to_string(this->end_index);
-
-	return signString;
-}
-
-void HOTSTUFFCommitVoteMsg::sign(uint64_t dest_node)
-{
-#if USE_CRYPTO
-	#if THRESHOLD_SIGNATURE && ENABLE_ENCRYPT
-		unsigned char message[32];
-		memcpy(message, get_secp_hash(this->hash, this->rtype).c_str(), 32);
-		assert(secp256k1_ecdsa_sign(ctx, &sig_share, message, private_key, NULL, NULL));
-	#endif
-#else
-	this->signature = "0";
-#endif
-	this->sigSize = this->signature.size();
-	this->keySize = this->pubKey.size();
-}
-
-void HOTSTUFFCommitVoteMsg::copy_from_txn(TxnManager *txn){
-	Message::mcopy_from_txn(txn);
-	#if !PVP
-	uint64_t instance_id = 0;
-	#else
-	uint64_t instance_id = this->txn_id / get_batch_size() % get_totInstances();
-	#endif
-	this->view = get_current_view(instance_id);
-	this->end_index = txn->get_txn_id();
-	this->index = this->end_index + 1 - get_batch_size();
-	this->hash = txn->get_hash();
-	this->hashSize = txn->get_hashSize();
-	this->return_node = g_node_id;
-	this->batch_size = get_batch_size();
-}
-
-void HOTSTUFFCommitVoteMsg::copy_to_buf(char *buf)
-{
-	Message::mcopy_to_buf(buf);
-
-	uint64_t ptr = Message::mget_size();
-
-	COPY_BUF(buf, view, ptr);
-	COPY_BUF(buf, index, ptr);
-	COPY_BUF(buf, hashSize, ptr);
-
-	char v;
-	for (uint64_t i = 0; i < hash.size(); i++)
-	{
-		v = hash[i];
-		COPY_BUF(buf, v, ptr);
-	}
-
-	COPY_BUF(buf, return_node, ptr);
-
-	COPY_BUF(buf, end_index, ptr);
-	COPY_BUF(buf, batch_size, ptr);
-
-#if THRESHOLD_SIGNATURE
-	COPY_BUF(buf, sig_share, ptr);
-#endif
-
-	assert(ptr == get_size());
-}
-
-void HOTSTUFFCommitVoteMsg::copy_from_buf(char *buf)
-{
-	Message::mcopy_from_buf(buf);
-
-	uint64_t ptr = Message::mget_size();
-
-	COPY_VAL(view, buf, ptr);
-	COPY_VAL(index, buf, ptr);
-	COPY_VAL(hashSize, buf, ptr);
-
-	ptr = buf_to_string(buf, ptr, hash, hashSize);
-
-	COPY_VAL(return_node, buf, ptr);
-	COPY_VAL(end_index, buf, ptr);
-	COPY_VAL(batch_size, buf, ptr);
-
-#if THRESHOLD_SIGNATURE
-	COPY_VAL(sig_share, buf, ptr);
-#endif
-
-	assert(ptr == get_size());
-}
-
-//makes sure message is valid, returns true or false;
-bool HOTSTUFFCommitVoteMsg::validate()
-{
-#if USE_CRYPTO
-
-#if THRESHOLD_SIGNATURE
-	unsigned char message[32];
-	memcpy(message, get_secp_hash(this->hash, this->rtype).c_str(), 32);
-	assert(secp256k1_ecdsa_verify(ctx, &sig_share, message, &public_keys[return_node_id]));
-#endif
-
-#endif
-
-	return true;
-}
-
-uint64_t HOTSTUFFDecideMsg::get_size(){
-	uint64_t size = Message::mget_size();
-
-	size += sizeof(view);
-	size += sizeof(index);
-	size += hash.length();
-	size += sizeof(hashSize);
-	size += sizeof(return_node);
-	size += sizeof(end_index);
-	size += sizeof(batch_size);
-	size += CommittedQC.get_size();
-
-#if THRESHOLD_SIGNATURE
-	size += sizeof(sig_share);
-#endif
-
-	return size;
-}
-
-string HOTSTUFFDecideMsg::toString()
-{
-	string signString = std::to_string(this->view);
-	signString += '_' + std::to_string(this->index) + '_' +
-				  this->hash + '_' + std::to_string(this->return_node) +
-				  '_' + to_string(this->end_index);
-
-	return signString;
-}
-
-void HOTSTUFFDecideMsg::sign(uint64_t dest_node)
-{
-#if USE_CRYPTO
-	#if THRESHOLD_SIGNATURE && ENABLE_ENCRYPT
-		unsigned char message[32];
-		memcpy(message, get_secp_hash(this->hash, this->rtype).c_str(), 32);
-		assert(secp256k1_ecdsa_sign(ctx, &sig_share, message, private_key, NULL, NULL));
-	#endif
-#else
-	this->signature = "0";
-#endif
-	this->sigSize = this->signature.size();
-	this->keySize = this->pubKey.size();
-}
-
-
-void HOTSTUFFDecideMsg::copy_from_txn(TxnManager *txn){
-	Message::mcopy_from_txn(txn);
-	#if !PVP
-	uint64_t instance_id = 0;
-	#else
-	uint64_t instance_id = this->txn_id / get_batch_size() % get_totInstances();
-	#endif
-	this->view = get_current_view(instance_id);
-	this->end_index = txn->get_txn_id();
-	this->index = this->end_index + 1 - get_batch_size();
-	this->hash = txn->get_hash();
-	this->hashSize = txn->get_hashSize();
-	this->return_node = g_node_id;
-	this->batch_size = get_batch_size();
-	this->CommittedQC = txn->get_committedQC();
-	assert(this->CommittedQC.type == COMMIT && !this->CommittedQC.batch_hash.empty());
-}
-
-void HOTSTUFFDecideMsg::copy_from_buf(char *buf)
-{
-	Message::mcopy_from_buf(buf);
-
-	uint64_t ptr = Message::mget_size();
-
-	COPY_VAL(view, buf, ptr);
-	COPY_VAL(index, buf, ptr);
-	COPY_VAL(hashSize, buf, ptr);
-
-	ptr = buf_to_string(buf, ptr, hash, hashSize);
-
-	COPY_VAL(return_node, buf, ptr);
-	COPY_VAL(end_index, buf, ptr);
-	COPY_VAL(batch_size, buf, ptr);
-	ptr = CommittedQC.copy_from_buf(ptr, buf);
-
-#if THRESHOLD_SIGNATURE
-	COPY_VAL(sig_share, buf, ptr);
-#endif
-
-	assert(ptr == get_size());
-}
-
-void HOTSTUFFDecideMsg::copy_to_buf(char *buf)
-{
-	Message::mcopy_to_buf(buf);
-
-	uint64_t ptr = Message::mget_size();
-
-	COPY_BUF(buf, view, ptr);
-	COPY_BUF(buf, index, ptr);
-	COPY_BUF(buf, hashSize, ptr);
-
-	char v;
-	for (uint64_t i = 0; i < hash.size(); i++)
-	{
-		v = hash[i];
-		COPY_BUF(buf, v, ptr);
-	}
-
-	COPY_BUF(buf, return_node, ptr);
-
-	COPY_BUF(buf, end_index, ptr);
-	COPY_BUF(buf, batch_size, ptr);
-	ptr = CommittedQC.copy_to_buf(ptr, buf);
-	
-#if THRESHOLD_SIGNATURE
-	COPY_BUF(buf, sig_share, ptr);
-#endif
-
-	assert(ptr == get_size());
-}
-
-//makes sure message is valid, returns true or false;
-bool HOTSTUFFDecideMsg::validate()
-{
-#if USE_CRYPTO
-
-#if THRESHOLD_SIGNATURE
-	unsigned char message[32];
-	memcpy(message, get_secp_hash(this->hash, this->rtype).c_str(), 32);
-	assert(secp256k1_ecdsa_verify(ctx, &sig_share, message, &public_keys[return_node_id]));
-#endif
-
-#endif
-
-	return true;
-}
-
-uint64_t HOTSTUFFNewViewMsg::get_size(){
-	uint64_t size = Message::mget_size();
-
-	size += sizeof(view);
-	size += sizeof(index);
-	size += hash.length();
-	size += sizeof(hashSize);
-	size += sizeof(return_node);
-	size += sizeof(end_index);
-	size += sizeof(batch_size);
-	size += PreparedQC.get_size();
-#if THRESHOLD_SIGNATURE
-	size += sizeof(sig_share);
-#endif
-
-	return size;
-}
-
-string HOTSTUFFNewViewMsg::toString()
-{
-	string signString = std::to_string(this->view);
-	signString += '_' + std::to_string(this->index) + '_' +
-				  this->hash + '_' + std::to_string(this->return_node) +
-				  '_' + to_string(this->end_index);
-
-	return signString;
-}
-
-void HOTSTUFFNewViewMsg::sign(uint64_t dest_node)
-{
-#if USE_CRYPTO
-	#if THRESHOLD_SIGNATURE && ENABLE_ENCRYPT
-		unsigned char message[32];
-		memcpy(message, get_secp_hash(this->hash, this->rtype).c_str(), 32);
-		assert(secp256k1_ecdsa_sign(ctx, &sig_share, message, private_key, NULL, NULL));
-	#endif
-#else
-	this->signature = "0";
-#endif
-	this->sigSize = this->signature.size();
-	this->keySize = this->pubKey.size();
-}
-
-void HOTSTUFFNewViewMsg::copy_from_txn(TxnManager *txn){
-	Message::mcopy_from_txn(txn);
-	this->txn_id = txn->get_txn_id();
-#if !PVP
-	this->view = get_current_view(0);
-#else
-	uint64_t instance_id = this->txn_id / get_batch_size() % get_totInstances();
-	this->view = get_current_view(instance_id);
-#endif
-	this->end_index = this->txn_id;
-	this->index = this->end_index + 1 - get_batch_size();
-	this->hash = txn->get_hash();
-	this->hashSize = this->hash.size();
-	this->return_node = g_node_id;
-	this->batch_size = get_batch_size();
-#if !PVP
-	this->PreparedQC = get_g_preparedQC();
-#else
-	this->PreparedQC = get_g_preparedQC(instance_id);
-#endif
-}
-
-void HOTSTUFFNewViewMsg::copy_from_buf(char *buf)
-{
-	Message::mcopy_from_buf(buf);
-	fflush(stdout);
-	uint64_t ptr = Message::mget_size();
-	fflush(stdout);
-	COPY_VAL(view, buf, ptr);
-	COPY_VAL(index, buf, ptr);
-	COPY_VAL(hashSize, buf, ptr);
-
-	ptr = buf_to_string(buf, ptr, hash, hashSize);
-
-	COPY_VAL(return_node, buf, ptr);
-	COPY_VAL(end_index, buf, ptr);
-	COPY_VAL(batch_size, buf, ptr);
-
-	ptr = PreparedQC.copy_from_buf(ptr, buf);
-
-#if THRESHOLD_SIGNATURE
-	COPY_VAL(sig_share, buf, ptr);
-#endif
-
-	assert(ptr == get_size());
-}
-
-void HOTSTUFFNewViewMsg::copy_to_buf(char *buf)
-{
-	Message::mcopy_to_buf(buf);
-
-	uint64_t ptr = Message::mget_size();
-
-	COPY_BUF(buf, view, ptr);
-	COPY_BUF(buf, index, ptr);
-	COPY_BUF(buf, hashSize, ptr);
-	char v;
-	for (uint64_t i = 0; i < hash.size(); i++)
-	{
-		v = hash[i];
-		COPY_BUF(buf, v, ptr);
-	}
-	COPY_BUF(buf, return_node, ptr);
-
-	COPY_BUF(buf, end_index, ptr);
-	COPY_BUF(buf, batch_size, ptr);
-	ptr = PreparedQC.copy_to_buf(ptr, buf);
-	
-#if THRESHOLD_SIGNATURE
-	COPY_BUF(buf, sig_share, ptr);
-#endif
-	assert(ptr == get_size());
-}
-
-//makes sure message is valid, returns true or false;
-bool HOTSTUFFNewViewMsg::validate()
-{
-#if USE_CRYPTO
-
-#if THRESHOLD_SIGNATURE
-	unsigned char message[32];
-	memcpy(message, get_secp_hash(this->hash, this->rtype).c_str(), 32);
-	assert(secp256k1_ecdsa_verify(ctx, &sig_share, message, &public_keys[return_node_id]));
-#endif
-
-#endif
-	return true;
-}
-
-#endif	//CONSENSUS == HOTSTUFF
 
 /************************************/

@@ -11,7 +11,13 @@ int32_t Inflight_entry::inc_inflight()
 {
     int32_t result;
     sem_wait(&mutex);
-    if (num_inflight_txns < g_inflight_max)
+    int32_t value = g_inflight_max;
+#if MULTI_ON
+    if(g_client_node_cnt < g_node_cnt){
+        value = (g_inflight_max / g_node_cnt * g_client_node_cnt) / get_batch_size() * get_batch_size();
+    }
+#endif
+    if (num_inflight_txns < value)
     {
         result = ++num_inflight_txns;
     }
@@ -59,20 +65,17 @@ void Client_txn::init()
 int32_t Client_txn::inc_inflight(uint32_t node_id)
 {
     assert(node_id < g_node_cnt);
-    // return inflight_txns[node_id]->inc_inflight();
-    return inflight_txns[0]->inc_inflight();
+    return inflight_txns[node_id]->inc_inflight();
 }
 
 int32_t Client_txn::dec_inflight(uint32_t node_id)
 {
     assert(node_id < g_node_cnt);
-    // return inflight_txns[node_id]->dec_inflight();
-    return inflight_txns[0]->dec_inflight();
+    return inflight_txns[node_id]->dec_inflight();
 }
 
 int32_t Client_txn::get_inflight(uint32_t node_id)
 {
     assert(node_id < g_node_cnt);
-    // return inflight_txns[node_id]->get_inflight();
-    return inflight_txns[0]->get_inflight();
+    return inflight_txns[node_id]->get_inflight();
 }

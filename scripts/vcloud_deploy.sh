@@ -7,7 +7,7 @@ NODE_CNT="$2"
 RES_FILE="$3"
 count=0
 # IDENTITY="~/Desktop/pvp/kdk.pem"
-#IDENTITY="~/kdkCA.pem"
+# IDENTITY="~/kdkCA.pem"
 IDENTITY="~/kdk_oracle.key"
 
 for HOSTNAME in ${HOSTS}; do

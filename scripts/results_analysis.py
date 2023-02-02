@@ -1,10 +1,10 @@
 #!/usr/bin/python
 import numpy as np
 
-DONE_TIMER=15
+DONE_TIMER=30
 MULTI_INSTANCE=128
-CLIENT_CNT=1
-worker_thread_cnt = MULTI_INSTANCE + 3
+CLIENT_CNT=32
+worker_thread_cnt = MULTI_INSTANCE + 4
 Output_idle_times = list()
 idle_times = list()
 through_puts = list()
@@ -27,9 +27,9 @@ def deal_with(out_str, i):
         txn_cnts.append(int(out_str[len("txn_cnt="):]))
 
 
-def deal_with2(out_str, i):
-    if out_str.find("AVG Latency: ") == 0:
-        latencies.append(float(out_str[len("AVG Latency: "):]))
+# def deal_with2(out_str, i):
+#     if out_str.find("AVG Latency: ") == 0:
+#         latencies.append(float(out_str[len("AVG Latency: "):]))
 
 
 def print_max(i):
@@ -98,6 +98,14 @@ def print_output():
 
 
 def print_throughput():
+    global through_puts
+    tputs = []
+    for tput in through_puts:
+        if tput == 0:
+            continue
+        tputs.append(tput)
+    through_puts = tputs
+
     result = "Max of Throughput is " + str(max(through_puts)) \
              + " from " + str(through_puts.index(max(through_puts))) + "\n\n"
     fw.write(result)
@@ -141,8 +149,13 @@ fw = open("results/oracle_pvp"+ str(MULTI_INSTANCE) + "_" + str(DONE_TIMER) +"s.
 for i in range(worker_thread_cnt):
     idle_times.append(list())
 
+FAIL_DIVIDER = 128
+FAIL_ID = 0
+
 for i in range(MULTI_INSTANCE):
     through_puts.append(0)
+    if i % FAIL_DIVIDER == FAIL_ID:
+        continue
     fo = open("results/" + str(i) + ".out", "r+")
     while True:
         line = fo.readline()
@@ -151,14 +164,14 @@ for i in range(MULTI_INSTANCE):
         deal_with(str(line), i)
     fo.close()
 
-for i in range(MULTI_INSTANCE, MULTI_INSTANCE + CLIENT_CNT):
-    fo = open("results/" + str(i) + ".out", "r+")
-    while True:
-        line = fo.readline()
-        if not line:
-            break
-        deal_with2(str(line), i)
-    fo.close()
+# for i in range(MULTI_INSTANCE, MULTI_INSTANCE + CLIENT_CNT):
+#     fo = open("results/" + str(i) + ".out", "r+")
+#     while True:
+#         line = fo.readline()
+#         if not line:
+#             break
+#         deal_with2(str(line), i)
+#     fo.close()
 
 # fw.write("==========WorkerThreads============\n")
 

@@ -47,7 +47,7 @@ RC WorkerThread::process_client_batch(Message *msg)
     }
 
     // Partial failure of Primary 0.
-    // fail_primary(msg, 9);
+    fail_primary(msg, 9);
 #endif
     // Initialize all transaction mangers and Send BatchRequests message.
     if (clbtch->is_cross_shard)

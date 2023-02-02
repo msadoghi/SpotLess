@@ -8,10 +8,12 @@ input="./ifconfig.txt"
 i=0
 while IFS= read -r line
 do
-	cmd="scp ubuntu@${line}:${home_directory}/resilientdb/${name}*.out ${result_dir}"
-	echo "$cmd"
-	$($cmd) &
-	i=$(($i+1))
+	if [ $i -le 8 ]|| [$i -ge 128 ]; then
+		cmd="scp ubuntu@${line}:${home_directory}/resilientdb/${name}*.out ${result_dir}"
+		echo "$cmd"
+		$($cmd) &
+		i=$(($i+1))
+	fi
 done < "$input"
 wait
 

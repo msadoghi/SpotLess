@@ -15,9 +15,6 @@ public:
     RC run();
     void setup();
     void send_key();
-#if THRESHOLD_SIGNATURE && CONSENSUS == HOTSTUFF
-    void send_public_key();
-#endif
     RC process_key_exchange(Message *msg);
 
     void process(Message *msg);
@@ -31,6 +28,9 @@ public:
 
     void release_txn_man(uint64_t txn_id, uint64_t batch_id);
     void algorithm_specific_update(Message *msg, uint64_t idx);
+
+    //[Dakai]
+    //uint64_t last_txn_processed;
 
     void create_and_send_batchreq(ClientQueryBatch *msg, uint64_t tid);
     void set_txn_man_fields(BatchRequests *breq, uint64_t bid);
@@ -55,17 +55,7 @@ public:
 #if TIMER_ON
     void add_timer(Message *msg, string qryhash);
     void remove_timer(string qryhash);
-    #if PVP
-    void add_timer(Message *msg, string qryhash, uint64_t instance_id);
-    void remove_timer(string qryhash, uint64_t instance_id);
-    #endif
 #endif
-
-#if PVP_RECOVERY
-void check_for_timeout();
-void fail_primary(uint64_t time, uint64_t instance_id);
-#endif
-
 
 #if VIEW_CHANGES
     void client_query_check(ClientQueryBatch *clbtch);
@@ -95,41 +85,6 @@ void fail_primary(uint64_t time, uint64_t instance_id);
     RC process_ringbft_preprepare(Message *msg);
     RC process_ringbft_commit(Message *msg);
     void create_and_send_pre_prepare(CommitCertificateMessage *msg, uint64_t tid);
-#endif
-
-#if CONSENSUS == HOTSTUFF
-    void set_txn_man_fields(HOTSTUFFPrepareMsg *prep, uint64_t bid);
-    RC process_client_batch_hotstuff(Message *msg);
-    void create_and_send_hotstuff_prepare(ClientQueryBatch *msg, uint64_t tid);
-    bool hotstuff_prepared(HOTSTUFFPrepareVoteMsg* msg);
-    bool hotstuff_precommitted(HOTSTUFFPreCommitVoteMsg* msg);
-    bool hotstuff_committed(HOTSTUFFCommitVoteMsg* msg);
-    bool hotstuff_new_viewed(HOTSTUFFNewViewMsg* msg);
-    RC process_hotstuff_prepare(Message *msg);
-    RC process_hotstuff_precommit(Message *msg);
-    RC process_hotstuff_commit(Message *msg);
-    RC process_hotstuff_prepare_vote(Message *msg);
-    RC process_hotstuff_precommit_vote(Message *msg);
-    RC process_hotstuff_commit_vote(Message *msg);
-    RC process_hotstuff_decide(Message *msg);
-    RC process_hotstuff_execute(Message *msg);
-    RC process_hotstuff_new_view(Message *msg);
-    void advance_view(bool update = true);
-#if CHAINED
-    RC process_hotstuff_generic(Message *msg);
-    #if !PVP
-    void update_lockQC(const QuorumCertificate& QC, uint64_t view);
-    #else
-    void update_lockQC(const QuorumCertificate& QC, uint64_t view, uint64_t instance_id);
-    #endif
-#endif
-    #if !PVP
-        void send_execute_msg_hotstuff();
-        void send_execute_msg_hotstuff(TxnManager *t_man);
-    #else
-        void send_execute_msg_hotstuff(uint64_t instance_id);
-        void send_execute_msg_hotstuff(TxnManager *t_man, uint64_t instance_id);
-    #endif
 #endif
 
 #if TESTING_ON

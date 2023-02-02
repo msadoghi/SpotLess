@@ -55,7 +55,7 @@ RC WorkerThread::process_client_batch(Message *msg)
     }
 
     // Partial failure of Primary 0.
-    // fail_primary(msg, 5 * BILLION);
+    fail_primary(msg, 10 * BILLION);
 #endif
 
     // Initialize all transaction mangers and Send BatchRequests message.
@@ -292,6 +292,7 @@ bool WorkerThread::committed_local(PBFTCommitMessage *msg)
  */
 RC WorkerThread::process_pbft_commit_msg(Message *msg)
 {
+    
     // cout << "COMM: TID " << msg->txn_id << "\t from: " << msg->return_node_id << "\n"; // txn_id 99
     // fflush(stdout);
 

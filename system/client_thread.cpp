@@ -28,14 +28,10 @@ void ClientThread::send_key()
 		KeyExchange *keyex = (KeyExchange *)msg;
 		// The four first letters of the message set the type
 #if CRYPTO_METHOD_RSA
-		#if PRINT_KEYEX
 		cout << "Sending the key RSA: " << g_public_key.size() << endl;
-		#endif
 		keyex->pkey = "RSA-" + g_public_key;
 #elif CRYPTO_METHOD_ED25519
-		#if PRINT_KEYEX
 		cout << "Sending the key ED25519: " << g_public_key.size() << endl;
-		#endif
 		keyex->pkey = "ED2-" + g_public_key;
 #endif
 
@@ -49,9 +45,7 @@ void ClientThread::send_key()
 #endif
 
 #if CRYPTO_METHOD_CMAC_AES
-		#if PRINT_KEYEX
 		cout << "Sending the key CMAC: " << cmacPrivateKeys[i].size() << endl;
-		#endif
 		Message *msgCMAC = Message::create_message(KEYEX);
 		KeyExchange *keyexCMAC = (KeyExchange *)msgCMAC;
 		keyexCMAC->pkey = "CMA-" + cmacPrivateKeys[i];
@@ -135,39 +129,56 @@ RC ClientThread::run()
 #endif
 
 	uint32_t next_node_id = get_client_view();
+#if MULTI_ON
+	uint64_t count = 0;
+#endif
+
+    #if RCC_FAIL
+	each_inflight_max = g_inflight_max;
+    if(MULTI_INSTANCES > g_client_node_cnt){
+        each_inflight_max = (each_inflight_max / get_totInstances() * g_client_node_cnt) 
+			/ get_batch_size() * get_batch_size();
+    }
+	#endif
 	while (!simulation->is_done())
 	{
 		heartbeat();
 		progress_stats();
-
 		int32_t inf_cnt;
-#if MULTI_ON
-		uint32_t next_node = g_node_id % get_totInstances();
-#elif CONSENSUS == HOTSTUFF
-		uint32_t next_node = get_next_to_send();
-#else
+		#if MULTI_ON
+		uint32_t next_node = get_client_view() + count * CLIENT_NODE_CNT;
+		#else
 		uint32_t next_node = get_client_view();
-#endif
-
-#if CONSENSUS == HOTSTUFF
-		uint64_t limit = MAX_TXN_IN_FLIGHT / BATCH_SIZE / NODE_CNT + ((MAX_TXN_IN_FLIGHT / BATCH_SIZE) % NODE_CNT > next_node);
-		if(limit == 0){
-			limit = 1;
-		}
-		if(get_in_round(next_node) == limit){
-			inc_next_to_send();
+		#endif
+		next_node_id = next_node;
+		
+		#if RCC_FAIL
+		if(get_inflight_each(next_node_id) == each_inflight_max){
+			count += 1;
+			if(get_client_view() + count * CLIENT_NODE_CNT >= get_totInstances()){
+				count = 0;
+			}
 			continue;
 		}
+		#endif
+
+#if VIEW_CHANGES
+		//if a request by this client hasnt been completed in time
+		ClientQueryBatch *cbatch = NULL;
+		if (client_timer->checkTimer(cbatch))
+		{
+			cout << "TIMEOUT!!!!!!\n";
+#if RING_BFT
+			//TODO for experimental purpose: force one view change
+			if (view_to_primary(get_client_view(get_shard_number())) % g_shard_size == 0)
+				resend_msg(cbatch);
+#else
+			//TODO for experimental purpose: force one view change
+			if (get_client_view() == 0)
+			 	resend_msg(cbatch);
 #endif
-
-
-	#if MULTI_ON
-		next_node_id = g_node_id % get_totInstances();
-	#elif CONSENSUS == HOTSTUFF
-		next_node_id = next_node;
-	#else
-		next_node_id = get_client_view();
-	#endif
+		}
+#endif
 
 #if LOCAL_FAULT
 		//if a request by this client hasnt been completed in time
@@ -181,7 +192,7 @@ RC ClientThread::run()
 		// Just in case...
 		if (iters == UINT64_MAX)
 			iters = 0;
-		
+
 #if !CLIENT_BATCH // If client batching disable
 		if ((inf_cnt = client_man.inc_inflight(next_node)) < 0)
 			continue;
@@ -209,11 +220,11 @@ RC ClientThread::run()
 		INC_STATS(get_thd_id(), txn_sent_cnt, 1);
 
 #else // If client batching enable
+
 		if ((inf_cnt = client_man.inc_inflight(next_node)) < 0)
 		{
 			continue;
 		}
-
 #if BANKING_SMART_CONTRACT
 		uint64_t source = (uint64_t)rand() % 10000;
 		uint64_t dest = (uint64_t)rand() % 10000;
@@ -236,8 +247,10 @@ RC ClientThread::run()
 		}
 		last_send_time = get_sys_clock();
 		assert(m_query);
+
 		Message *msg = Message::create_message((BaseQuery *)m_query, CL_QRY);
 		((ClientQueryMessage *)msg)->client_startts = get_sys_clock();
+
 		YCSBClientQueryMessage *clqry = (YCSBClientQueryMessage *)msg;
 		clqry->return_node = g_node_id;
 
@@ -245,45 +258,10 @@ RC ClientThread::run()
 
 		bmsg->cqrySet.add(clqry);
 		addMore++;
+
 		// Resetting and sending the message
 		if (addMore == g_batch_size)
 		{
-			#if CONSENSUS == HOTSTUFF
-			//increase the number of requests being processed
-			inc_in_round(next_node);
-			inc_next_to_send();
-			#endif
-#if RING_BFT || SHARPER
-			uint64_t shard_id = get_shard_number(g_node_id);
-			// if (txn_batch_sent_cnt % 20 < (CROSS_SHARD_PRECENTAGE / 5) && g_involved_shard[shard_id])
-			if (txn_batch_sent_cnt % 100 < CROSS_SHARD_PRECENTAGE && g_involved_shard[shard_id])
-			{
-				bmsg->is_cross_shard = true;
-				if (g_involved_shard_cnt)
-				{
-					for (uint64_t i = 0; i < g_shard_cnt; i++)
-					{
-						bmsg->involved_shards[i] = false;
-					}
-					// ------------ sliding window
-					int start_shard = ((int)get_shard_number() - (int)(cross_txn_batch_sent_cnt % g_involved_shard_cnt)) % g_shard_cnt;
-					for (int i = start_shard; i < start_shard + (int)g_involved_shard_cnt; i++)
-					{
-						bmsg->involved_shards[i % g_shard_cnt] = true;
-					}
-					// ------------ end sliding window
-				}
-				else
-					for (uint64_t i = 0; i < g_shard_cnt; i++)
-					{
-						bmsg->involved_shards[i] = g_involved_shard[i];
-					}
-				cross_txn_batch_sent_cnt++;
-			}
-			else
-				bmsg->is_cross_shard = false;
-
-#endif
 			bmsg->sign(next_node_id); // Sign the message.
 
 #if TIMER_ON
@@ -298,8 +276,9 @@ RC ClientThread::run()
 
 			vector<uint64_t> dest;
 			dest.push_back(next_node_id);
+			cout << "next_node_id: " << next_node_id;
+			// cout << "  return_node_id: " << bmsg->return_node_id << "  rtype: " << bmsg->rtype << endl; 
 			fflush(stdout);
-
 			msg_queue.enqueue(get_thd_id(), bmsg, dest);
 			dest.clear();
 
@@ -307,17 +286,19 @@ RC ClientThread::run()
 			txns_sent[next_node] += g_batch_size;
 			INC_STATS(get_thd_id(), txn_sent_cnt, g_batch_size);
 
-#if RING_BFT || SHARPER
-			txn_batch_sent_cnt++;
-#endif
-
-			printf("Client: thread %lu sending query to node: %u, %d, %f\n", _thd_id, next_node_id, inf_cnt, simulation->seconds_from_start(get_sys_clock()));
-			fflush(stdout);
-
 			mssg = Message::create_message(CL_BATCH);
 			bmsg = (ClientQueryBatch *)mssg;
 			bmsg->init();
 			addMore = 0;
+#if MULTI_ON
+			count += 1;
+			if(get_client_view() + count * CLIENT_NODE_CNT >= get_totInstances()){
+				count = 0;
+			}
+	        #if RCC_FAIL
+			inc_inflight_each(next_node_id);
+			#endif
+#endif
 		}
 
 #endif // Batch Enable

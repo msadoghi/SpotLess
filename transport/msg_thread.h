@@ -42,15 +42,9 @@ struct mbuf
     }
     bool ready()
     {
-#if CONSENSUS == HOTSTUFF
-        if(cnt){
-            return true;
-        }
-        return false;
-#else
         if (simulation->is_warmup_done() && ISSERVER)
         {
-            if (cnt == MESSAGE_PER_BUFFER || (force && cnt)){
+            if (cnt >= MESSAGE_PER_BUFFER || (force && cnt)){
                 force = false;
                 return true;
             }
@@ -64,7 +58,6 @@ struct mbuf
                 return true;
             return false;
         }
-#endif
     }
 };
 

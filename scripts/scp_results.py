@@ -15,7 +15,7 @@ from sys import argv
 from hostnames import *
 import socket
 
-machines = hostip_machines
+machines = hostip_machines[:]
 
 cmd = './scripts/vcloud_scp_results.sh \"{}\"'.format(' '.join(machines))
 print(cmd)

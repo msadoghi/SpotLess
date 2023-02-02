@@ -14,37 +14,12 @@
 #include "timer.h"
 #include "chain.h"
 
-#if THRESHOLD_SIGNATURE && CONSENSUS == HOTSTUFF
-
 WorkerThread::~WorkerThread() {
      if(txn_man){
          delete txn_man;
          txn_man = nullptr;
      }
- }
-
-void WorkerThread::send_public_key(){
-     for (uint64_t i = 0; i < g_node_cnt; i++)
-    {
-        if (i == g_node_id)
-        {
-            continue;
-        }
-        Message *msg = Message::create_message(KEYEX);
-        KeyExchange *keyex = (KeyExchange *)msg;
-        keyex->pkey = "SECP";
-        keyex->public_share = public_key;
-
-        keyex->pkeySz = keyex->pkey.size();
-        keyex->return_node = g_node_id;
-
-        vector<uint64_t> dest;
-        dest.push_back(i);
-        msg_queue.enqueue(get_thd_id(), keyex, dest);
-        dest.clear();
-    }
 }
-#endif
 
 void WorkerThread::send_key()
 {
@@ -61,19 +36,16 @@ void WorkerThread::send_key()
         // The four first letters of the message set the type
 #if CRYPTO_METHOD_RSA
         keyex->pkey = "RSA-" + g_public_key;
-        #if PRINT_KEYEX
         cout << "Sending RSA: " << g_public_key << endl;
-        #endif
 #elif CRYPTO_METHOD_ED25519
         keyex->pkey = "ED2-" + g_public_key;
-        #if PRINT_KEYEX
-        cout << "Sending ED25519: " << g_public_key << endl;
-        #endif
+        // cout << "Sending ED25519: " << g_public_key << endl;
 #endif
         fflush(stdout);
 
         keyex->pkeySz = keyex->pkey.size();
         keyex->return_node = g_node_id;
+        //msg_queue.enqueue(get_thd_id(), keyex, i);
 
         vector<uint64_t> dest;
         dest.push_back(i);
@@ -88,13 +60,13 @@ void WorkerThread::send_key()
         keyexCMAC->pkey = "CMA-" + cmacPrivateKeys[i];
         keyexCMAC->pkeySz = keyexCMAC->pkey.size();
         keyexCMAC->return_node = g_node_id;
+        //msg_queue.enqueue(get_thd_id(), keyexCMAC, i);
 
         msg_queue.enqueue(get_thd_id(), keyexCMAC, dest);
         dest.clear();
-        #if PRINT_KEYEX
+
         cout << "Sending CMAC " << cmacPrivateKeys[i] << endl;
         fflush(stdout);
-        #endif
 #endif
     }
 }
@@ -131,11 +103,8 @@ void WorkerThread::setup()
             ;
 
         send_init_done_to_all_nodes();
+
         send_key();
-#if THRESHOLD_SIGNATURE
-        if(ISSERVER)
-            send_public_key();
-#endif
     }
     _thd_txn_id = 0;
 }
@@ -150,11 +119,7 @@ void WorkerThread::process(Message *msg)
         rc = process_key_exchange(msg);
         break;
     case CL_BATCH:
-        #if CONSENSUS == HOTSTUFF
-        rc = process_client_batch_hotstuff(msg);
-        #else
         rc = process_client_batch(msg);
-        #endif
         break;
     case BATCH_REQ:
         rc = process_batch(msg);
@@ -163,11 +128,7 @@ void WorkerThread::process(Message *msg)
         rc = process_pbft_chkpt_msg(msg);
         break;
     case EXECUTE_MSG:
-        #if CONSENSUS == HOTSTUFF
-        rc = process_hotstuff_execute(msg);
-        #else
         rc = process_execute_msg(msg);
-        #endif
         break;
 #if VIEW_CHANGES
     case VIEW_CHANGE:
@@ -202,38 +163,6 @@ void WorkerThread::process(Message *msg)
         rc = process_ringbft_commit(msg);
         break;
 #endif
-#if CONSENSUS == HOTSTUFF
-    case HOTSTUFF_PREP_MSG:
-        rc = process_hotstuff_prepare(msg);
-        break;
-    case HOTSTUFF_PREP_VOTE_MSG:
-        rc = process_hotstuff_prepare_vote(msg);
-        break;
-    case HOTSTUFF_PRECOMMIT_MSG:
-        rc = process_hotstuff_precommit(msg);
-        break;
-    case HOTSTUFF_PRECOMMIT_VOTE_MSG:
-        rc = process_hotstuff_precommit_vote(msg);
-        break;
-    case HOTSTUFF_COMMIT_MSG:
-        rc = process_hotstuff_commit(msg);
-        break;
-    case HOTSTUFF_COMMIT_VOTE_MSG:
-        rc = process_hotstuff_commit_vote(msg);
-        break;
-    case HOTSTUFF_DECIDE_MSG:
-        rc = process_hotstuff_decide(msg);
-        break;
-    case HOTSTUFF_NEW_VIEW_MSG:
-        rc = process_hotstuff_new_view(msg);
-        break;
-#if CHAINED
-    case HOTSTUFF_GENERIC_MSG:
-        rc = process_hotstuff_generic(msg);
-        break;
-#endif
-
-#endif
     default:
         printf("rtype: %d from %ld\n", msg->get_rtype(), msg->return_node_id);
         fflush(stdout);
@@ -245,6 +174,7 @@ void WorkerThread::process(Message *msg)
 RC WorkerThread::process_key_exchange(Message *msg)
 {
     KeyExchange *keyex = (KeyExchange *)msg;
+
     string algorithm = keyex->pkey.substr(0, 4);
     keyex->pkey = keyex->pkey.substr(4, keyex->pkey.size() - 4);
     //cout << "Algo: " << algorithm << " :: " <<keyex->return_node << endl;
@@ -280,12 +210,6 @@ RC WorkerThread::process_key_exchange(Message *msg)
     }
 #endif
 
-#if THRESHOLD_SIGNATURE
-    if (algorithm == "SECP"){
-        public_keys[keyex->return_node] = keyex->public_share;
-    }
-#endif
-
     bool sendReady = true;
     //Check if we have the keys of every node
     uint64_t totnodes = g_node_cnt + g_client_node_cnt;
@@ -297,19 +221,13 @@ RC WorkerThread::process_key_exchange(Message *msg)
         }
     }
 
-#if THRESHOLD_SIGNATURE
-    if(public_keys.size() < g_node_cnt)
-    {
-        sendReady = false;
-    }
-#endif
-
     if (sendReady)
     {
         // Send READY to clients.
         for (uint64_t i = g_node_cnt; i < totnodes; i++)
         {
             Message *rdy = Message::create_message(READY);
+            //msg_queue.enqueue(get_thd_id(), rdy, i);
 
             vector<uint64_t> dest;
             dest.push_back(i);
@@ -384,182 +302,27 @@ void WorkerThread::fail_nonprimary()
 void WorkerThread::add_timer(Message *msg, string qryhash)
 {
     // TODO if condition is for experimental purpose: force one view change
-    //if (this->has_view_changed())
-    //    return;
-    
+    if (this->has_view_changed())
+        return;
+
     char *tbuf = create_msg_buffer(msg);
     Message *deepMsg = deep_copy_msg(tbuf, msg);
     deepMsg->return_node_id = msg->return_node_id;
-#if !PVP
     server_timer->startTimer(qryhash, deepMsg);
-#endif
     delete_msg_buffer(tbuf);
 }
 
 void WorkerThread::remove_timer(string qryhash)
 {
     // TODO if condition is for experimental purpose: force one view change
-    //if (this->has_view_changed())
-    //    return;
-#if !PVP
-    server_timer->endTimer(qryhash);
-#endif
-}
-
-#if PVP
-void WorkerThread::add_timer(Message *msg, string qryhash, uint64_t instance_id)
-{
-    // TODO if condition is for experimental purpose: force one view change
-    //if (this->has_view_changed())
-    //    return;
-    
-    char *tbuf = create_msg_buffer(msg);
-    Message *deepMsg = deep_copy_msg(tbuf, msg);
-    deepMsg->return_node_id = msg->return_node_id;
-    server_timer[instance_id]->startTimer(qryhash, deepMsg);
-    delete_msg_buffer(tbuf);
-}
-
-void WorkerThread::remove_timer(string qryhash, uint64_t instance_id)
-{
-    // TODO if condition is for experimental purpose: force one view change
-    //if (this->has_view_changed())
-    //    return;
-
-    server_timer[instance_id]->endTimer(qryhash);
-}
-#endif
-
-#endif
-
-
-#if PVP_RECOVERY
-/*
-Each non-primary replica continuously checks the timer for each batch. 
-If there is a timeout then it initiates the view change. 
-This requires sending a view change message to each replica.
-*/
-#if !PVP
-void WorkerThread::check_for_timeout()
-{
-    Timer *ptimer = NULL;
-    if(g_node_id != get_view_primary(get_current_view(0)) && server_timer->checkTimer(ptimer))
-    {
-        // server_timer->pauseTimer();
-        // NewView Interrupt
-        TxnManager *tman = NULL;
-            
-        if(ptimer){
-            // tman = get_transaction_manager(ptimer->get_msg()->txn_id + 2, 0);
-            remove_timer(ptimer->get_hash());
-        }
-        hash_QC_lock.lock();
-        #if !CHAINED
-            uint64_t txn_id = hash_to_txnid[get_g_preparedQC().batch_hash];
-        #else
-            uint64_t txn_id = hash_to_txnid[get_g_preparedQC().batch_hash] + get_batch_size(); 
-        #endif
-        hash_QC_lock.unlock();
-        tman = get_transaction_manager(txn_id, 0);
-        tman->register_thread(this);
-        printf("timeout in Thread %ld txnid = %ld\n", get_thd_id(), txn_id);
-#if !STOP_NODE_SET
-        // Proceed to the next view
-        for(uint64_t i=0; i<g_total_thread_cnt; i++){
-            set_view(i, get_current_view(i) + 1);
-        }
-        tman->send_hotstuff_newview();
-#else
-        stop_lock.lock();
-        stop_node_set.insert(get_current_view(get_thd_id()) % g_node_cnt);
-        stop_lock.unlock();
-        bool failednode = false;
-        do{
-            // Proceed to the next view
-            for(uint64_t i=0; i<g_total_thread_cnt; i++){
-                set_view(i, get_current_view(i) + 1);
-            }
-            tman->send_hotstuff_newview(failednode);
-        }while(failednode);
-#endif
-    }
-}
-
-#else
-
-void WorkerThread::check_for_timeout()
-{
-    uint64_t instance_id = get_thd_id();
-    while(instance_id < get_totInstances()){
-        Timer *ptimer = NULL;
-        if(g_node_id != get_view_primary(get_current_view(instance_id), instance_id) 
-            && server_timer[instance_id]->checkTimer(ptimer))
-        {
-            // NewView Interrupt
-            TxnManager *tman = NULL;
-            if(ptimer){
-                remove_timer(ptimer->get_hash(), instance_id);
-            }
-            hash_QC_lock[instance_id].lock();
-
-            #if !CHAINED
-            uint64_t txn_id = hash_to_txnid[instance_id][get_g_preparedQC(instance_id).batch_hash];
-            #else
-            uint64_t txn_id = hash_to_txnid[instance_id][get_g_preparedQC(instance_id).batch_hash] + get_totInstances() * get_batch_size(); 
-            #endif
-
-            hash_QC_lock[instance_id].unlock();
-            tman = get_transaction_manager(txn_id, 0);
-            tman->register_thread(this);
-            printf("timeout in Thread %ld with txn %ld\n", instance_id, txn_id);
-    #if !STOP_NODE_SET
-            // Proceed to the next view
-            set_view(instance_id, get_current_view(instance_id) + 1);
-            tman->send_hotstuff_newview();
-    #else
-            stop_lock.lock();
-            stop_node_set.insert(get_view_primary(get_current_view(instance_id), instance_id));
-            stop_lock.unlock();
-            bool failednode = false;
-            do{
-                // Proceed to the next view
-                set_view(instance_id, get_current_view(instance_id) + 1);
-                tman->send_hotstuff_newview(failednode);
-            }while(failednode);
-    #endif
-        }
-        instance_id += get_multi_threads();
-    }
-}
-
-#endif
-
-
-/* This function causes the forced failure of the primary replica at a 
-desired time. */
-void WorkerThread::fail_primary(uint64_t time, uint64_t instance_id)
-{
-    if (!simulation->is_warmup_done())
+    if (this->has_view_changed())
         return;
-    uint64_t elapsesd_time = get_sys_clock() - simulation->warmup_end_time;
-    if (g_node_id == 0 && elapsesd_time > time)
-    {
-        cout << "FAIL: " << instance_id << endl;
-        fail_count++;
-        if(fail_count == get_totInstances()){
-            uint64_t count = 0;
-            while(true){
-                count++;
-                if(count > 1000000000)
-                    break;
-            }
-            assert(0);
-        }
-    }
+
+    server_timer->endTimer(qryhash);
 }
 #endif
 
-#if VIEW_CHANGES 
+#if VIEW_CHANGES
 /*
 Each non-primary replica continuously checks the timer for each batch. 
 If there is a timeout then it initiates the view change. 
@@ -861,6 +624,12 @@ RC WorkerThread::process_new_view_msg(Message *msg)
  */
 RC WorkerThread::run()
 {
+    #if RCC_FAIL
+    bool failed = false;
+    if(g_node_id % CRASH_DIVIDER == CRASH_NODE){
+        failed = true;
+    }
+    #endif
     tsetup();
     printf("Running WorkerThread %ld\n", _thd_id);
 
@@ -869,12 +638,14 @@ RC WorkerThread::run()
     // Setting batch (only relevant for batching threads).
     next_set = 0;
 
+    uint64_t num_multi_threads = get_multi_threads();
+
     while (!simulation->is_done())
     {
-        // uint64_t thd_id = get_thd_id();
         txn_man = NULL;
         heartbeat();
         progress_stats();
+
 #if VIEW_CHANGES
         // Thread 0 continously monitors the timer for each batch.
         if (get_thd_id() == 0)
@@ -883,40 +654,53 @@ RC WorkerThread::run()
         }
 
 #endif
+
 #if SEMA_TEST
         uint64_t thd_id = get_thd_id();
         idle_starttime = get_sys_clock();
 
+#if CONSENSUS == PBFT && !MULTI_ON
+        if(thd_id != 0 && thd_id <= g_thread_cnt-3)
+            thd_id = g_thread_cnt-3;
+#endif
+        if(thd_id > num_multi_threads + 1 + CL_THD_CNT){
+            thd_id = num_multi_threads + 1 + CL_THD_CNT;
+        }
+        else if(thd_id >= num_multi_threads && thd_id < num_multi_threads + CL_THD_CNT){
+            thd_id = num_multi_threads;
+        }
         // Wait until there is at least one msg in its corresponding queue
         sem_wait(&worker_queue_semaphore[thd_id]);
-        
-        // The batch_thread waits until the replica becomes primary of at least one instance 
-        if(thd_id == g_thread_cnt-3)  {
-            sem_wait(&new_txn_semaphore);
-        } 
+
         // The execute_thread waits until the next msg to execute is enqueued
-        else if (thd_id == g_thread_cnt-2)  sem_wait(&execute_semaphore);
+        if (thd_id == num_multi_threads + CL_THD_CNT){
+#if RCC_FAIL && !PBFT_FAIL
+            if(g_node_id % CRASH_DIVIDER != CRASH_NODE && simulated_wait){
+                // printf("Here\n");
+                sleep(6);
+                simulated_wait = false;
+            }
+#endif
+            sem_wait(&execute_semaphore);
+        }  
 
-#if AUTO_POST && PVP_RECOVERY
-#if !PVP
-        while(thd_id == 0 && is_auto_posted()){
-            check_for_timeout();
-            set_auto_posted(false);
-            sem_wait(&worker_queue_semaphore[0]);
-        }
-#else
-        while(thd_id >= 0 && thd_id < get_multi_threads() && is_auto_posted(thd_id)){
-            check_for_timeout();
-            set_auto_posted(false, thd_id);
-            sem_wait(&worker_queue_semaphore[thd_id]);
+        thd_id = get_thd_id();
+
+#if AUTO_POST
+        while(thd_id >= 0 && thd_id < get_multi_threads()){
+            if(is_auto_posted(thd_id)){
+                set_auto_posted(false, thd_id);
+                progress_stats();
+                sem_wait(&worker_queue_semaphore[thd_id]);
+            }else{
+                break;
+            }
         }
 #endif
-#endif
 
-        INC_STATS(_thd_id, worker_idle_time, get_sys_clock() - idle_starttime);
+        INC_STATS(get_thd_id(), worker_idle_time, get_sys_clock() - idle_starttime);
 #endif
         // Dequeue a message from its work_queue.
-
         Message *msg = work_queue.dequeue(get_thd_id());
 
         if (!msg)
@@ -929,17 +713,10 @@ RC WorkerThread::run()
             #endif
             continue;
         }
-#if TEMP_QUEUE
-        else{
-            #if !PVP
-            if(thd_id == 0){
-            #else
-            if(thd_id < get_multi_threads()){
-            #endif
-                if(work_queue.check_view(msg)){
-                    continue;
-                }
-            }   
+#if RCC_FAIL
+        else if(simulation->is_warmup_done() && g_node_id % CRASH_DIVIDER == CRASH_NODE && thd_id >= 0 && thd_id < get_multi_threads() && msg->get_txn_id() > CRASH_ID){
+            Message::release_message(msg);
+            continue;
         }
 #endif
         #if !SEMA_TEST
@@ -949,7 +726,6 @@ RC WorkerThread::run()
             idle_starttime = 0;
         }
         #endif
-
 
 #if SHARPER
         if (!is_in_same_shard(msg->return_node_id, g_node_id))
@@ -1022,25 +798,24 @@ RC WorkerThread::run()
         }
         // Based on the type of the message, we try acquiring the transaction manager.
         if (msg->rtype != BATCH_REQ && msg->rtype != CL_BATCH && msg->rtype != EXECUTE_MSG && msg->rtype != RING_PRE_PREPARE && msg->rtype != COMMIT_CERT_MSG)
-
-#elif CONSENSUS == HOTSTUFF
-    #if !CHAINED
-        if (msg->rtype != HOTSTUFF_PREP_MSG && msg->rtype != CL_BATCH && msg->rtype != EXECUTE_MSG)
-    #else
-        if (msg->rtype != HOTSTUFF_GENERIC_MSG && msg->rtype != CL_BATCH && msg->rtype != EXECUTE_MSG)
-    #endif
 #else
         // Based on the type of the message, we try acquiring the transaction manager.
         if (msg->rtype != BATCH_REQ && msg->rtype != CL_BATCH && msg->rtype != EXECUTE_MSG)
 #endif
         {
             txn_man = get_transaction_manager(msg->txn_id, 0);
+            if(msg->rtype == PBFT_CHKPT_MSG){
+                g_checkpointing_lock.lock();
+                txn_chkpt_holding[thd_id % 2] = msg->txn_id;
+                is_chkpt_holding[thd_id % 2] = true;
+                g_checkpointing_lock.unlock();
+            }
             ready_starttime = get_sys_clock();
             bool ready = txn_man->unset_ready();
             if (!ready)
             {
-                // cout << "Placing: Txn: " << msg->txn_id << " Type: " << msg->rtype << "\n";
-                // fflush(stdout);
+                //cout << "Placing: Txn: " << msg->txn_id << " Type: " << msg->rtype << "\n";
+                //fflush(stdout);
                 // Return to work queue, end processing
                 work_queue.enqueue(get_thd_id(), msg, true);
                 continue;
@@ -1060,10 +835,39 @@ RC WorkerThread::run()
             }
         }
 
+#if RING_BFT
+        if (msg->rtype == RING_PRE_PREPARE)
+        {
+            RingBFTPrePrepare *pmsg = (RingBFTPrePrepare *)msg;
+            // cout << "aslesh    " << msg->txn_id / get_batch_size() << "   " << hexStr(pmsg->hash.c_str(), 32) << endl;fflush(stdout);
+            if (!ccm_directory.exists(pmsg->hash))
+            {
+                // cout << "bargasht    " << msg->txn_id / get_batch_size() << "   " << hexStr(pmsg->hash.c_str(), 32) << endl;fflush(stdout);
+                // Return to work queue.
+                agCount++;
+                work_queue.enqueue(get_thd_id(), msg, true);
+                continue;
+            }
+        }
+#endif
         if (!simulation->is_warmup_done())
         {
             stats.set_message_size(msg->rtype, msg->get_size());
         }
+
+#if RCC_FAIL 
+        if(failed){
+            if(msg->rtype == CL_BATCH && msg->txn_id >= CRASH_ROUND){
+                Message::release_message(msg);
+                continue;
+            }else if(msg->txn_id >= CRASH_ID - 98){
+                Message::release_message(msg);
+                continue;
+            }
+
+        }
+#endif
+
         process(msg);
         ready_starttime = get_sys_clock();
         if (txn_man)
@@ -1071,27 +875,42 @@ RC WorkerThread::run()
             bool ready = txn_man->set_ready();
             if (!ready)
             {
-                cout << "FAIL: " << txn_man->get_txn_id() << " :: RT: " << msg->rtype << "\n";
-                fflush(stdout);
-                assert(ready);
+                // cout << "FAIL: " << txn_man->get_txn_id() << " :: RT: " << msg->rtype << "\n";
+                // fflush(stdout);
+                // assert(ready);
             }
         }
+
+        if(msg->rtype == PBFT_CHKPT_MSG ){
+            g_checkpointing_lock.lock();
+            is_chkpt_holding[thd_id % 2] = false;
+            if(is_chkpt_stalled[(thd_id+1) % 2]){
+                sem_post(&chkpt_semaphore[(thd_id+1) % 2]);
+            }
+            g_checkpointing_lock.unlock();
+        }
+
         // delete message
         ready_starttime = get_sys_clock();
         Message::release_message(msg);
+
         INC_STATS(get_thd_id(), worker_release_msg_time, get_sys_clock() - ready_starttime);
     }
+
 #if SEMA_TEST
     for(uint i=0; i<g_thread_cnt; i++){
         sem_post(&worker_queue_semaphore[i]);
     }
+    #if CONSENSUS == HOTSTUFF
     sem_post(&new_txn_semaphore);
+    #endif
     sem_post(&execute_semaphore);
     for(uint i=0; i<g_this_send_thread_cnt; i++){
         sem_post(&output_semaphore[i]);
     }
 #endif
-    printf("FINISH: %ld %lu\n", agCount, get_thd_id());
+
+    printf("FINISH: %ld\n", agCount);
     fflush(stdout);
 
     return FINISH;
@@ -1167,6 +986,7 @@ void WorkerThread::init_txn_man(YCSBClientQueryMessage *clqry)
 {
     txn_man->client_id = clqry->return_node;
     txn_man->client_startts = clqry->client_startts;
+
     YCSBQuery *query = (YCSBQuery *)(txn_man->query);
     for (uint64_t i = 0; i < clqry->requests.size(); i++)
     {
@@ -1202,40 +1022,20 @@ void WorkerThread::send_execute_msg()
  * @param msg Execute message that notifies execution of a batch.
  * @ret RC
  */
-#if !MULTI_ON
+// #if !MULTI_ON
 RC WorkerThread::process_execute_msg(Message *msg)
 {
-    #if PROCESS_PRINT
-    if (msg->txn_id / get_batch_size() % 100 == 0)
-    {
-        cout << "EXECUTE " << msg->txn_id << " THREAD: " << get_thd_id() << "\n";
-        fflush(stdout);
-    }
+    #if KDK_DEBUG1
+    cout << "EXECUTE " << msg->txn_id << " THREAD: " << get_thd_id() << "\n";
+    fflush(stdout);
     #endif
     uint64_t ctime = get_sys_clock();
 
     // This message uses txn man of index calling process_execute.
-#if SHARPER
-    bool is_cross_shard = msg->is_cross_shard;
-#endif
-#if RING_BFT
 
-    TxnManager *test = get_transaction_manager(msg->txn_id + 1, 0);
-    bool local_request = is_local_request(test);
-    bool is_cross_shard = test->is_cross_shard;
-    ClientResponseMessage *crsp = 0;
-    if (local_request)
-    {
-        Message *rsp = Message::create_message(CL_RSP);
-        crsp = (ClientResponseMessage *)rsp;
-        crsp->is_cross_shard = is_cross_shard;
-        crsp->init();
-    }
-#else
     Message *rsp = Message::create_message(CL_RSP);
     ClientResponseMessage *crsp = (ClientResponseMessage *)rsp;
     crsp->init();
-#endif
 
     ExecuteMessage *emsg = (ExecuteMessage *)msg;
 
@@ -1255,17 +1055,9 @@ RC WorkerThread::process_execute_msg(Message *msg)
 
         // Commit the results.
         tman->commit();
-
         INC_STATS(get_thd_id(), txn_cnt, 1);
 
-#if RING_BFT
-        if (local_request)
-        {
-            crsp->copy_from_txn(tman);
-        }
-#else
         crsp->copy_from_txn(tman);
-#endif
     }
 
     // Transactions (**95 - **98) of the batch.
@@ -1284,26 +1076,9 @@ RC WorkerThread::process_execute_msg(Message *msg)
         // Commit the results.
         tman->commit();
 
-#if RING_BFT
-        if (local_request)
-        {
-            crsp->copy_from_txn(tman);
-        }
-#else
         crsp->copy_from_txn(tman);
-#endif
-#if RING_BFT || SHARPER
-        if (is_cross_shard)
-        {
-            INC_STATS(get_thd_id(), cross_shard_txn_cnt, 1);
-        }
-        else
-        {
-            INC_STATS(get_thd_id(), txn_cnt, 1);
-        }
-#else
+
         INC_STATS(get_thd_id(), txn_cnt, 1);
-#endif
 
         // Making this txn man available.
         bool ready = tman->set_ready();
@@ -1326,49 +1101,16 @@ RC WorkerThread::process_execute_msg(Message *msg)
 
     // Commit the results.
     txn_man->commit();
-#if RING_BFT
-    if (local_request)
-    {
-        crsp->copy_from_txn(txn_man);
-        vector<uint64_t> dest;
-        assert(is_local_request(txn_man));
-        dest.push_back(txn_man->client_id);
-        msg_queue.enqueue(get_thd_id(), crsp, dest);
-        dest.clear();
-    }
-#elif SHARPER
-    if (get_shard_number(txn_man->client_id) == get_shard_number(g_node_id))
-    {
-        crsp->copy_from_txn(txn_man);
-        vector<uint64_t> dest;
-        dest.push_back(txn_man->client_id);
-        msg_queue.enqueue(get_thd_id(), crsp, dest);
-        dest.clear();
-    }
-    else
-    {
-        Message::release_message(crsp);
-    }
-#else
+
     crsp->copy_from_txn(txn_man);
 
     vector<uint64_t> dest;
     dest.push_back(txn_man->client_id);
     msg_queue.enqueue(get_thd_id(), crsp, dest);
     dest.clear();
-#endif
-#if RING_BFT || SHARPER
-    if (is_cross_shard)
-    {
-        INC_STATS(get_thd_id(), cross_shard_txn_cnt, 1);
-    }
-    else
-    {
-        INC_STATS(get_thd_id(), txn_cnt, 1);
-    }
-#else
+
     INC_STATS(get_thd_id(), txn_cnt, 1);
-#endif
+
     INC_STATS(_thd_id, tput_msg, 1);
     INC_STATS(_thd_id, msg_cl_out, 1);
 
@@ -1382,7 +1124,7 @@ RC WorkerThread::process_execute_msg(Message *msg)
     INC_STATS(get_thd_id(), time_execute, get_sys_clock() - ctime);
     return RCOK;
 }
-#endif //!MULTI_ON
+// #endif //!MULTI_ON
 /**
  * This function helps in periodically sending out CheckpointMessage. At present these
  * messages are including just including information about first and last txn of the 
@@ -1396,7 +1138,8 @@ void WorkerThread::send_checkpoints(uint64_t txn_id)
 {
     if ((txn_id + 1) % txn_per_chkpt() == 0)
     {
-        TxnManager *tman = txn_table.get_transaction_manager(get_thd_id(), txn_id, 0);
+        TxnManager *tman =
+            txn_table.get_transaction_manager(get_thd_id(), txn_id, 0);
         tman->send_checkpoint_msgs();
     }
 }
@@ -1416,12 +1159,9 @@ void WorkerThread::send_checkpoints(uint64_t txn_id)
 RC WorkerThread::process_pbft_chkpt_msg(Message *msg)
 {
     CheckpointMessage *ckmsg = (CheckpointMessage *)msg;
-    #if PROCESS_PRINT
-    printf("CHKPOINT from %ld:    %ld\n", msg->return_node_id, msg->txn_id);
-    fflush(stdout);
-    #endif
+    // printf("CHKPOINT from %ld:    %ld\n", msg->return_node_id, msg->txn_id);
     // Check if message is valid.
-    validate_msg(ckmsg);
+    // validate_msg(ckmsg);
 
     // If this checkpoint was already accessed, then return.
     if (txn_man->is_chkpt_ready())
@@ -1443,66 +1183,37 @@ RC WorkerThread::process_pbft_chkpt_msg(Message *msg)
     }
 
     // Also update the next checkpoint to the identifier for this message,
-    set_curr_chkpt(msg->txn_id);
+    set_curr_chkpt(ckmsg->txn_id);
+    // printf("CHKPOINT Done %ld:    %ld           %ld\n", msg->return_node_id, msg->txn_id,get_curr_chkpt());
 
     // Now we determine what all transaction managers can we release.
-    uint64_t del_range = 0;
+    // uint64_t del_range = 0;
+    // if (curr_next_index() > get_curr_chkpt())
+    // {
+    //     del_range = get_curr_chkpt() - get_batch_size();
+    // }
+    // else
+    // {
+    //     if (curr_next_index() > get_batch_size())
+    //     {
+    //         del_range = curr_next_index() - get_batch_size();
+    //     }
+    // }
 
-#if CONSENSUS == HOTSTUFF
-#if !PVP
-    uint64_t min_stable_new_viewed = get_curr_new_viewed();
-#else
-    uint64_t min_stable_new_viewed = get_curr_new_viewed(0);
-    for(uint i=1; i<get_totInstances(); i++){
-        min_stable_new_viewed = min_stable_new_viewed < get_curr_new_viewed(i) ? min_stable_new_viewed : get_curr_new_viewed(i);
-    }
-#endif
-#endif
+    uint64_t del_range = get_curr_chkpt();
 
+    // printf("Chkpt: %ld :: LD: %ld :: Del: %ld   Thread:%ld\n",msg->get_txn_id(), get_last_deleted_txn(), del_range, get_thd_id());
+    // fflush(stdout);
 
-    if (curr_next_index() > get_curr_chkpt())
-    {
-#if CONSENSUS == HOTSTUFF
-        if(get_curr_chkpt() > min_stable_new_viewed){
-            if(min_stable_new_viewed > get_batch_size())
-                del_range = min_stable_new_viewed - get_batch_size();
-        }else{
-            if(get_curr_chkpt() > get_batch_size())
-                del_range = get_curr_chkpt() - get_batch_size();
-        }
-#else
-        if(get_curr_chkpt() > get_batch_size()){
-            del_range = get_curr_chkpt() - get_batch_size();
-        }
-#endif
-    }
-    else
-    {
-#if CONSENSUS == HOTSTUFF
-        if(curr_next_index() > min_stable_new_viewed){
-            if(min_stable_new_viewed > get_batch_size())
-                del_range = min_stable_new_viewed - get_batch_size();
-        }else{
-            if(curr_next_index() > get_batch_size())
-                del_range = curr_next_index() - get_batch_size();
-        }
-#else
-        if (curr_next_index() > get_batch_size())
-        {
-            del_range = curr_next_index() - get_batch_size();
-        }
-#endif
-    }
-    
-    #if PROCESS_PRINT
-    printf("Chkpt: %ld :: LD: %ld :: Del: %ld   Thread:%ld\n",msg->get_txn_id(), get_last_deleted_txn(), del_range, get_thd_id());
-    fflush(stdout);
-    #endif
+    g_checkpointing_lock.lock();
+    uint64_t start = get_last_deleted_txn();
+    inc_last_deleted_txn(del_range);
+    g_checkpointing_lock.unlock();
+
     // Release Txn Managers.
-    for (uint64_t i = get_last_deleted_txn(); i < del_range; i++)
+    for (uint64_t i = start + 1; i < del_range; i++)
     {
         release_txn_man(i, 0);
-        inc_last_deleted_txn();
 
 #if ENABLE_CHAIN
         if ((i + 1) % get_batch_size() == 0)
@@ -1511,10 +1222,28 @@ RC WorkerThread::process_pbft_chkpt_msg(Message *msg)
         }
 #endif
     }
-    
+
+    if(start < del_range){
+        uint64_t thd_id = get_thd_id();
+        uint64_t is_stalled = false;
+        g_checkpointing_lock.lock();
+        if(txn_chkpt_holding[(thd_id+1)%2] == start && is_chkpt_holding[(thd_id+1)%2]){
+            is_stalled = is_chkpt_stalled[thd_id % 2] = true;
+        }
+        g_checkpointing_lock.unlock();
+        if(is_stalled){
+            sem_wait(&chkpt_semaphore[thd_id % 2]);
+            g_checkpointing_lock.lock();
+            is_chkpt_stalled[thd_id % 2] = false;
+            g_checkpointing_lock.unlock();
+        }
+        release_txn_man(start, 0);
+    }
+
 #if VIEW_CHANGES
     removeBatch(del_range);
 #endif
+
     return RCOK;
 }
 
@@ -1530,38 +1259,25 @@ bool WorkerThread::exception_msg_handling(Message *msg)
     }
     // Release Messages that arrive after txn completion, except obviously
     // CL_BATCH as it is never late.
-
-    if (msg->rtype != CL_BATCH)
+#if RING_BFT
+    if (msg->rtype == COMMIT_CERT_MSG || msg->rtype == RING_COMMIT)
     {
-#if CONSENSUS == HOTSTUFF
-        if (msg->rtype != PBFT_CHKPT_MSG && msg->rtype != HOTSTUFF_NEW_VIEW_MSG)
+    }
+    else if (msg->rtype != CL_BATCH)
 #else
-        if (msg->rtype != PBFT_CHKPT_MSG)
+    if (msg->rtype != CL_BATCH)
 #endif
+    {
+        if (msg->rtype != PBFT_CHKPT_MSG)
         {
             if (msg->txn_id <= curr_next_index())
             {
-                // cout << "exception msg->txn_id = " << msg->txn_id << endl;
+                // cout << "Extra Msg: " << msg->txn_id;
+                // fflush(stdout);
                 Message::release_message(msg);
                 return true;
             }
         }
-#if CONSENSUS == HOTSTUFF
-        else if(msg->rtype == HOTSTUFF_NEW_VIEW_MSG){
-            #if !PVP
-            if (((HOTSTUFFNewViewMsg*)msg)->view < get_current_view(0) || (((HOTSTUFFNewViewMsg*)msg)->view == get_current_view(0) && msg->txn_id <= get_curr_new_viewed()))
-            #else
-            uint64_t instance_id = msg->txn_id / get_batch_size() % get_totInstances();
-            if (((HOTSTUFFNewViewMsg*)msg)->view < get_current_view(instance_id) ||
-             (((HOTSTUFFNewViewMsg*)msg)->view == get_current_view(instance_id) 
-             && msg->txn_id <= get_curr_new_viewed(instance_id)))
-            #endif
-            {
-                Message::release_message(msg);
-                return true;
-            }
-        } 
-#endif
         else
         {
             if (msg->txn_id <= get_curr_chkpt())
@@ -1575,14 +1291,11 @@ bool WorkerThread::exception_msg_handling(Message *msg)
     return false;
 }
 
-/** UNUSED */
 void WorkerThread::algorithm_specific_update(Message *msg, uint64_t idx)
 {
     #if MULTI_ON
-    //For PBFT, update the instance_id field while creating txn managers
 	if(msg->rtype == BATCH_REQ) {
-	  BatchRequests *bmsg = (BatchRequests *)msg;
-	  txn_man->instance_id = bmsg->view;
+	  txn_man->instance_id  = ((BatchRequests *)msg)->view;
 	} else {
 	  txn_man->instance_id = g_node_id;
 	}
@@ -1792,62 +1505,6 @@ bool WorkerThread::validate_msg(Message *msg)
         }
         break;
 #endif
-#if CONSENSUS == HOTSTUFF && ENABLE_ENCRYPT
-    case HOTSTUFF_PREP_MSG:
-        if (!((HOTSTUFFPrepareMsg *)msg)->validate(get_thd_id()))
-        {
-            assert(0);
-        }
-        break;
-    case HOTSTUFF_PREP_VOTE_MSG:
-        if (!((HOTSTUFFPrepareVoteMsg *)msg)->validate())
-        {
-            assert(0);
-        }
-        break;
-    case HOTSTUFF_PRECOMMIT_MSG:
-        if (!((HOTSTUFFPreCommitMsg *)msg)->validate())
-        {
-            assert(0);
-        }
-        break;
-    case HOTSTUFF_PRECOMMIT_VOTE_MSG:
-        if (!((HOTSTUFFPreCommitVoteMsg *)msg)->validate())
-        {
-            assert(0);
-        }
-        break;
-    case HOTSTUFF_COMMIT_MSG:
-        if (!((HOTSTUFFCommitMsg *)msg)->validate())
-        {
-            assert(0);
-        }
-        break;
-    case HOTSTUFF_COMMIT_VOTE_MSG:
-        if (!((HOTSTUFFCommitVoteMsg *)msg)->validate())
-        {
-            assert(0);
-        }
-        break;
-    case HOTSTUFF_DECIDE_MSG:
-        if (!((HOTSTUFFDecideMsg *)msg)->validate())
-        {
-            assert(0);
-        }
-        break;
-    case HOTSTUFF_NEW_VIEW_MSG:
-        if (!((HOTSTUFFNewViewMsg *)msg)->validate())
-        {
-            assert(0);
-        }
-        break;
-    case HOTSTUFF_GENERIC_MSG:
-        if (!((HOTSTUFFGenericMsg *)msg)->validate(get_thd_id()))
-        {
-            assert(0);
-        }
-        break;
-#endif
     default:
         break;
     }
@@ -1859,18 +1516,15 @@ bool WorkerThread::validate_msg(Message *msg)
 
 bool WorkerThread::checkMsg(Message *msg)
 {
-#if CONSENSUS == HOTSTUFF
-    #if !PVP
-    uint64_t instance_id = 0;
-    #else
-    uint64_t instance_id = msg->txn_id / get_batch_size() % get_totInstances();
-    #endif
-#endif
     if (msg->rtype == PBFT_PREP_MSG)
     {
         PBFTPrepMessage *pmsg = (PBFTPrepMessage *)msg;
         if(txn_man->get_hash().compare(pmsg->hash) == 0) { 
+	    #if MULTI_ON
+	        if(pmsg->view == txn_man->instance_id) { 
+	    #else
 	        if((get_current_view(get_thd_id()) == pmsg->view)) {
+	    #endif
 	            return true;
             }
         } 
@@ -1884,64 +1538,6 @@ bool WorkerThread::checkMsg(Message *msg)
             return true;
         }
     }
-#if CONSENSUS == HOTSTUFF
-    else if (msg->rtype == HOTSTUFF_PRECOMMIT_MSG){
-        HOTSTUFFPreCommitMsg *pcmsg = (HOTSTUFFPreCommitMsg *)msg;
-        if(txn_man->get_hash().compare(pcmsg->hash) == 0) { 
-            if(get_current_view(instance_id) == pcmsg->view) {
-                return true;
-            }
-        }
-    }
-    else if (msg->rtype == HOTSTUFF_COMMIT_MSG){
-        HOTSTUFFCommitMsg *cmsg = (HOTSTUFFCommitMsg *)msg;
-        if(txn_man->get_hash().compare(cmsg->hash) == 0) { 
-            if(get_current_view(instance_id) == cmsg->view) {
-                return true;
-            }
-        }
-    }
-    else if (msg->rtype == HOTSTUFF_DECIDE_MSG){
-        HOTSTUFFDecideMsg *dmsg = (HOTSTUFFDecideMsg *)msg;
-        if(txn_man->get_hash().compare(dmsg->hash) == 0) { 
-            if(get_current_view(instance_id) == dmsg->view) {
-                return true;
-            }
-        }
-    }
-    else if (msg->rtype == HOTSTUFF_PREP_VOTE_MSG){
-        HOTSTUFFPrepareVoteMsg *pvmsg = (HOTSTUFFPrepareVoteMsg *)msg;
-        if(txn_man->get_hash().compare(pvmsg->hash) == 0) { 
-            if(get_current_view(instance_id) == pvmsg->view) {
-                return true;
-            }
-        }
-    }
-    else if (msg->rtype == HOTSTUFF_PRECOMMIT_VOTE_MSG){
-        HOTSTUFFPrepareVoteMsg *pvmsg = (HOTSTUFFPrepareVoteMsg *)msg;
-        if(txn_man->get_hash().compare(pvmsg->hash) == 0) { 
-            if(get_current_view(instance_id) == pvmsg->view) {
-                return true;
-            }
-        }
-    }
-    else if (msg->rtype == HOTSTUFF_COMMIT_VOTE_MSG){
-        HOTSTUFFCommitVoteMsg *cvmsg = (HOTSTUFFCommitVoteMsg *)msg;
-        if(txn_man->get_hash().compare(cvmsg->hash) == 0) { 
-            if(get_current_view(instance_id) == cvmsg->view) {
-                return true;
-            }
-        }
-    }
-    else if (msg->rtype == HOTSTUFF_NEW_VIEW_MSG){
-        HOTSTUFFNewViewMsg *nvmsg = (HOTSTUFFNewViewMsg *)msg;
-        if(txn_man->get_hash().compare(nvmsg->hash) == 0) { 
-            if(get_current_view(instance_id) == nvmsg->view) {
-                return true;
-            }
-        }
-    }
-#endif
     return false;
 }
 
@@ -2006,439 +1602,3 @@ bool WorkerThread::prepared(PBFTPrepMessage *msg)
 
     return false;
 }
-
-#if CONSENSUS == HOTSTUFF
-bool WorkerThread::hotstuff_prepared(HOTSTUFFPrepareVoteMsg* msg){
-    // Once prepared is set, no processing for further messages.
-    if (txn_man->is_prepared())
-    {
-        return false;
-    }
-    if(txn_man->get_hash().empty()){
-        return false;
-    }
-    if (!checkMsg(msg))
-    {
-        #if !PVP
-        uint64_t instance_id = get_thd_id();
-        #else
-        uint64_t instance_id = msg->txn_id / get_batch_size() % get_totInstances();
-        #endif
-        // If message did not match.
-        if(get_current_view(instance_id) < msg->view){
-            cout << txn_man->get_hash() << " :: " << msg->hash << "\n";
-            cout << get_current_view(instance_id) << " :: " << msg->view << "\n";
-            fflush(stdout);
-        }
-        return false;
-    }
-    for(uint i=0; i<txn_man->vote_prepare.size(); i++){
-        if(msg->return_node_id==txn_man->vote_prepare[i])
-            return false;
-    }
-    txn_man->vote_prepare.push_back(msg->return_node_id);
-#if THRESHOLD_SIGNATURE
-    txn_man->preparedQC.signature_share_map[msg->return_node_id] = msg->sig_share;
-#endif
-    if (--txn_man->prepare_vote_cnt == 0)
-    {
-    #if !PVP
-        txn_man->preparedQC.viewNumber =  get_g_preparedQC().genesis? 0:get_current_view(0);
-        txn_man->preparedQC.parent_hash = get_g_preparedQC().batch_hash;
-        txn_man->preparedQC.batch_hash = txn_man->get_hash();
-        txn_man->preparedQC.type = PREPARE;
-        hash_QC_lock.lock();
-        hash_to_QC.insert(make_pair<string&,QuorumCertificate&>(txn_man->preparedQC.batch_hash, txn_man->preparedQC));
-        set_g_preparedQC(txn_man->preparedQC);
-        hash_to_txnid.insert(make_pair<string&,uint64_t&>(txn_man->preparedQC.batch_hash, msg->txn_id));
-        hash_QC_lock.unlock();
-    #else
-        uint64_t instance_id = msg->txn_id / get_batch_size() % get_totInstances();
-        txn_man->preparedQC.viewNumber = get_g_preparedQC(instance_id).genesis? 0:get_current_view(instance_id);
-        txn_man->preparedQC.parent_hash = get_g_preparedQC(instance_id).batch_hash;
-        txn_man->preparedQC.batch_hash = txn_man->get_hash();
-        txn_man->preparedQC.type = PREPARE;
-
-        hash_QC_lock[instance_id].lock();
-        hash_to_QC[instance_id].insert(make_pair<string&,QuorumCertificate&>(txn_man->preparedQC.batch_hash, txn_man->preparedQC));
-        set_g_preparedQC(txn_man->preparedQC, instance_id);
-        hash_to_txnid[instance_id].insert(make_pair<string&,uint64_t&>(txn_man->preparedQC.batch_hash, msg->txn_id));
-        hash_QC_lock[instance_id].unlock();
-    #endif
-        txn_man->set_prepared();
-        return true;
-    }
-    return false;
-}
-
-bool WorkerThread::hotstuff_precommitted(HOTSTUFFPreCommitVoteMsg* msg){
-    if (txn_man->is_precommitted())
-    {
-        return false;
-    }
-    if(txn_man->get_hash().empty()){
-        return false;
-    }
-    if (!checkMsg(msg))
-    {
-        #if !PVP
-        uint64_t instance_id = get_thd_id();
-        #else
-        uint64_t instance_id = msg->txn_id / get_batch_size() % get_totInstances();
-        #endif
-        // If message did not match.
-        if(get_current_view(instance_id) < msg->view){
-            cout << txn_man->get_hash() << " :: " << msg->hash << "\n";
-            cout << get_current_view(instance_id) << " :: " << msg->view << "\n";
-            fflush(stdout);
-        }
-        return false;
-    }
-    for(uint i=0; i<txn_man->vote_precommit.size(); i++){
-        if(msg->return_node_id==txn_man->vote_precommit[i])
-            return false;
-    }
-    txn_man->vote_precommit.push_back(msg->return_node_id);
-#if THRESHOLD_SIGNATURE
-    txn_man->precommittedQC.signature_share_map[msg->return_node_id] = msg->sig_share;
-#endif
-    if (--txn_man->precommit_vote_cnt == 0 && txn_man->is_prepared())
-    {
-        txn_man->precommittedQC.viewNumber = txn_man->preparedQC.viewNumber;
-        txn_man->precommittedQC.parent_hash = txn_man->preparedQC.parent_hash;
-        txn_man->precommittedQC.batch_hash = txn_man->preparedQC.batch_hash;
-        txn_man->precommittedQC.type = PRECOMMIT;
-
-#if !PVP
-        hash_QC_lock.lock();
-        hash_to_QC[txn_man->precommittedQC.batch_hash] = txn_man->precommittedQC;
-        hash_QC_lock.unlock();
-#else
-        uint64_t instance_id = msg->txn_id / get_batch_size() % get_totInstances();
-        hash_QC_lock[instance_id].lock();
-        hash_to_QC[instance_id][txn_man->precommittedQC.batch_hash] = txn_man->precommittedQC;
-        hash_QC_lock[instance_id].unlock();
-#endif
-
-        #if !PVP
-        set_g_lockedQC(txn_man->precommittedQC);
-        #else
-        set_g_lockedQC(txn_man->precommittedQC, instance_id);
-        #endif
-
-        txn_man->set_precommitted();
-    
-        return true;
-    }
-    return false;
-}
-
-bool WorkerThread::hotstuff_committed(HOTSTUFFCommitVoteMsg* msg){
-    if (txn_man->is_committed())
-    {
-        return false;
-    }
-    if(txn_man->get_hash().empty()){
-        return false;
-    }
-    if (!checkMsg(msg))
-    {
-        #if !PVP
-        uint64_t instance_id = get_thd_id();
-        #else
-        uint64_t instance_id = msg->txn_id / get_batch_size() % get_totInstances();
-        #endif
-        // If message did not match.
-        if(get_current_view(instance_id) < msg->view){
-            cout << txn_man->get_hash() << " :: " << msg->hash << "\n";
-            cout << get_current_view(instance_id) << " :: " << msg->view << "\n";
-            fflush(stdout);
-        }
-        
-        return false;
-    }
-    for(uint i=0; i<txn_man->vote_commit.size(); i++){
-        if(msg->return_node_id==txn_man->vote_commit[i])
-            return false;
-    }
-    txn_man->vote_commit.push_back(msg->return_node_id);
-#if THRESHOLD_SIGNATURE
-    txn_man->committedQC.signature_share_map[msg->return_node_id] = msg->sig_share;
-#endif
-
-    if (--txn_man->commit_vote_cnt == 0 && txn_man->is_precommitted())
-    {
-        txn_man->committedQC.viewNumber = txn_man->precommittedQC.viewNumber;
-        txn_man->committedQC.parent_hash = txn_man->precommittedQC.parent_hash;
-        txn_man->committedQC.batch_hash = txn_man->precommittedQC.batch_hash;
-        txn_man->committedQC.type = COMMIT;
-
-#if !PVP
-        hash_QC_lock.lock();
-        hash_to_QC[txn_man->committedQC.batch_hash] = txn_man->committedQC;
-        hash_QC_lock.unlock();
-#else
-        uint64_t instance_id = msg->txn_id / get_batch_size() % get_totInstances();
-        hash_QC_lock[instance_id].lock();
-        hash_to_QC[instance_id][txn_man->committedQC.batch_hash] = txn_man->committedQC;
-        hash_QC_lock[instance_id].unlock();
-#endif
-        txn_man->set_committed();
-        return true;
-    }
-    return false;
-}
-
-bool WorkerThread::hotstuff_new_viewed(HOTSTUFFNewViewMsg* msg){
-    if (txn_man->is_new_viewed())
-    {
-        return false;
-    }
-    if(txn_man->vote_new_view.empty()){
-        txn_man->vote_new_view.push_back(g_node_id);
-    }
-    for(uint i=0; i<txn_man->vote_new_view.size(); i++){
-        if(msg->return_node_id==txn_man->vote_new_view[i])
-            return false;
-    }
-
-    txn_man->vote_new_view.push_back(msg->return_node_id);
-#if CHAINED || SHIFT_QC
-    txn_man->genericQC.signature_share_map[msg->return_node_id] = msg->sig_share;
-#endif
-
-    if (--txn_man->new_view_vote_cnt == 0)
-    {
-        txn_man->set_new_viewed();
-        return true;
-    }
-    return false;
-}
-
-/**
- * This function is used by the non-primary or backup replicas to create and set 
- * transaction managers for each transaction part of the HOTSTUFFPrepareMsg message sent by
- * the primary replica.
- *
- * @param prep Batch of transactions as a HOTSTUFFPrepareMsg message.
- * @param bid Another dimensional identifier to support more transaction managers.
- */
-void WorkerThread::set_txn_man_fields(HOTSTUFFPrepareMsg *prep, uint64_t bid)
-{
-    for (uint64_t i = 0; i < get_batch_size(); i++)
-    {
-        txn_man = get_transaction_manager(prep->index[i], bid);
-        unset_ready_txn(txn_man);
-        txn_man->register_thread(this);
-        txn_man->return_id = prep->return_node_id;
-        // Fields that need to updated according to the specific algorithm.
-        algorithm_specific_update(prep, i);
-        init_txn_man(prep->requestMsg[i]);
-        bool ready = txn_man->set_ready();
-        assert(ready);
-    }
-    // We need to unset txn_man again for last txn in the batch.
-    unset_ready_txn(txn_man);
-    txn_man->set_hash(prep->hash);
-}
-#if !PVP
-void WorkerThread::send_execute_msg_hotstuff()
-#else
-void WorkerThread::send_execute_msg_hotstuff(uint64_t instance_id)
-#endif
-{
-    TxnManager* tman;
-    Message *tmsg;
-#if !PVP
-    hash_QC_lock.lock();
-    QuorumCertificate QC = hash_to_QC[txn_man->get_hash()];
-    QC = hash_to_QC[QC.parent_hash];
-    hash_QC_lock.unlock();
-#else
-    hash_QC_lock[instance_id].lock();
-    QuorumCertificate QC = hash_to_QC[instance_id][txn_man->get_hash()];
-    QC = hash_to_QC[instance_id][QC.parent_hash];
-    hash_QC_lock[instance_id].unlock();
-#endif
-    while(QC.type != COMMIT && !QC.batch_hash.empty()){
-#if !PVP
-        hash_QC_lock.lock();
-        tman = get_transaction_manager(hash_to_txnid[QC.batch_hash], 0);
-        hash_QC_lock.unlock();
-#else
-        hash_QC_lock[instance_id].lock();
-        tman = get_transaction_manager(hash_to_txnid[instance_id][QC.batch_hash], 0);
-        hash_QC_lock[instance_id].unlock();
-#endif
-        tmsg = Message::create_message(tman, EXECUTE_MSG);
-        work_queue.enqueue(get_thd_id(), tmsg, false);
-        #if TIMER_ON
-            // End the timer for this client batch.
-            #if !PVP
-                remove_timer(QC.batch_hash);
-            #else
-                remove_timer(QC.batch_hash, instance_id);
-            #endif
-        #endif
-#if !PVP
-        hash_QC_lock.lock();
-        hash_to_QC[QC.batch_hash].type = COMMIT;
-        QC = hash_to_QC[QC.parent_hash];
-        hash_QC_lock.unlock();
-    }
-    hash_QC_lock.lock();
-    hash_to_QC[txn_man->get_hash()].type = COMMIT;
-    hash_QC_lock.unlock();
-#else
-        hash_QC_lock[instance_id].lock();
-        hash_to_QC[instance_id][QC.batch_hash].type = COMMIT;
-        QC = hash_to_QC[instance_id][QC.parent_hash];
-        hash_QC_lock[instance_id].unlock();
-    }
-    hash_QC_lock[instance_id].lock();
-    hash_to_QC[instance_id][txn_man->get_hash()].type = COMMIT;
-    hash_QC_lock[instance_id].unlock();  
-#endif
-    send_execute_msg();
-}
-
-
-#if !PVP
-void WorkerThread::send_execute_msg_hotstuff(TxnManager *t_man)
-#else
-void WorkerThread::send_execute_msg_hotstuff(TxnManager *t_man, uint64_t instance_id)
-#endif
-{
-    TxnManager* tman;
-    Message *tmsg;
-#if !PVP
-    hash_QC_lock.lock();
-    QuorumCertificate QC = hash_to_QC[t_man->get_hash()];
-    QC = hash_to_QC[QC.parent_hash];
-    hash_QC_lock.unlock();
-#else
-    hash_QC_lock[instance_id].lock();
-    QuorumCertificate QC = hash_to_QC[instance_id][t_man->get_hash()];
-    QC = hash_to_QC[instance_id][QC.parent_hash];
-    hash_QC_lock[instance_id].unlock();
-#endif
-    
-    while(QC.type != COMMIT && !QC.batch_hash.empty()){ 
-#if !PVP
-        hash_QC_lock.lock();
-        tman = get_transaction_manager(hash_to_txnid[QC.batch_hash], 0);
-        hash_QC_lock.unlock();
-#else
-        hash_QC_lock[instance_id].lock();
-        tman = get_transaction_manager(hash_to_txnid[instance_id][QC.batch_hash], 0);
-        hash_QC_lock[instance_id].unlock();
-#endif
-        tmsg = Message::create_message(tman, EXECUTE_MSG);
-        work_queue.enqueue(get_thd_id(), tmsg, false);
-        #if TIMER_ON
-            // End the timer for this client batch.
-            #if !PVP
-                remove_timer(QC.batch_hash);
-            #else
-                remove_timer(QC.batch_hash, instance_id);
-            #endif
-        #endif
-#if !PVP
-        hash_QC_lock.lock();
-        hash_to_QC[QC.batch_hash].type = COMMIT;
-        QC = hash_to_QC[QC.parent_hash];
-        hash_QC_lock.unlock();
-    }
-    hash_QC_lock.lock();
-    hash_to_QC[t_man->get_hash()].type = COMMIT;
-    hash_QC_lock.unlock();
-#else
-        hash_QC_lock[instance_id].lock();
-        hash_to_QC[instance_id][QC.batch_hash].type = COMMIT;
-        QC = hash_to_QC[instance_id][QC.parent_hash];
-        hash_QC_lock[instance_id].unlock();
-    }
-    
-    hash_QC_lock[instance_id].lock();
-    hash_to_QC[instance_id][t_man->get_hash()].type = COMMIT;
-    hash_QC_lock[instance_id].unlock();  
-    
-#endif
-    tmsg = Message::create_message(t_man, EXECUTE_MSG);
-    
-    work_queue.enqueue(get_thd_id(), tmsg, false);
-}
-
-#if CHAINED
-
-#if !PVP
-void WorkerThread::update_lockQC(const QuorumCertificate& QC, uint64_t view)
-#else
-void WorkerThread::update_lockQC(const QuorumCertificate& QC, uint64_t view, uint64_t instance_id)
-#endif
-{    
-    QuorumCertificate B1, B2, B3;
-    B1 = QC;
-
-#if !PVP
-    hash_QC_lock.lock();
-    B2 = hash_to_QC[B1.parent_hash];
-    B3 = hash_to_QC[B2.parent_hash];
-    hash_QC_lock.unlock();
-#else
-    hash_QC_lock[instance_id].lock();
-    B2 = hash_to_QC[instance_id][B1.parent_hash];
-    B3 = hash_to_QC[instance_id][B2.parent_hash];
-    hash_QC_lock[instance_id].unlock();
-#endif
-
-    if(B1.viewNumber + 1 == view){
-        #if TIMER_ON
-            #if !PVP
-            remove_timer(B1.batch_hash);
-            #else
-            remove_timer(B1.batch_hash, instance_id);
-            #endif
-        #endif
-        #if !PVP
-        set_g_preparedQC(B1);
-        #else
-        set_g_preparedQC(B1, instance_id);
-        #endif
-    }
-    if(B1.viewNumber + 1 == view && B2.viewNumber + 2 == view){
-        #if !PVP
-        hash_QC_lock.lock();
-        hash_to_QC[B2.batch_hash].type = PRECOMMIT;
-        set_g_lockedQC(B2);
-        hash_QC_lock.unlock();
-        #else
-        hash_QC_lock[instance_id].lock();
-        hash_to_QC[instance_id][B2.batch_hash].type = PRECOMMIT;
-        set_g_lockedQC(B2, instance_id);
-        hash_QC_lock[instance_id].unlock();
-        #endif
-    }
-
-    if(B1.viewNumber + 1 == view && B2.viewNumber + 2 == view && B3.viewNumber + 3 == view){
-#if !PVP
-        hash_QC_lock.lock();
-        hash_to_QC[B3.batch_hash].type = COMMIT;
-        uint64_t committed_txn_id = hash_to_txnid[B3.batch_hash];
-        hash_QC_lock.unlock();
-        TxnManager *t_man = get_transaction_manager(committed_txn_id, 0);
-        send_execute_msg_hotstuff(t_man);
-#else
-        hash_QC_lock[instance_id].lock();
-        hash_to_QC[instance_id][B3.batch_hash].type = COMMIT;
-        uint64_t committed_txn_id = hash_to_txnid[instance_id][B3.batch_hash];
-        hash_QC_lock[instance_id].unlock();
-        TxnManager *t_man = get_transaction_manager(committed_txn_id, 0);
-        send_execute_msg_hotstuff(t_man, instance_id);
-#endif  
-    }
-}
-    
-#endif
-
-#endif

@@ -24,7 +24,7 @@ class MessageQueue
 public:
     void init();
     void release();
-    
+
     void enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t> &dest);
     void dequeue(uint64_t thd_id, vector<string> &allsign, Message *&msg);
 

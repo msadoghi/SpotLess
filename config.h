@@ -3,9 +3,9 @@
 // Specify the number of servers or replicas
 #define NODE_CNT 128
 
-// make clean; make -j8
-// python scripts/StopSystem.py; python scripts/scp_binaries.py; python scripts/RunSystem.py
-// python scripts/scp_results.py
+// make clean; make -j8; python3 scripts/ifconfig.py
+// python3 scripts/StopSystem.py; python3 scripts/scp_binaries.py; python3 scripts/RunSystem.py
+// python3 scripts/scp_results.py
 // python3 scripts/results_analysis.py
 
 // Number of worker threads at primary. For RBFT (6) and other algorithms (5). For PVP (NODE_CNT + 3).
@@ -181,7 +181,7 @@
 // Enable or Disable pipeline at primary replica.
 #define ENABLE_PIPELINE true
 // Size of each batch.
-#define BATCH_SIZE 10
+#define BATCH_SIZE 100
 #define BATCH_ENABLE BSET
 #define BSET 1
 #define BUNSET 0
@@ -268,8 +268,10 @@
 
 #define SHIFT_QC false
 
-#define TS_SIMULATOR true
+#define TS_SIMULATOR false
 #define TEMP_QUEUE true
 #define NARWHAL false
+
+#define LARGER_TXN true
 
 #endif

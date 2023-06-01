@@ -167,6 +167,10 @@ void parser(int argc, char *argv[])
     g_lockedQC.type = PRECOMMIT;
     hash_to_QC[g_lockedQC.batch_hash] = g_lockedQC;
 
+    #if TIMER_MANAGER
+    timer_manager = TimerManager();
+    #endif
+
     #if SEMA_TEST
         if(g_node_id==0)
             sem_init(&new_txn_semaphore, 0, 1); // Initially, replica 0 is the primary

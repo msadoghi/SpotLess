@@ -12,7 +12,7 @@ SECP=deps/secp256k1
 SRC_DIRS = ./ ./benchmarks/ ./client/ ./transport/ ./system/ ./statistics/ ./blockchain/ ./db/ ./smart_contracts/ ./data_structures
 DEPS = -I. -I./benchmarks -I./client/ -I./transport -I./system -I./statistics -I./blockchain -I./smart_contracts -I./data_structures -I$(JEMALLOC)/include -I$(NNMSG)/include -I$(BOOST) -I$(CRYPTOPP) -I./db -I$(SQLITE)/include -I$(SECP) -I$(SECP)/include
 
-CFLAGS += $(DEPS) -D NOGRAPHITE=1 -Werror -Wno-sizeof-pointer-memaccess
+CFLAGS += $(DEPS) -D NOGRAPHITE=1 -Werror -Wno-sizeof-pointer-memaccess -Wno-class-memaccess -Wno-parentheses
 LDFLAGS = -Wall -L. -L$(NNMSG)/lib -L$(JEMALLOC)/lib -Wl,-rpath,$(JEMALLOC)/lib -pthread -gdwarf-3 -lrt -std=c++0x -L$(CRYPTOPP) -L$(SQLITE)/lib -L$(SECP)/.libs
 LDFLAGS += $(CFLAGS)
 LIBS = -lnng -lanl -ljemalloc -lcryptopp -lsqlite3 -lsecp256k1 -lgmp -ldl

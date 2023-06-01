@@ -336,7 +336,7 @@ int main(int argc, char *argv[])
     pthread_setname_np(p_thds[id - 1], "s_logger");
 #endif
 
-#if AUTO_POST && PVP_RECOVERY
+#if AUTO_POST
     pthread_t sema_thread;
     pthread_create(&sema_thread, NULL, auto_post, NULL);
     pthread_join(sema_thread, NULL);

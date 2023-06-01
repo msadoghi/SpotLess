@@ -897,12 +897,34 @@ RC WorkerThread::run()
         // The execute_thread waits until the next msg to execute is enqueued
         else if (thd_id == g_thread_cnt-2)  sem_wait(&execute_semaphore);
 
-#if AUTO_POST && PVP_RECOVERY
+#if AUTO_POST
 #if !PVP
-        while(thd_id == 0 && is_auto_posted()){
-            check_for_timeout();
-            set_auto_posted(false);
-            sem_wait(&worker_queue_semaphore[0]);
+#if NEW_DIVIDER && CRASH_DIVIDER == 3
+        while(thd_id == 0 && !(g_node_id % DIV1 < LIMIT1 && g_node_id % DIV2 != LIMIT2 && g_node_id<124)){
+#else
+        while(g_node_id % CRASH_DIVIDER != CRASH_ID && thd_id == 0){
+#endif
+            bool timeout = false;
+            uint64_t to_id = timer_manager.check_timers(timeout);
+            if(timeout){
+                uint64_t cview = get_current_view(0);
+#if NEW_DIVIDER && CRASH_DIVIDER == 3
+                if(cview >= CRASH_VIEW && get_view_primary(cview) < 124 && get_view_primary(cview) % DIV1< LIMIT1 && get_view_primary(cview) % DIV2 != LIMIT2){
+#else
+                if(cview >= CRASH_VIEW && get_view_primary(cview) % CRASH_DIVIDER == CRASH_ID){
+#endif
+                    cout << "TIMEOUT" << to_id << endl;
+                    fflush(stdout);
+                    send_failed_new_view(cview);
+                }
+            }
+            // check_for_timeout();
+            if(is_auto_posted()){
+                 set_auto_posted(false);
+                 sem_wait(&worker_queue_semaphore[0]);
+            }else{
+                break;
+            }
         }
 #else
         while(thd_id >= 0 && thd_id < get_multi_threads() && is_auto_posted(thd_id)){
@@ -929,6 +951,19 @@ RC WorkerThread::run()
             #endif
             continue;
         }
+
+#if HS_FAIL
+#if NEW_DIVIDER && CRASH_DIVIDER == 3
+       else if(g_node_id % DIV1 < LIMIT1 && g_node_id % DIV2 != LIMIT2 && g_node_id<124
+        && thd_id == 0 && get_current_view(0) >= CRASH_VIEW){
+#else
+        else if(g_node_id % CRASH_DIVIDER == CRASH_ID && thd_id == 0 && get_current_view(0) >= CRASH_VIEW){
+#endif
+            Message::release_message(msg);
+            continue;
+        }
+#endif
+
 #if TEMP_QUEUE
         else{
             #if !PVP
@@ -1034,6 +1069,17 @@ RC WorkerThread::run()
         if (msg->rtype != BATCH_REQ && msg->rtype != CL_BATCH && msg->rtype != EXECUTE_MSG)
 #endif
         {
+#if TIMER_MANAGER
+            if(msg->rtype == HOTSTUFF_NEW_VIEW_MSG){
+                HOTSTUFFNewViewMsg *nvmsg = (HOTSTUFFNewViewMsg*)msg;
+                if(nvmsg->non_vote){
+                    process_failed_new_view(nvmsg);
+                    Message::release_message(msg);
+                    INC_STATS(get_thd_id(), worker_release_msg_time, get_sys_clock() - ready_starttime);
+                    continue;
+                }
+            }
+#endif
             txn_man = get_transaction_manager(msg->txn_id, 0);
             ready_starttime = get_sys_clock();
             bool ready = txn_man->unset_ready();
@@ -1549,7 +1595,7 @@ bool WorkerThread::exception_msg_handling(Message *msg)
 #if CONSENSUS == HOTSTUFF
         else if(msg->rtype == HOTSTUFF_NEW_VIEW_MSG){
             #if !PVP
-            if (((HOTSTUFFNewViewMsg*)msg)->view < get_current_view(0) || (((HOTSTUFFNewViewMsg*)msg)->view == get_current_view(0) && msg->txn_id <= get_curr_new_viewed()))
+            if (((HOTSTUFFNewViewMsg*)msg)->view < get_current_view(0) || (((HOTSTUFFNewViewMsg*)msg)->view == get_current_view(0) && msg->txn_id <= get_curr_new_viewed() && ((HOTSTUFFNewViewMsg*)msg)->non_vote == false))
             #else
             uint64_t instance_id = msg->txn_id / get_batch_size() % get_totInstances();
             if (((HOTSTUFFNewViewMsg*)msg)->view < get_current_view(instance_id) ||

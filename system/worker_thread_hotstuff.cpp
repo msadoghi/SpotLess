@@ -147,6 +147,9 @@ void WorkerThread::create_and_send_hotstuff_prepare(ClientQueryBatch *msg, uint6
 #if CHAINED
         txn_man->send_hotstuff_newview();
         advance_view();
+        #if TIMER_MANAGER
+        timer_manager.setTimer();
+        #endif
 #endif
 
 } 
@@ -796,16 +799,34 @@ RC WorkerThread::process_hotstuff_execute(Message *msg){
     cout << "EXECUTE " << msg->txn_id << " THREAD: " << get_thd_id() << "\n";
     fflush(stdout);
     #endif
+
+    ExecuteMessage *emsg = (ExecuteMessage *)msg;
+    bool valid = emsg->valid;
+    if(!emsg->valid){
+        cout << "INVALID" << endl;
+        inc_next_index(get_batch_size());
+        send_checkpoints(msg->txn_id+1);
+        // Setting the next expected prepare message id.
+        set_expectedExecuteCount(get_batch_size() + msg->txn_id);
+        // cout << "MM" << endl;
+#if NEW_DIVIDER && CRASH_DIVIDER == 3
+        uint64_t gid = get_view_primary(emsg->view);
+        if(gid % DIV1< LIMIT1 && gid % DIV2 != LIMIT2 && gid<124){
+#else
+        if(get_view_primary(emsg->view) % CRASH_DIVIDER == CRASH_ID){
+#endif
+            printf("MM%lu", emsg->view);
+            return RCOK;
+        }
+    }
+    
     uint64_t ctime = get_sys_clock();
 
     Message *rsp = Message::create_message(CL_RSP);
     ClientResponseMessage *crsp = (ClientResponseMessage *)rsp;
     crsp->init();
-
-    ExecuteMessage *emsg = (ExecuteMessage *)msg;
-#if NARWHAL
     double tstart = simulation->seconds_from_start(get_sys_clock());
-#endif
+
     // Execute transactions in a shot
     uint64_t i;
     for (i = emsg->index; i < emsg->end_index - 4; i++)
@@ -815,7 +836,7 @@ RC WorkerThread::process_hotstuff_execute(Message *msg){
 
         TxnManager *tman = get_transaction_manager(i, 0);
 
-        inc_next_index();
+        // inc_next_index();
 #if ENABLE_EXECUTE
         // Execute the transaction
         tman->run_txn();
@@ -823,7 +844,7 @@ RC WorkerThread::process_hotstuff_execute(Message *msg){
         // Commit the results.
         tman->commit();
 #endif
-        INC_STATS(get_thd_id(), txn_cnt, 1);
+        // INC_STATS(get_thd_id(), txn_cnt, 1);
 
         crsp->copy_from_txn(tman);
     }
@@ -835,7 +856,7 @@ RC WorkerThread::process_hotstuff_execute(Message *msg){
         TxnManager *tman = get_transaction_manager(i, 0);
         unset_ready_txn(tman);
 
-        inc_next_index();
+        // inc_next_index();
 #if ENABLE_EXECUTE
         // Execute the transaction
         tman->run_txn();
@@ -845,7 +866,7 @@ RC WorkerThread::process_hotstuff_execute(Message *msg){
 #endif
         crsp->copy_from_txn(tman);
 
-        INC_STATS(get_thd_id(), txn_cnt, 1);
+        // INC_STATS(get_thd_id(), txn_cnt, 1);
 
         // Making this txn man available.
         bool ready = tman->set_ready();
@@ -856,7 +877,7 @@ RC WorkerThread::process_hotstuff_execute(Message *msg){
     txn_man = get_transaction_manager(i, 0);
     unset_ready_txn(txn_man);
 
-    inc_next_index();
+    // inc_next_index();
 #if ENABLE_EXECUTE
     // Execute the transaction
     txn_man->run_txn();
@@ -870,17 +891,20 @@ RC WorkerThread::process_hotstuff_execute(Message *msg){
     txn_man->commit();
 #endif
     crsp->copy_from_txn(txn_man);
-#if NARWHAL
     double tend = simulation->seconds_from_start(get_sys_clock());
 
-    usleep(200*(uint)(1000000*(tend-tstart)));
-#endif
+    usleep(200*(uint)(1000000*(tend-tstart))); 
     vector<uint64_t> dest;
     dest.push_back(txn_man->client_id);
     msg_queue.enqueue(get_thd_id(), crsp, dest);
     dest.clear();
 
-    INC_STATS(get_thd_id(), txn_cnt, 1);
+    // INC_STATS(get_thd_id(), txn_cnt, 1);
+    if(valid){
+        inc_next_index(get_batch_size());
+        INC_STATS(get_thd_id(), txn_cnt, get_batch_size());
+    }
+    
     INC_STATS(_thd_id, tput_msg, 1);
     INC_STATS(_thd_id, msg_cl_out, 1);
 
@@ -888,7 +912,9 @@ RC WorkerThread::process_hotstuff_execute(Message *msg){
     send_checkpoints(txn_man->get_txn_id());
 
     // Setting the next expected prepare message id.
-    set_expectedExecuteCount(get_batch_size() + msg->txn_id);
+    if(valid){
+        set_expectedExecuteCount(get_batch_size() + msg->txn_id);
+    }
     // End the execute counter.
     INC_STATS(get_thd_id(), time_execute, get_sys_clock() - ctime);
 
@@ -1024,7 +1050,9 @@ RC WorkerThread::process_hotstuff_generic(Message *msg)
 #endif
         return RCOK;
     }
-
+#if TIMER_MANAGER
+    timer_manager.pvp_timer.endTimer();
+#endif
     // Allocate transaction managers for all the transactions in the batch.
     set_txn_man_fields(gene, 0);
 
@@ -1066,8 +1094,11 @@ RC WorkerThread::process_hotstuff_generic(Message *msg)
         }
     }else{
         advance_view(false);
+        #if TIMER_MANAGER
+        timer_manager.setTimer();
+        #endif
     }
-
+    
 
     // Release this txn_man for other threads to use.
     bool ready = txn_man->set_ready();
@@ -1079,5 +1110,70 @@ RC WorkerThread::process_hotstuff_generic(Message *msg)
 }
 
 #endif
+#if TIMER_MANAGER
+void WorkerThread::send_failed_new_view(uint64_t view){
+    vector<uint64_t> dest;
+    uint64_t dest_node_id = get_view_primary(view+1);
+    if(g_node_id == dest_node_id){
+        if(fault_manager.sufficient_voters(view, g_node_id)){
+            printf("Perfect %lu\n", view);
+            advance_failed_view(view);
+        }
+    }else{
+        Message *msg = Message::create_message(HOTSTUFF_NEW_VIEW_MSG);
+        HOTSTUFFNewViewMsg *nvmsg = (HOTSTUFFNewViewMsg*)msg;
+        nvmsg->hashSize = nvmsg->hash.size();
+        nvmsg->non_vote = true;
+        nvmsg->txn_id = 0;
+        nvmsg->view = view;
+        nvmsg->PreparedQC = get_g_preparedQC();
+        dest.push_back(dest_node_id);
+        msg_queue.enqueue(get_thd_id(), nvmsg, dest);
+        dest.clear();
+        advance_failed_view(view);
+    }
+}
 
+void WorkerThread::process_failed_new_view(HOTSTUFFNewViewMsg *msg){
+    cout << "FNW" << endl;
+    fflush(stdout);
+    if(fault_manager.sufficient_voters(msg->view, msg->return_node_id)){
+        printf("Perfect %lu\n", msg->view);
+        advance_failed_view(msg->view);
+    }
+ }
+
+void WorkerThread::advance_failed_view(uint64_t view){
+    TxnManager* tman = get_transaction_manager(view * get_batch_size() -1, 0);
+    Message *msg = Message::create_message(tman, EXECUTE_MSG);
+    ExecuteMessage* emsg = (ExecuteMessage*)msg;
+    emsg->valid = false;
+    emsg->view = view - 1;
+    printf("NN %lu\n", emsg->txn_id);
+    work_queue.enqueue(get_thd_id(), emsg, false);
+
+    msg = Message::create_message(EXECUTE_MSG);
+    emsg = (ExecuteMessage*)msg;
+    emsg->txn_id = (view + 1) * get_batch_size() - 2;
+    emsg->view = view;
+    emsg->valid = false;
+    printf("NN %lu\n", emsg->txn_id);
+    work_queue.enqueue(get_thd_id(), emsg, false);
+
+    view++;
+    for(uint64_t i=0; i<g_total_thread_cnt; i++){
+        set_view(i, view);
+    }
+
+    if(g_node_id == get_view_primary(view)){
+        set_sent(false);
+        #if SEMA_TEST
+        // Having received enough new_view msgs, the replica becomes the primary in HOTSTUFF (one primary in PVP)
+        sem_post(&new_txn_semaphore);
+        #endif
+    }else{
+        timer_manager.setTimer();
+    }
+}
+#endif
 #endif

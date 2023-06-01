@@ -132,6 +132,12 @@ void fail_primary(uint64_t time, uint64_t instance_id);
     #endif
 #endif
 
+#if TIMER_MANAGER
+     void send_failed_new_view(uint64_t view);
+     void process_failed_new_view(HOTSTUFFNewViewMsg *msg);
+     void advance_failed_view(uint64_t view);
+#endif
+
 #if TESTING_ON
     void testcases(Message *msg);
 #if TEST_CASE == ONLY_PRIMARY_NO_EXECUTE

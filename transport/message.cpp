@@ -3964,6 +3964,8 @@ uint64_t HOTSTUFFNewViewMsg::get_size(){
 	size += sizeof(sig_share);
 #endif
 
+	size += sizeof(non_vote);
+
 	return size;
 }
 
@@ -4036,6 +4038,8 @@ void HOTSTUFFNewViewMsg::copy_from_buf(char *buf)
 	COPY_VAL(sig_share, buf, ptr);
 #endif
 
+	COPY_VAL(non_vote, buf, ptr);
+
 	assert(ptr == get_size());
 }
 
@@ -4063,6 +4067,9 @@ void HOTSTUFFNewViewMsg::copy_to_buf(char *buf)
 #if THRESHOLD_SIGNATURE
 	COPY_BUF(buf, sig_share, ptr);
 #endif
+
+	COPY_BUF(buf, non_vote, ptr);
+
 	assert(ptr == get_size());
 }
 

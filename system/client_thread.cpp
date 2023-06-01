@@ -151,9 +151,6 @@ RC ClientThread::run()
 
 #if CONSENSUS == HOTSTUFF
 		uint64_t limit = MAX_TXN_IN_FLIGHT / BATCH_SIZE / NODE_CNT + ((MAX_TXN_IN_FLIGHT / BATCH_SIZE) % NODE_CNT > next_node);
-		if(limit == 0){
-			limit = 1;
-		}
 		if(get_in_round(next_node) == limit){
 			inc_next_to_send();
 			continue;

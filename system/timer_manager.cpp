@@ -54,13 +54,13 @@ void PVPTimer::endTimer(){
 uint64_t TimerManager::check_timers(bool& timeout){
 	this->tm_lock->lock();
 	uint64_t current_time = get_sys_clock();
-#if NEW_DIVIDER
+#if NEW_DIVIDER && CRASH_DIVIDER == 3
 	uint64_t gid = get_view_primary(get_current_view(0));
 #endif	
  	if(!simulation->is_warmup_done()){
 		timeout = false;
 	}
-#if NEW_DIVIDER
+#if NEW_DIVIDER && CRASH_DIVIDER == 3
 	else if(!(gid % DIV1 < LIMIT1 && gid % DIV2 != LIMIT2 && gid<124)){
 #else
 	else if(get_view_primary(get_current_view(0)) % CRASH_DIVIDER != CRASH_ID){

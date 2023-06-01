@@ -273,10 +273,10 @@
 #define TIMER_MANAGER true
 #define INITIAL_TIMEOUT_LENGTH 1*BILLION
 #define CRASH_VIEW 200
-#define PVP_FAIL true
+#define HS_FAIL true
 #define MAX_TIMER_LEN 20000000
 #define CRASH_DIVIDER 5
-#define CRASH_ID 1
+#define CRASH_ID 2
 
 #define NEW_DIVIDER true
 #define DIV1 12

@@ -96,9 +96,9 @@ instances=(
   # "ocid1.instance.oc1.phx.anyhqljs7deiexacz2ms4or3vpub4ysupx3uehpbcuj3at4ascvr6eearltq"   #phnx_16core_093
   # "ocid1.instance.oc1.phx.anyhqljs7deiexacnm6fnsgcne3yok75f2rw5sqjvvc6exer5t3npxv34jsq"   #phnx_16core_094
   # "ocid1.instance.oc1.phx.anyhqljs7deiexacnqktoolzlnzi5kvago5vgpnjogsb7xrjan4v4acisrxa"   #phnx_16core_095
-  "ocid1.instance.oc1.phx.anyhqljs7deiexaccwnywwlzbbzrpdofbdps5fzorztki3sr23w7jxwva2za"   #phnx_16core_096
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacy6flauvi4zismmvvtbhemrvf7575azeq2wyx2xov7u5a"   #phnx_16core_097
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacj7cnag3gb7oydr4372z3rfgye2ygmmqq5xw5gdqolapq"   #phnx_16core_098
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexaccwnywwlzbbzrpdofbdps5fzorztki3sr23w7jxwva2za"   #phnx_16core_096
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexacy6flauvi4zismmvvtbhemrvf7575azeq2wyx2xov7u5a"   #phnx_16core_097
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexacj7cnag3gb7oydr4372z3rfgye2ygmmqq5xw5gdqolapq"   #phnx_16core_098
   "ocid1.instance.oc1.phx.anyhqljs7deiexackbwcvjf5c7yrmgg6ecubteswiu7ik2n6pzrzf3uzz5ma"   #phnx_16core_099
   "ocid1.instance.oc1.phx.anyhqljs7deiexacgk7ngq775b2q5knslylinr2yfihkdgbbzufsmnudls4a"   #phnx_16core_100
   "ocid1.instance.oc1.phx.anyhqljs7deiexacfomiakm2ffsh4jfna2hltawku7t3xokatp2xpktmj2pq"   #phnx_16core_101
@@ -129,49 +129,49 @@ instances=(
   "ocid1.instance.oc1.phx.anyhqljs7deiexac3y6siv5dpwjqrn7o75jlw3zrrqyplpwdtfyolmytkl6q"   #phnx_16core_126
   "ocid1.instance.oc1.phx.anyhqljs7deiexaczxjogrzcz72ajj66zzc6bocngifu4kac4imfk7nylbmq"   #phnx_16core_127
   "ocid1.instance.oc1.phx.anyhqljs7deiexacgm5kriwu2jtgiccruxairiil45j5rqxlx3cbp3rghuka"   #phnx_16core_128
-  "ocid1.instance.oc1.phx.anyhqljs7deiexac3gfkpg2jxcwae3cubtfxn4ywkyckeywdzkp2h276obma"   #phnx_16core_129
-  "ocid1.instance.oc1.phx.anyhqljs7deiexaciwdclpuosrih24kshkyux47di5xkp2rzrkptn3rmpgga"   #phnx_16core_130
-  "ocid1.instance.oc1.phx.anyhqljs7deiexaco2lzoeeh47lvtdueddlq7a6qo4xxiorq3vmurkjofrdq"   #phnx_16core_131
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacli5nw2p46yi3y7vybne3agjklrnx5scte5y7mt6n467a"   #phnx_16core_132
-  "ocid1.instance.oc1.phx.anyhqljs7deiexac7knkx6c7nuehqc4tqt6cpg4oqevq2ycfh3qw4srpoquq"   #phnx_16core_133
-  "ocid1.instance.oc1.phx.anyhqljs7deiexac2b7xth3pmfwb5vl7x2icbdfqnjh6nfqm23udkjulx7ma"   #phnx_16core_134
-  "ocid1.instance.oc1.phx.anyhqljs7deiexac5phw62awdj6x6l4hyu2l2iai5eirlzrarwtjmyvuwbya"   #phnx_16core_135
-  "ocid1.instance.oc1.phx.anyhqljs7deiexaci577fknncn6kadkjieda6daek6cesr5luxtwvcmcruqq"   #phnx_16core_136
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacgyfjh6uazylaoez6ibbp7en6grpzk4wbqe7vtkvb5ncq"   #phnx_16core_137
-  "ocid1.instance.oc1.phx.anyhqljs7deiexac53tpfg6zcdpvw5pd5iogznuk6ses5wlfbome36gzf2gq"   #phnx_16core_138
-  "ocid1.instance.oc1.phx.anyhqljs7deiexac565aruft4nwhifsimzijulols26obfuvnfzwspzl2ijq"   #phnx_16core_139
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacn5elqidpwzyljg3zfkfi7bcsr7klexdcjzi4uqwpeyha"   #phnx_16core_140
-  "ocid1.instance.oc1.phx.anyhqljs7deiexac44cxz72mfur37scrk74q5n2jj7pt75hi2jyimjvjeknq"   #phnx_16core_141
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacgx24xrtlmx4yc7fd2yrf2to5iftgnbavg2nwz7gkveqa"   #phnx_16core_142
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacnk7fg4ypvn2jyzf75uua4pqzaics5agxzmhbssx7vtwq"   #phnx_16core_143
-  "ocid1.instance.oc1.phx.anyhqljs7deiexaccbcmuh5ycj5ripvcw3d2nhszib36scxnzwstdpyy55cq"   #phnx_16core_144
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacla2ypxcrhzv26yokodc2stckaqztcqg66esxvmtmpydq"   #phnx_16core_145
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacvdjhpgjhlp5qvfaxkrznqhcz3tapvfmb4qi3nzf7fbca"   #phnx_16core_146
-  "ocid1.instance.oc1.phx.anyhqljs7deiexac7t2kegt5iv6hwzajyffortfca3fk234y6iwcoppxm26a"   #phnx_16core_147
-  "ocid1.instance.oc1.phx.anyhqljs7deiexact4yhxj22tseehxzatnhbucfqnnhf65ozgutfbycrpaxq"   #phnx_16core_148
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacw3jdprv2cjd5bsmz57jn7vavag7tw3bzqg5vmlcgguqa"   #phnx_16core_149
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacsnedabwlqc553s65svmbhrqqdfonkgamchcneug2333a"   #phnx_16core_150
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacixyxq2tuakraijj4kr2hyn4ghf7ulb5viobmycszymbq"   #phnx_16core_151
-  "ocid1.instance.oc1.phx.anyhqljs7deiexac2u2q33ttwfpxgv6nn4mq7xacahisgmwtk6oxuuxdecfa"   #phnx_16core_152
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacnpfltqobng5v4nwdmboqg34l6kzsdnsk7zzz2kfkaapa"   #phnx_16core_153
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacjvbmaqbortfa4klmqondohx477hx4ai6ep4juswnsf4a"   #phnx_16core_154
-  "ocid1.instance.oc1.phx.anyhqljs7deiexac5bb6crxlevshytouqo22zjq2kzqaylfy3grpvupkjfrq"   #phnx_16core_155
-  "ocid1.instance.oc1.phx.anyhqljs7deiexace4eqekvkadtadhyzp5vscnvvjhlhfue62n5eelf5vb6q"   #phnx_16core_156
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacq46djhs3kyscrezzmlwp7tpujnse2pl7d6xygbfaqndq"   #phnx_16core_157
-  "ocid1.instance.oc1.phx.anyhqljs7deiexac5yralqcnl4pt2iqphhhdiphc7exfqx37cbyxdc5w3xsq"   #phnx_16core_158
-  "ocid1.instance.oc1.phx.anyhqljs7deiexacurhgwzrl45t7ot7shj5qlwiupezv6jwcwpgcq2qlijya"   #phnx_16core_159
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexac3gfkpg2jxcwae3cubtfxn4ywkyckeywdzkp2h276obma"   #phnx_16core_129
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexaciwdclpuosrih24kshkyux47di5xkp2rzrkptn3rmpgga"   #phnx_16core_130
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexaco2lzoeeh47lvtdueddlq7a6qo4xxiorq3vmurkjofrdq"   #phnx_16core_131
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexacli5nw2p46yi3y7vybne3agjklrnx5scte5y7mt6n467a"   #phnx_16core_132
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexac7knkx6c7nuehqc4tqt6cpg4oqevq2ycfh3qw4srpoquq"   #phnx_16core_133
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexac2b7xth3pmfwb5vl7x2icbdfqnjh6nfqm23udkjulx7ma"   #phnx_16core_134
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexac5phw62awdj6x6l4hyu2l2iai5eirlzrarwtjmyvuwbya"   #phnx_16core_135
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexaci577fknncn6kadkjieda6daek6cesr5luxtwvcmcruqq"   #phnx_16core_136
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexacgyfjh6uazylaoez6ibbp7en6grpzk4wbqe7vtkvb5ncq"   #phnx_16core_137
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexac53tpfg6zcdpvw5pd5iogznuk6ses5wlfbome36gzf2gq"   #phnx_16core_138
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexac565aruft4nwhifsimzijulols26obfuvnfzwspzl2ijq"   #phnx_16core_139
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexacn5elqidpwzyljg3zfkfi7bcsr7klexdcjzi4uqwpeyha"   #phnx_16core_140
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexac44cxz72mfur37scrk74q5n2jj7pt75hi2jyimjvjeknq"   #phnx_16core_141
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexacgx24xrtlmx4yc7fd2yrf2to5iftgnbavg2nwz7gkveqa"   #phnx_16core_142
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexacnk7fg4ypvn2jyzf75uua4pqzaics5agxzmhbssx7vtwq"   #phnx_16core_143
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexaccbcmuh5ycj5ripvcw3d2nhszib36scxnzwstdpyy55cq"   #phnx_16core_144
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexacla2ypxcrhzv26yokodc2stckaqztcqg66esxvmtmpydq"   #phnx_16core_145
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexacvdjhpgjhlp5qvfaxkrznqhcz3tapvfmb4qi3nzf7fbca"   #phnx_16core_146
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexac7t2kegt5iv6hwzajyffortfca3fk234y6iwcoppxm26a"   #phnx_16core_147
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexact4yhxj22tseehxzatnhbucfqnnhf65ozgutfbycrpaxq"   #phnx_16core_148
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexacw3jdprv2cjd5bsmz57jn7vavag7tw3bzqg5vmlcgguqa"   #phnx_16core_149
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexacsnedabwlqc553s65svmbhrqqdfonkgamchcneug2333a"   #phnx_16core_150
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexacixyxq2tuakraijj4kr2hyn4ghf7ulb5viobmycszymbq"   #phnx_16core_151
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexac2u2q33ttwfpxgv6nn4mq7xacahisgmwtk6oxuuxdecfa"   #phnx_16core_152
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexacnpfltqobng5v4nwdmboqg34l6kzsdnsk7zzz2kfkaapa"   #phnx_16core_153
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexacjvbmaqbortfa4klmqondohx477hx4ai6ep4juswnsf4a"   #phnx_16core_154
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexac5bb6crxlevshytouqo22zjq2kzqaylfy3grpvupkjfrq"   #phnx_16core_155
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexace4eqekvkadtadhyzp5vscnvvjhlhfue62n5eelf5vb6q"   #phnx_16core_156
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexacq46djhs3kyscrezzmlwp7tpujnse2pl7d6xygbfaqndq"   #phnx_16core_157
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexac5yralqcnl4pt2iqphhhdiphc7exfqx37cbyxdc5w3xsq"   #phnx_16core_158
+  # "ocid1.instance.oc1.phx.anyhqljs7deiexacurhgwzrl45t7ot7shj5qlwiupezv6jwcwpgcq2qlijya"   #phnx_16core_159
 )
 
-# action=START
-action=STOP
+action=START
+# action=STOP
 # action=RESET
 # bash scripts/start-stop-ashburn.sh
 
-for i in "${instances[@]}"; do
-   /home/ubuntu/bin/oci compute instance terminate --instance-id $i
-done
-wait
 # for i in "${instances[@]}"; do
-#     /home/ubuntu/bin/oci compute instance action --action $action --instance-id $i | jq -r '.data."display-name"' &
+#    /home/ubuntu/bin/oci compute instance terminate --instance-id $i
 # done
 # wait
+for i in "${instances[@]}"; do
+    /home/ubuntu/bin/oci compute instance action --action $action --instance-id $i | jq -r '.data."display-name"' &
+done
+wait

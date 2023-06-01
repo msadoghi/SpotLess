@@ -207,6 +207,8 @@ public:
 #endif
 #endif
 
+    map<uint64_t, set<uint64_t>> voters;
+
     uint64_t decr_prep_rsp_cnt();
     uint64_t get_prep_rsp_cnt();
     bool is_prepared();

@@ -2,7 +2,7 @@
 import numpy as np
 
 DONE_TIMER=15
-MULTI_INSTANCE=128
+MULTI_INSTANCE=4
 CLIENT_CNT=1
 worker_thread_cnt = MULTI_INSTANCE + 3
 Output_idle_times = list()
@@ -12,15 +12,15 @@ txn_cnts = list()
 latencies = list()
 
 def deal_with(out_str, i):
-    # if out_str.find("idle_time_worker ") != -1:
-    #     out_str = out_str[len("idle_time_worker "):]
-    #     thd_id = out_str[:out_str.find("=")]
-    #     idle_time = out_str[out_str.find("=") + 1 : -1]
-    #     idle_times[int(thd_id)].append(float(idle_time))
-    # elif out_str.find("Output ") != -1:
-    #     idle_time = float(out_str[out_str.find(":") + 2: -1])
-    #     Output_idle_times.append(idle_time)
-    if out_str.find("tput         =") != -1:
+    if out_str.find("idle_time_worker ") != -1:
+        out_str = out_str[len("idle_time_worker "):]
+        thd_id = out_str[:out_str.find("=")]
+        idle_time = out_str[out_str.find("=") + 1 : -1]
+        idle_times[int(thd_id)].append(float(idle_time))
+    elif out_str.find("Output ") != -1:
+        idle_time = float(out_str[out_str.find(":") + 2: -1])
+        Output_idle_times.append(idle_time)
+    elif out_str.find("tput         =") != -1:
         tput = float(out_str[out_str.find("=") + 1 : out_str.find("txn_cnt=")])
         through_puts[i] = tput
     elif out_str.find("txn_cnt=") == 0:
@@ -160,28 +160,28 @@ for i in range(MULTI_INSTANCE, MULTI_INSTANCE + CLIENT_CNT):
         deal_with2(str(line), i)
     fo.close()
 
-# fw.write("==========WorkerThreads============\n")
+fw.write("==========WorkerThreads============\n")
 
-# for i in range(worker_thread_cnt):
-#     print_max(i)
-#     print_min(i)
-#     print_average(i)
-#     print_variation(i)
-#     fw.write("\n")
+for i in range(worker_thread_cnt):
+    print_max(i)
+    print_min(i)
+    print_average(i)
+    print_variation(i)
+    fw.write("\n")
 
-# fw.write("\n==========Total Idle_time==========\n")
-# print_total_worker_idle_time()
+fw.write("\n==========Total Idle_time==========\n")
+print_total_worker_idle_time()
 
-# fw.write("\n==========OutputThread============\n")
-# print_output()
+fw.write("\n==========OutputThread============\n")
+print_output()
 
 fw.write("\n==========Throughput============\n")
 print_throughput()
 
-# fw.write("\n==========Txn_Cnt============\n")
-# print_txn_cnt()
+fw.write("\n==========Txn_Cnt============\n")
+print_txn_cnt()
 
-# fw.write("\n==========AVG_LATENCY============\n")
-# print_latency()
+fw.write("\n==========AVG_LATENCY============\n")
+print_latency()
 
 fw.close()

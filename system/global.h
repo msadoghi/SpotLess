@@ -41,6 +41,8 @@
 #include "hash_set.h"
 
 #include "semaphore.h"
+#include "timer_manager.h"
+#include "fault_manager.h"
 
 #if THRESHOLD_SIGNATURE
 #include <secp256k1.h>
@@ -680,6 +682,10 @@ void set_g_genericQC(const QuorumCertificate& QC, uint64_t instance_id);
 
 extern bool SafeNode(const QuorumCertificate &highQC, uint64_t instance_id);
 extern uint64_t get_view_primary(uint64_t view, uint64_t instance_id);
+#endif
+
+#if TIMER_MANAGER
+extern FaultManager fault_manager;
 #endif
 
 #endif

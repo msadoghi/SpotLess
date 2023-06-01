@@ -13,6 +13,7 @@
 #include "client_txn.h"
 #include "txn.h"
 #include "../config.h"
+#include "fault_manager.h"
 
 mem_alloc mem_allocator;
 Stats stats;
@@ -419,7 +420,7 @@ void* auto_post(void *ptr){
 		sleep(1);
 	}
     while (!simulation->is_done()){
-        usleep(500000);
+        usleep(100000);
         if(!is_auto_posted()){
             set_auto_posted(true);
             sem_post(&worker_queue_semaphore[0]);
@@ -447,7 +448,7 @@ void* auto_post(void *ptr){
 		sleep(1);
 	}
     while (!simulation->is_done()){
-        usleep(500000);
+        usleep(100000);
 		for(uint thd_id=0; thd_id<get_multi_threads(); thd_id++){
 			if(!is_auto_posted(thd_id)){
             	set_auto_posted(true, thd_id);
@@ -509,7 +510,7 @@ uint64_t expectedInstance;
 
 //Entities for client in HOTSTUFF and PVP.
 //next_to_send is just the id of primary in the next round.
-uint64_t next_to_send = g_node_id % g_node_cnt;
+uint64_t next_to_send = 0;
 uint64_t get_next_to_send(){
     return next_to_send;
 }
@@ -735,6 +736,10 @@ const QuorumCertificate& get_g_genericQC(uint64_t instance_id){
 #endif
 
 #endif	// PVP
+
+#if TIMER_MANAGER
+FaultManager fault_manager;
+#endif
 
 #endif	// CONSENSUS == HOTSTUFF
 

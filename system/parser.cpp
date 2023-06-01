@@ -157,23 +157,6 @@ void parser(int argc, char *argv[])
     g_total_client_thread_cnt = g_client_thread_cnt + g_client_rem_thread_cnt + g_client_send_thread_cnt;
     g_total_node_cnt = g_node_cnt + g_client_node_cnt + g_repl_cnt * g_node_cnt;
 
-#if CONSENSUS == HOTSTUFF
-#if !PVP
-    sent = g_node_id==0 ? false: true;
-    g_preparedQC = QuorumCertificate(g_node_cnt);
-    g_preparedQC.type = PREPARE;
-
-    g_lockedQC = QuorumCertificate(g_node_cnt);
-    g_lockedQC.type = PRECOMMIT;
-    hash_to_QC[g_lockedQC.batch_hash] = g_lockedQC;
-
-    #if SEMA_TEST
-        if(g_node_id==0)
-            sem_init(&new_txn_semaphore, 0, 1); // Initially, replica 0 is the primary
-        else
-            sem_init(&new_txn_semaphore, 0, 0);
-    #endif
-#else
     for(uint i = 0; i < get_totInstances(); i++){
         sent[i] = g_node_id == i ? false : true;
         g_preparedQC[i] = QuorumCertificate(g_node_cnt);
@@ -223,8 +206,6 @@ void parser(int argc, char *argv[])
     }
     #endif
 
-#endif
-    
 #if TIMER_MANAGER
     for(uint64_t i = 0; i < MULTI_INSTANCES; i++){
         timer_manager[i] = TimerManager(i);
@@ -236,6 +217,7 @@ void parser(int argc, char *argv[])
         sem_init(&worker_queue_semaphore[i], 0, 0);
     }
     sem_init(&execute_semaphore, 0, 0);
+    sem_init(&executable_signal, 0, 0);
     for(uint i = 0; i < SEND_THREAD_CNT; i++){
         sem_init(&output_semaphore[i], 0, 0);
     }
@@ -253,7 +235,6 @@ void parser(int argc, char *argv[])
     public_keys[g_node_id] = public_key;
 #endif
 
-#endif  // CONSENSUS == HOTSTUFF
     if (ISCLIENT)
     {
         g_this_thread_cnt = g_client_thread_cnt;

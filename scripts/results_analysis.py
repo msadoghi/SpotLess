@@ -3,7 +3,7 @@ import numpy as np
 
 DONE_TIMER=30
 MULTI_INSTANCE=96
-CLIENT_CNT=128
+CLIENT_CNT=4
 worker_thread_cnt = MULTI_INSTANCE + 4
 Output_idle_times = list()
 idle_times = list()

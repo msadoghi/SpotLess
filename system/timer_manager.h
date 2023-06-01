@@ -47,6 +47,6 @@ public:
 
 extern TimerManager timer_manager[MULTI_INSTANCES];
 
-#endif // TIMER_ON
+#endif 
 
 #endif

@@ -120,17 +120,6 @@ void MessageThread::run()
                 msg->pubKey = getOtherRequiredKey(dest_node_id);
                 break;
 
-#if RING_BFT
-            case COMMIT_CERT_MSG:
-                if (((CommitCertificateMessage *)msg)->forwarding_from == (uint64_t)-1)
-                    msg->pubKey = getOtherRequiredKey(dest_node_id);
-                break;
-            case RING_COMMIT:
-                if (((RingBFTCommit *)msg)->forwarding_from == (uint64_t)-1)
-                    msg->pubKey = getOtherRequiredKey(dest_node_id);
-                break;
-
-#endif
             default:
                 msg->pubKey = getCmacRequiredKey(dest_node_id);
             }
@@ -144,22 +133,14 @@ void MessageThread::run()
             cout << "not fitting " << sbuf->cnt << endl;
             send_batch(dest_node_id);
         }
-// #if VIEW_CHANGES
-//         if (msg->rtype == VIEW_CHANGE)
-//             sbuf->force = true;
-//         if (msg->rtype == NEW_VIEW)
-//             sbuf->force = true;
-// #endif
         if (msg->rtype == PBFT_CHKPT_MSG){
             sbuf->force = true;
         }
-#if PVP_FORCE
-        else if(msg->rtype == HOTSTUFF_GENERIC_MSG){
+        else if(msg->rtype == PVP_GENERIC_MSG){
              sbuf->force = true;
         }else if(msg->force == true){
             sbuf->force = true;
         }
-#endif
         msg->copy_to_buf(&(sbuf->buffer[sbuf->ptr]));
         sbuf->cnt += 1;
         sbuf->ptr += msg->get_size();

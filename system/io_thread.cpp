@@ -11,7 +11,6 @@
 #include "message.h"
 #include "client_txn.h"
 #include "work_queue.h"
-#include "timer.h"
 //#include "crypto.h"
 
 void InputThread::managekey(KeyExchange *keyex)
@@ -112,13 +111,7 @@ void InputThread::setup()
                 {
                     assert(ISSERVER || ISREPLICA);
                     //printf("Received Msg %d from node %ld\n",msg->rtype,msg->return_node_id);
-#if SHARPER
-                    // Linearizing requests.
-                    if (msg->rtype == SUPER_PROPOSE && is_primary_node(get_thd_id(), g_node_id))
-                    {
-                        msg->txn_id = get_and_inc_next_idx();
-                    }
-#endif
+
                     // Linearizing requests.
                     if (msg->rtype == CL_BATCH)
                     {
@@ -163,10 +156,6 @@ RC InputThread::client_recv_loop()
 
     double sumlat = 0;
     uint64_t txncmplt = 0;
-#if RING_BFT || SHARPER
-    double c_sumlat = 0;
-    uint64_t c_txncmplt = 0;
-#endif
 
     while (!simulation->is_done())
     {
@@ -220,16 +209,9 @@ RC InputThread::client_recv_loop()
 
             //cout<<"Node: "<<msg->return_node_id <<" :: Txn: "<< msg->txn_id <<"\n";
             //fflush(stdout);
-            #if !PVP
-            return_node_offset = get_view_primary(((ClientResponseMessage *)msg)->view);
-            #else
             uint64_t instance_id = msg->instance_id;
             return_node_offset = get_view_primary(((ClientResponseMessage *)msg)->view, instance_id);
-            #endif
             
-#if RING_BFT
-            assert(is_in_same_shard(get_shard_number(g_node_id) * g_shard_size, msg->return_node_id));
-#endif
             if (msg->rtype != CL_RSP)
             {
                 cout << "Mtype: " << msg->rtype << " :: Nd: " << msg->return_node_id << "\n";
@@ -271,14 +253,12 @@ RC InputThread::client_recv_loop()
             client_response_lock.unlock();
             #endif
 //            cout << "msg->txn_id" << msg->txn_id << "   " << response_count << endl;
-            if (response_count == g_min_invalid_nodes + 1)
+            if (response_count == fp1)
             {
+                cout << "[X]" << endl;
+                fflush(stdout);
                 // If true, set this as the next transaction completed.
                 set_last_valid_txn(msg->txn_id);
-#if TIMER_ON
-                // End the timer.
-                client_timer->endTimer(clrsp->client_ts[get_batch_size() - 1]);
-#endif
                 // cout << "validated: " << clrsp->txn_id << "   " << clrsp->return_node_id << "\n";
                 // fflush(stdout);
 
@@ -308,11 +288,8 @@ RC InputThread::client_recv_loop()
                 client_response_lock.unlock();
                 #endif
 
-                #if CONSENSUS == HOTSTUFF
                 // go to next view
-//              set_client_view(rsp_view + 1);
                 dec_in_round(return_node_offset);
-                #endif
 #else // !CLIENT_RESPONSE_BATCH
 
                 INC_STATS(get_thd_id(), txn_cnt, 1);
@@ -337,18 +314,8 @@ RC InputThread::client_recv_loop()
         }
         delete msgs;
     }
-#if RING_BFT || SHARPER
-    printf("AVG CLatency: %f\n", (c_sumlat / (c_txncmplt * BILLION)));
-    printf("AVG ILatency: %f\n", (sumlat / (txncmplt * BILLION)));
-    printf("AVG Latency: %f\n", ((sumlat + c_sumlat) / ((txncmplt + c_txncmplt) * BILLION)));
-    printf("C_LAT_TIME: %f\n", (c_sumlat / BILLION));
-    printf("C_TXN_CNT: %ld\n", c_txncmplt);
-    printf("TXN_CNT: %ld\n", txncmplt);
-    fflush(stdout);
-#else
     printf("AVG Latency: %f\n", (sumlat / (txncmplt * BILLION)));
     printf("TXN_CNT: %ld\n", txncmplt);
-#endif
     return FINISH;
 }
 
@@ -410,14 +377,12 @@ RC InputThread::server_recv_loop()
                 msgs->erase(msgs->begin());
                 continue;
             }
-#if CONSENSUS == HOTSTUFF
             if (msg->rtype == CL_BATCH)
             {
                 // For CL_BATCH msgs in HOTSTUFF, the txn_id is assigned after the msg in dequeued from the new_txn_queue
                 fflush(stdout);
                 INC_STATS(_thd_id, msg_cl_in, 1);
             }
-#endif
             work_queue.enqueue(get_thd_id(), msg, false);
             msgs->erase(msgs->begin());
         }

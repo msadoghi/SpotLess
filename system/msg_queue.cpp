@@ -97,144 +97,47 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t>
         ((ClientQueryBatch *)msg)->sign(dest[0]);
         entry->allsign.push_back(msg->signature);
         break;
-#if SHARPER
-    case SUPER_PROPOSE:
-#endif
-    case BATCH_REQ:
-        for (uint64_t i = 0; i < dest.size(); i++)
-        {
-            ((BatchRequests *)msg)->sign(dest[i]);
-            entry->allsign.push_back(msg->signature);
-        }
-        break;
+
     case PBFT_CHKPT_MSG:
         for (uint64_t i = 0; i < dest.size(); i++)
         {
+            fflush(stdout);
             ((CheckpointMessage *)msg)->sign(dest[i]);
             entry->allsign.push_back(((CheckpointMessage *)msg)->signature);
         }
         break;
-    case PBFT_PREP_MSG:
-        for (uint64_t i = 0; i < dest.size(); i++)
-        {
-            ((PBFTPrepMessage *)msg)->sign(dest[i]);
-            entry->allsign.push_back(((PBFTPrepMessage *)msg)->signature);
-        }
-        break;
-
-#if CONSENSUS == PBFT && !RING_BFT
-    case PBFT_COMMIT_MSG:
-        for (uint64_t i = 0; i < dest.size(); i++)
-        {
-            ((PBFTCommitMessage *)msg)->sign(dest[i]);
-            entry->allsign.push_back(((PBFTCommitMessage *)msg)->signature);
-        }
-        break;
-#elif RING_BFT
-    case PBFT_COMMIT_MSG:
-        if (((PBFTCommitMessage *)msg)->is_cross_shard)
-        {
-            // cout << "ED2  "<< msg->txn_id / get_batch_size() << endl;fflush(stdout);
-            ((PBFTCommitMessage *)msg)->sign(dest[0]);
-            for (uint64_t i = 0; i < dest.size(); i++)
-            {
-                entry->allsign.push_back(((PBFTCommitMessage *)msg)->signature);
-            }
-        }
-        else
-        {
-            // cout << "MAC  "<< msg->txn_id / get_batch_size() << endl;fflush(stdout);
-            for (uint64_t i = 0; i < dest.size(); i++)
-            {
-                ((PBFTCommitMessage *)msg)->sign(dest[i]);
-                entry->allsign.push_back(((PBFTCommitMessage *)msg)->signature);
-            }
-        }
-        break;
-    case COMMIT_CERT_MSG:
-        if (((CommitCertificateMessage *)msg)->forwarding_from == (uint64_t)-1)
-            ((CommitCertificateMessage *)msg)->sign(dest[0]);
-        for (uint64_t i = 0; i < dest.size(); i++)
-        {
-            entry->allsign.push_back(((CommitCertificateMessage *)msg)->signature);
-        }
-        break;
-    case RING_PRE_PREPARE:
-        for (uint64_t i = 0; i < dest.size(); i++)
-        {
-            ((RingBFTPrePrepare *)msg)->sign(dest[i]);
-            entry->allsign.push_back(msg->signature);
-        }
-        break;
-    case RING_COMMIT:
-        if (((RingBFTCommit *)msg)->forwarding_from == (uint64_t)-1)
-            ((RingBFTCommit *)msg)->sign(dest[0]);
-        for (uint64_t i = 0; i < dest.size(); i++)
-        {
-            entry->allsign.push_back(((RingBFTCommit *)msg)->signature);
-        }
-        break;
-#endif
-
-#if VIEW_CHANGES
-    case VIEW_CHANGE:
-        for (uint64_t i = 0; i < dest.size(); i++)
-        {
-            ((ViewChangeMsg *)msg)->sign(dest[i]);
-            entry->allsign.push_back(((ViewChangeMsg *)msg)->signature);
-        }
-        break;
-    case NEW_VIEW:
-        for (uint64_t i = 0; i < dest.size(); i++)
-        {
-            ((NewViewMsg *)msg)->sign(dest[i]);
-            entry->allsign.push_back(((NewViewMsg *)msg)->signature);
-        }
-        break;
-#endif
         
-#if CONSENSUS==HOTSTUFF && THRESHOLD_SIGNATURE
-    case HOTSTUFF_PREP_MSG:
-        ((HOTSTUFFPrepareMsg *)msg)->sign(dest[0]);
-        break;
-    case HOTSTUFF_PREP_VOTE_MSG:
-        ((HOTSTUFFPrepareVoteMsg *)msg)->sign(dest[0]);
-        break;
-    case HOTSTUFF_PRECOMMIT_MSG:
-        ((HOTSTUFFPreCommitMsg *)msg)->sign(dest[0]);
-        break;
-    case HOTSTUFF_PRECOMMIT_VOTE_MSG:
-        ((HOTSTUFFPreCommitVoteMsg *)msg)->sign(dest[0]);
-        break;
-    case HOTSTUFF_COMMIT_MSG:
-        ((HOTSTUFFCommitMsg *)msg)->sign(dest[0]);
-        break;
-    case HOTSTUFF_COMMIT_VOTE_MSG:
-        ((HOTSTUFFCommitVoteMsg *)msg)->sign(dest[0]);
-        break;
-    case HOTSTUFF_DECIDE_MSG:
-        ((HOTSTUFFDecideMsg *)msg)->sign(dest[0]);
-        break;
-    case HOTSTUFF_NEW_VIEW_MSG:
+#if THRESHOLD_SIGNATURE
+    case PVP_SYNC_MSG:
 #if MAC_SYNC
         for (uint64_t i = 0; i < dest.size(); i++)
         {
-            ((HOTSTUFFNewViewMsg *)msg)->sign(dest[i]);
-            entry->allsign.push_back(((HOTSTUFFNewViewMsg *)msg)->signature);
+            ((PVPSyncMsg *)msg)->sign(dest[i]);
+            entry->allsign.push_back(((PVPSyncMsg *)msg)->signature);
         }
 #else
-        ((HOTSTUFFNewViewMsg *)msg)->sign(dest[0]);
+        ((PVPSyncMsg *)msg)->sign(dest[0]);
 #endif
         break;
-    case HOTSTUFF_GENERIC_MSG:
-        ((HOTSTUFFGenericMsg *)msg)->sign(dest[0]);
+    case PVP_GENERIC_MSG:
+        ((PVPGenericMsg *)msg)->sign(dest[0]);
         break;
 #if SEPARATE
-    case HOTSTUFF_PROPOSAL_MSG:
-        ((HOTSTUFFProposalMsg *)msg)->sign(dest[0]);
+    case PVP_PROPOSAL_MSG:
+        ((PVPProposalMsg *)msg)->sign(dest[0]);
         break;
 #endif
 #endif
+    case PVP_ASK_MSG:
+        for (uint64_t i = 0; i < dest.size(); i++)
+        {
+            ((PVPAskMsg *)msg)->sign(dest[i]);
+            entry->allsign.push_back(((PVPAskMsg *)msg)->signature);
+        }
+        break;
+    case PVP_ASK_RESPONSE_MSG:
+        ((PVPAskResponseMsg *)msg)->sign(dest[0]);
+        break;
     default:
         break;
     }
@@ -268,39 +171,18 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t>
         INC_STATS(thd_id, msg_queue_enq_cnt, 1);
         break;
     }
-// #if SHARPER
-//     case SUPER_PROPOSE:
-// #endif
-    case BATCH_REQ:
+
     case PBFT_CHKPT_MSG:
-    case PBFT_PREP_MSG:
-    case PBFT_COMMIT_MSG:
-
-// #if RING_BFT
-//     case COMMIT_CERT_MSG:
-//     case RING_PRE_PREPARE:
-//     case RING_COMMIT:
-// #endif
-
-// #if VIEW_CHANGES
-//     case VIEW_CHANGE:
-//     case NEW_VIEW:
-// #endif
-#if CONSENSUS == HOTSTUFF
-    case HOTSTUFF_PREP_MSG:
-    case HOTSTUFF_PREP_VOTE_MSG:
-    case HOTSTUFF_PRECOMMIT_MSG:
-    case HOTSTUFF_PRECOMMIT_VOTE_MSG:
-    case HOTSTUFF_COMMIT_MSG:
-    case HOTSTUFF_COMMIT_VOTE_MSG:
-    case HOTSTUFF_DECIDE_MSG:
-    case HOTSTUFF_NEW_VIEW_MSG:
-    case HOTSTUFF_GENERIC_MSG:
+    
+    case PVP_SYNC_MSG:
+    case PVP_GENERIC_MSG:
 #if SEPARATE
-    case HOTSTUFF_PROPOSAL_MSG:
+    case PVP_PROPOSAL_MSG:
 #endif
-#endif
+    case PVP_ASK_MSG:
+    case PVP_ASK_RESPONSE_MSG:
     {
+        
         // Putting in queue of all the output threads as destinations differ.
         char *buf = create_msg_buffer(entry->msg);
         uint64_t j = 0;
@@ -315,7 +197,7 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t>
             msg_entry *entry2 = (msg_entry *)mem_allocator.alloc(sizeof(struct msg_entry));
             //msg_pool.get(entry2);
             new (entry2) msg_entry();
-
+           
             Message *deepCMsg = deep_copy_msg(buf, entry->msg);
             entry2->msg = deepCMsg;
 
@@ -356,6 +238,7 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t>
         }
 
         entry->starttime = get_sys_clock();
+
         while (!m_queue[j]->push(entry) && !simulation->is_done())
         {
         }

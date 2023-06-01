@@ -68,7 +68,7 @@ uint64_t TimerManager::check_timers(bool& timeout){
 	}
 	for(auto it = pvp_timers.begin(); it != pvp_timers.end(); it++){
 		uint64_t value = get_view_primary(get_current_view(it->first), it->first);
-		#if NEW_DIVIDER
+		#if NEW_DIVIDER && FAIL_DIVIDER == 3
 		if(!(value % DIV1 < LIMIT1 && value % DIV2 != LIMIT2))
 		#else
 		if(value % FAIL_DIVIDER != FAIL_ID )
@@ -134,4 +134,4 @@ void TimerManager::endTimer(uint64_t instance_id){
 
 TimerManager timer_manager[MULTI_INSTANCES];
 
-#endif // TIMER_ON
+#endif

@@ -63,13 +63,8 @@ void Thread::tsetup()
 
 bool Thread::has_view_changed()
 {
-#if RING_BFT
-    if (get_current_view(get_thd_id()) != 0)
-        return true;
-#else
     if (get_current_view(get_thd_id()))
         return true;
-#endif
     return false;
 }
 

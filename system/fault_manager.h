@@ -6,7 +6,7 @@
 #include <set>
 #include <mutex>
 
-class HOTSTUFFNewViewMsg;
+class PVPSyncMsg;
 
 class FaultVoters{
 public:

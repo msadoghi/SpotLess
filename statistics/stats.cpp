@@ -81,19 +81,6 @@ void Stats_thd::clear()
     txn_validate_time = 0;
     txn_cleanup_time = 0;
 
-    // PBFT
-#if CONSENSUS == PBFT || CONSENSUS == DBFT
-    time_pre_prepare = 0;
-    time_prepare = 0;
-    time_commit = 0;
-    time_execute = 0;
-    tput_msg = 0;
-    msg_cl_in = 0;
-    msg_node_in = 0;
-    msg_cl_out = 0;
-    msg_node_out = 0;
-#endif
-
     // Transaction stats
     txn_total_process_time = 0;
     txn_process_time = 0;
@@ -388,18 +375,6 @@ void Stats_thd::combine(Stats_thd *stats)
     txn_validate_time += stats->txn_validate_time;
     txn_cleanup_time += stats->txn_cleanup_time;
 
-#if CONSENSUS == PBFT || CONSENSUS == DBFT
-    time_pre_prepare += stats->time_pre_prepare;
-    time_prepare += stats->time_prepare;
-    time_commit += stats->time_commit;
-    time_execute += stats->time_execute;
-    tput_msg += stats->tput_msg;
-    msg_cl_in += stats->msg_cl_in;
-    msg_node_in += stats->msg_node_in;
-    msg_cl_out += stats->msg_cl_out;
-    msg_node_out += stats->msg_node_out;
-#endif
-
     // Transaction stats
     txn_total_process_time += stats->txn_total_process_time;
     txn_process_time += stats->txn_process_time;
@@ -598,15 +573,12 @@ void Stats::print_client(bool prog)
     mem_util(outf);
     cpu_util(outf);
     double tput = 0;
-    double c_tput = 0;
     if (totals->total_runtime > 0)
     {
         tput = totals->txn_cnt / (totals->total_runtime / BILLION);
-        c_tput = totals->cross_shard_txn_cnt / (totals->total_runtime / BILLION);
     }
     fprintf(outf, "\ntotal_runtime=%f\n", totals->total_runtime / BILLION);
     fprintf(outf, "tput=%f\ttxn_cnt=%ld\n", tput, totals->txn_cnt);
-    fprintf(outf, "cput=%f\tc_txn_cnt=%ld\n", c_tput, totals->cross_shard_txn_cnt);
     fprintf(outf, "Latency=%f\n", (totals->txn_run_time / BILLION) / totals->txn_cnt);
     fprintf(outf, "CLatency=%f\n", (totals->cross_txn_run_time / BILLION) / totals->cross_shard_txn_cnt);
     fflush(outf);
@@ -662,7 +634,7 @@ void Stats::print(bool prog)
         print_msg_sizes(outf);
     }
 
-    double tput = 0, c_tput = 0, interval_tput = 0, interval_c_tput = 0;
+    double tput = 0, interval_tput = 0;
     if (STAT_BAND_WIDTH_ENABLE)
     {
         fprintf(outf, "\nnodes:        ");
@@ -684,18 +656,14 @@ void Stats::print(bool prog)
     if (totals->total_runtime > 0)
     {
         tput = totals->txn_cnt / (totals->total_runtime / BILLION);
-        c_tput = totals->cross_shard_txn_cnt / (totals->total_runtime / BILLION);
         interval_tput = (totals->txn_cnt - totals->previous_interval_txn_cnt) / (PROG_TIMER / BILLION);
-        interval_c_tput = (totals->cross_shard_txn_cnt - totals->previous_interval_cross_shard_txn_cnt) / (PROG_TIMER / BILLION);
     }
     fprintf(outf, "total_runtime=%f\n", totals->total_runtime / BILLION);
     fprintf(outf, "--------------------------------\n");
     fprintf(outf, "interval_tput=%f\ttxn_cnt=%ld\n", interval_tput, totals->txn_cnt - totals->previous_interval_txn_cnt);
-    g_is_sharding ? fprintf(outf, "interval_cput=%f\tc_txn_cnt=%ld\n", interval_c_tput, totals->cross_shard_txn_cnt - totals->previous_interval_cross_shard_txn_cnt): true;
     // fprintf(outf, "previous txn_count    %ld\n", totals->previous_interval_txn_cnt);
     fprintf(outf, "--------------------------------\n");
     fprintf(outf, "tput         =%f\ttxn_cnt=%ld\n", tput, totals->txn_cnt);
-    g_is_sharding ? fprintf(outf, "cput         =%f\tc_txn_cnt=%ld\n", c_tput, totals->cross_shard_txn_cnt): true;
     fprintf(outf, "=======================================================\n");
     fflush(outf);
     if (!prog)
@@ -991,31 +959,9 @@ void Stats::set_message_size(uint64_t rtype, uint64_t size)
     case CL_BATCH:
         this->client_batch_msg_size = size;
         break;
-    case BATCH_REQ:
-        this->batch_req_msg_size = size;
-        break;
     case PBFT_CHKPT_MSG:
         this->checkpoint_msg_size = size;
         break;
-#if CONSENSUS == PBFT
-    case PBFT_COMMIT_MSG:
-        this->commit_msg_size = size;
-        break;
-    case PBFT_PREP_MSG:
-        this->prepare_msg_size = size;
-        break;
-#endif
-#if RING_BFT
-    case COMMIT_CERT_MSG:
-        this->ccm_msg_size = size;
-        break;
-    case RING_PRE_PREPARE:
-        this->ring_pre_prepare_msg_size = size;
-        break;
-    case RING_COMMIT:
-        this->ring_commit_msg_size = size;
-        break;
-#endif
 
     default:
         break;
@@ -1026,29 +972,12 @@ void Stats::print_msg_sizes(FILE *outf)
     fprintf(outf,
             "\nmsg_size_client_batch=%ld\n"
             "msg_size_batch_req=%ld\n"
-#if CONSENSUS == PBFT
-            "msg_size_commit=%ld\n"
-            "msg_size_prepare=%ld\n"
-#endif
             "msg_size_checkpoint=%ld\n"
             "msg_size_client_response=%ld\n"
-#if RING_BFT
-            "msg_size_ccm=%ld\n"
-            "msg_size_ring_pre_prepare=%ld\n"
-            "msg_size_ring_commit=%ld\n"
-#endif
 
             ,
             client_batch_msg_size, batch_req_msg_size
-#if CONSENSUS == PBFT
-            ,
-            commit_msg_size, prepare_msg_size
-#endif
             ,
             checkpoint_msg_size, client_response_msg_size
-#if RING_BFT
-            ,
-            ccm_msg_size, ring_pre_prepare_msg_size, ring_commit_msg_size
-#endif
     );
 }

@@ -7,6 +7,7 @@
 #include "message.h"
 #include "smart_contract.h"
 
+
 class Workload;
 class Thread;
 class table_t;
@@ -126,11 +127,16 @@ public:
     uint64_t client_startts; // Client timestamp for this transaction.
     uint64_t client_id;      // Id of client that sent this transaction.
 
-    string hash;       // Hash of the client query.
-    uint64_t hashSize; // Size of hash.
+    string hash = "";       // Hash of the client query.
+    uint64_t hashSize = 0; // Size of hash.
     string get_hash();
     void set_hash(string hsh);
     uint64_t get_hashSize();
+
+#if EQUIV_TEST
+    string hash2 = "";
+    uint64_t hashSize2 = 0;
+#endif
 
     // We need to maintain one copy of the whole BatchRequests messages sent
     // by the primary. We only maintain in last request of the batch.
@@ -147,112 +153,49 @@ public:
     bool prepared = false;
     uint64_t cbatch;
 
-    uint64_t prep_rsp_cnt;
-    vector<uint64_t> info_prepare;
-
-#if RING_BFT
-    bool is_cross_shard = false;
-    bool involved_shards[NODE_CNT / SHARD_SIZE]{false};
-#endif
-#if SHARPER
-    bool is_cross_shard = false;
-    bool involved_shards[NODE_CNT / SHARD_SIZE]{false};
-    uint64_t prep_rsp_cnt_arr[NODE_CNT / SHARD_SIZE];
-    uint64_t decr_prep_rsp_cnt(int shard);
-    uint64_t get_prep_rsp_cnt(int shard);
-    uint64_t commit_rsp_cnt_arr[NODE_CNT / SHARD_SIZE];
-    uint64_t decr_commit_rsp_cnt(int shard);
-    uint64_t get_commit_rsp_cnt(int shard);
-#endif
-
-#if PVP
     uint64_t instance_id;
-#endif
 
 #if CONSENSUS == HOTSTUFF
+    bool sync_sent = false;
     uint64_t view;
-    HOTSTUFFPrepareMsg *prepmsg;
-    void set_primarybatch(HOTSTUFFPrepareMsg *prep);
 #if SEPARATE
-    HOTSTUFFProposalMsg *propmsg;
-    void set_primarybatch(HOTSTUFFProposalMsg *prep);
+    PVPProposalMsg *propmsg;
+    void set_primarybatch(PVPProposalMsg *prep);
     bool generic_received;
+    bool proposal_received;
 #endif
     QuorumCertificate preparedQC;
     QuorumCertificate precommittedQC;
     QuorumCertificate committedQC;
-#if CHAINED
     QuorumCertificate genericQC;
-#endif
     QuorumCertificate highQC;
 #if MAC_VERSION
     secp256k1_ecdsa_signature psig_share;
 #endif
-    uint64_t prepare_vote_cnt;
-    vector<uint64_t> vote_prepare;
-    uint64_t precommit_vote_cnt;
-    vector<uint64_t> vote_precommit;
-    uint64_t commit_vote_cnt;
-    vector<uint64_t> vote_commit;
     uint64_t new_view_vote_cnt;
     vector<uint64_t> vote_new_view;
-    void setPreparedQC(HOTSTUFFPreCommitMsg *pcmsg);
-    void setPreCommittedQC(HOTSTUFFCommitMsg *cmsg);
-    void setCommittedQC(HOTSTUFFDecideMsg *dmsg);
-    QuorumCertificate get_preparedQC();
-    QuorumCertificate get_precommittedQC();
-    QuorumCertificate get_committedQC();
-    bool precommited = false;
-    bool is_precommitted();
-    void set_precommitted();
     bool new_viewed = false;
     bool is_new_viewed();
     void set_new_viewed();
-    void send_hotstuff_precommit_msgs();
-    void send_hotstuff_commit_msgs();
-    void send_hotstuff_decide_msgs();
-    void send_hotstuff_prepare_vote();
-    void send_hotstuff_precommit_vote();
-    void send_hotstuff_commit_vote();
 #if SEPARATE
     void send_hotstuff_generic();
 #endif
-#if !STOP_NODE_SET
-    bool send_hotstuff_newview();
-#else
-    bool send_hotstuff_newview(bool &failednode);
+    bool send_hotstuff_newview(PVPSyncMsg* nmsg = nullptr);
+
+#if EQUIV_FREQ
+    void equivocate_generic();
+    bool equivocate_hotstuff_newview(bool is_equi);
 #endif
+
 #endif
+
+    void send_pvp_ask(PVPSyncMsg* nvmsg);
 
     map<uint64_t, set<uint64_t>> voters;
 
-    uint64_t decr_prep_rsp_cnt();
-    uint64_t get_prep_rsp_cnt();
-    bool is_prepared();
-    void set_prepared();
+    map<string, vector<uint64_t>> hash_voters;
 
-    void send_pbft_prep_msgs();
-
-    uint64_t commit_rsp_cnt;
-    bool committed_local = false;
     vector<uint64_t> info_commit;
-
-    // We need to store all the complete Commit mssg in the last txn of batch.
-    vector<PBFTCommitMessage *> commit_msgs;
-    void add_commit_msg(PBFTCommitMessage *pcmsg);
-
-    uint64_t decr_commit_rsp_cnt();
-    uint64_t get_commit_rsp_cnt();
-    bool is_committed();
-    void set_committed();
-
-    void send_pbft_commit_msgs();
-
-#if MULTI_ON
-    // An additional field called instance_id, 
-    // which is used to determine which instance the transaction belongs to
-    uint64_t instance_id;
-#endif
 
     int chkpt_cnt;
     bool chkpt_flag = false;
@@ -269,6 +212,15 @@ public:
     bool unset_ready() { return ATOM_CAS(txn_ready, 1, 0); }
     bool is_ready() { return txn_ready == true; }
     volatile int txn_ready;
+
+#if ENABLE_ASK
+    bool waiting_ask_resp = false;
+    uint64_t waiting_ask_resp_id;
+#endif
+
+#if EQUIV_TEST
+    bool executable = true;
+#endif
 
 protected:
     int rsp_cnt;

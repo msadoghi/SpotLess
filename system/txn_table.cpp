@@ -134,7 +134,6 @@ TxnManager *TxnTable::get_transaction_manager(uint64_t thd_id, uint64_t txn_id, 
         txn_man->txn_stats.starttime = get_sys_clock();
         txn_man->txn_stats.restart_starttime = txn_man->txn_stats.starttime;
 
-        txn_man->prepmsg = nullptr;
         txn_man->propmsg = nullptr;
 
         // Put the txn manager in the list.

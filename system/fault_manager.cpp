@@ -3,12 +3,12 @@
 
 bool FaultVoters::add_voter(uint64_t view, uint64_t voter){
     flock->lock();
-    if(voters[view].size() >= 2*g_min_invalid_nodes + 1){
+    if(voters[view].size() >= nf){
         flock->unlock();
         return false;
     }
     voters[view].insert(voter);
-    if(voters[view].size() >= 2*g_min_invalid_nodes + 1){
+    if(voters[view].size() >= nf){
         flock->unlock();
         return true;
     }

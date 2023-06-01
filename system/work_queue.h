@@ -79,11 +79,7 @@ public:
 
 private:
     boost::lockfree::queue<work_queue_entry *> **work_queue = nullptr;
-    #if !PVP
-    boost::lockfree::queue<work_queue_entry *> *new_txn_queue = nullptr;
-    #else
     boost::lockfree::queue<work_queue_entry *> **new_txn_queue = nullptr;
-    #endif
 
 #if TEMP_QUEUE
     boost::lockfree::queue<work_queue_entry *> **temp_queue = nullptr;

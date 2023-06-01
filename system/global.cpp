@@ -42,11 +42,7 @@ UInt32 g_ts_alloc = TS_ALLOC;
 bool g_key_order = KEY_ORDER;
 bool g_ts_batch_alloc = TS_BATCH_ALLOC;
 UInt32 g_ts_batch_num = TS_BATCH_NUM;
-#if RING_BFT
-int32_t g_inflight_max = !g_node_id ? MAX_TXN_IN_FLIGHT : MAX_TXN_IN_FLIGHT * (1 + CROSS_SHARD_PRECENTAGE / 100);
-#else
 int32_t g_inflight_max = MAX_TXN_IN_FLIGHT;
-#endif
 uint64_t g_msg_size = MSG_SIZE_MAX;
 int32_t g_load_per_server = LOAD_PER_SERVER;
 
@@ -70,7 +66,6 @@ UInt32 g_node_id = 0;
 UInt32 g_node_cnt = NODE_CNT;
 UInt32 g_part_cnt = PART_CNT;
 UInt32 g_virtual_part_cnt = VIRTUAL_PART_CNT;
-UInt32 g_core_cnt = CORE_CNT;
 UInt32 g_thread_cnt = THREAD_CNT;
 
 #if EXECUTION_THREAD
@@ -79,13 +74,7 @@ UInt32 g_execute_thd = EXECUTE_THD_CNT;
 UInt32 g_execute_thd = 0;
 #endif
 
-#if SIGN_THREADS
-UInt32 g_sign_thd = SIGN_THD_CNT;
-#else
 UInt32 g_sign_thd = 0;
-#endif
-
-UInt32 g_is_sharding = RING_BFT || SHARPER;
 
 UInt32 g_rem_thread_cnt = REM_THREAD_CNT;
 UInt32 g_send_thread_cnt = SEND_THREAD_CNT;
@@ -160,16 +149,9 @@ bool keyAvail = false;
 uint64_t totKey = 0;
 
 uint64_t indexSize = 2 * g_client_node_cnt * g_inflight_max;
-#if RING_BFT || SHARPER
-uint64_t g_min_invalid_nodes = (g_shard_size - 1) / 3; //min number of valid nodes
-#else
-uint64_t g_min_invalid_nodes = (g_node_cnt - 1) / 3; //min number of valid nodes
-#endif
-
-#if SHARPER || RING_BFT
-bool g_involved_shard[] = {true, true, true, true, true, true, true, true, true, true, true, true, true, true, true};
-UInt32 g_involved_shard_cnt = INVOLVED_SHARDS_NUMBER;
-#endif
+uint64_t g_min_invalid_nodes = g_node_cnt%3 == 1 ? (g_node_cnt - 1)/ 3 : (g_node_cnt-1) / 3 + 1; //f
+uint64_t nf = g_node_cnt - g_min_invalid_nodes;
+uint64_t fp1 = g_min_invalid_nodes + 1;
 
 // Funtion to calculate hash of a string.
 string calculateHash(string str)
@@ -207,18 +189,6 @@ uint64_t curr_next_index()
 	return cval;
 }
 
-#if CONSENSUS == HOTSTUFF
-#if !PVP
-// Entities for handling hotstuff_new_view_msgs
-uint32_t g_last_stable_new_viewed = 0;
-void set_curr_new_viewed(uint64_t txn_id){
-	g_last_stable_new_viewed = txn_id;
-}
-uint64_t get_curr_new_viewed(){
-	return g_last_stable_new_viewed;
-}
-#else
-
 uint32_t g_last_stable_new_viewed[MULTI_INSTANCES] = {0};
 void set_curr_new_viewed(uint64_t txn_id, uint64_t instance_id){
 	g_last_stable_new_viewed[instance_id] = txn_id;
@@ -226,8 +196,6 @@ void set_curr_new_viewed(uint64_t txn_id, uint64_t instance_id){
 uint64_t get_curr_new_viewed(uint64_t instance_id){
 	return g_last_stable_new_viewed[instance_id];
 }
-#endif
-#endif
 
 // Entities for handling checkpoints.
 uint32_t g_last_stable_chkpt = 0; //index of the last stable checkpoint
@@ -292,9 +260,7 @@ std::mutex batchMTX;
 std::mutex next_idx_lock;
 uint commonVar = 0;
 
-//[Dakai]
 // Variable used by Input thread at the primary to linearize batches.
-#if !MULTI_ON
 uint64_t next_idx = 0;
 uint64_t get_and_inc_next_idx()
 {
@@ -303,18 +269,6 @@ uint64_t get_and_inc_next_idx()
 	next_idx_lock.unlock();
 	return val;
 }
-
-#else
-  uint64_t next_idx = g_node_id;	//the first idx of an instance is the g_node_id of its primary
-  uint64_t get_and_inc_next_idx() {
-	uint64_t val;
-	next_idx_lock.lock();
-  	val = next_idx;
-	next_idx += get_totInstances(); //[Dakai] due to MULTI, not increase by 1 but the number of instances
-	next_idx_lock.unlock();
-  	return val;
-  }
-#endif
 
 void set_next_idx(uint64_t val)
 {
@@ -353,8 +307,6 @@ vector<uint64_t> nodes_to_send(uint64_t beg, uint64_t end)
 // STORAGE OF CLIENT DATA
 uint64_t ClientDataStore[SYNTH_TABLE_SIZE] = {0};
 
-#if MULTI_ON || PVP
-
 uint64_t totInstances = MULTI_INSTANCES;
 uint64_t multi_threads = MULTI_THREADS;
 uint64_t get_totInstances() {
@@ -364,35 +316,6 @@ uint64_t get_multi_threads() {
       return multi_threads;
 }
 
-#if MULTI_ON
-uint64_t current_primaries[MULTI_INSTANCES];
-
-void set_primary(uint64_t nid, uint64_t idx) {
-	current_primaries[idx] = nid;
-}
-
-uint64_t get_primary(uint64_t idx) {
-	return current_primaries[idx];
-}	
-
-bool primaries[NODE_CNT] = {false};
-
-// Statically setting the first f+1 replicas as primary.
-void initialize_primaries() {
-	for(uint64_t i=0; i<get_totInstances(); i++) {
-	  primaries[i] = true;
-	}
-}
-
-bool isPrimary(uint64_t id) {
-	return primaries[id];
-}
-#endif //MULTI_ON
-
-#endif // MUTLI_ON || PVP
-
-
-#if CONSENSUS == HOTSTUFF
 #if SEMA_TEST
 // Entities for semaphore optimizations. The value of the semaphores means 
 // the number of msgs in the corresponding queues of the worker_threads.
@@ -402,9 +325,10 @@ sem_t worker_queue_semaphore[THREAD_CNT];
 sem_t new_txn_semaphore;
 #if PROPOSAL_THREAD
 sem_t proposal_semaphore;
-#endif
+#endif	// PROPOSAL_THREAD
 // execute_semaphore is whether the next msg to execute has been in the queue.
 sem_t execute_semaphore;
+sem_t executable_signal;
 // Entities for semaphore opyimizations on output_thread. The output_thread will be not allocated
 // with CPU resources until there is a msg in its queue.
 sem_t output_semaphore[SEND_THREAD_CNT];
@@ -412,35 +336,6 @@ sem_t output_semaphore[SEND_THREAD_CNT];
 sem_t setup_done_barrier;
 
 #if AUTO_POST
-#if !PVP
-bool auto_posted = false;
-std::mutex auto_posted_lock;
-void set_auto_posted(bool value){
-	auto_posted_lock.lock();
-    auto_posted = value;
-    auto_posted_lock.unlock();
-}
-bool is_auto_posted(){
-	bool value = false;
-    auto_posted_lock.lock();
-    value = auto_posted;
-    auto_posted_lock.unlock();
-    return value;
-}
-void* auto_post(void *ptr){
-	while(!simulation->is_setup_done()){
-		sleep(1);
-	}
-    while (!simulation->is_done()){
-        usleep(100000);
-        if(!is_auto_posted()){
-            set_auto_posted(true);
-            sem_post(&worker_queue_semaphore[0]);
-        }
-    }
-    return NULL;
-}
-#else
 bool auto_posted[MULTI_THREADS] = {false};
 std::mutex auto_posted_lock[MULTI_THREADS];
 void set_auto_posted(bool value, uint64_t instance_id){
@@ -470,8 +365,7 @@ void* auto_post(void *ptr){
     }
     return NULL;
 }
-#endif
-#endif
+#endif // AUTO_POST
 
 uint64_t init_msg_sent[SEND_THREAD_CNT] = {0};
 void dec_init_msg_sent(uint64_t td_id){
@@ -564,7 +458,7 @@ void lockedQC_heap_pop(uint64_t instance_id){
 }
 
 
-#endif
+#endif	//SEMA_TEST
 
 
 
@@ -572,14 +466,17 @@ uint64_t expectedInstance;
 #if PROPOSAL_THREAD
 uint64_t proposalInstance;
 #endif
-//Entities for client in HOTSTUFF and PVP.
+//Entities for client in PVP.
 //next_to_send is just the id of primary in the next round.
-uint64_t next_to_send = g_node_id % MULTI_INSTANCES;
+uint64_t next_to_send;
 uint64_t get_next_to_send(){
     return next_to_send;
 }
 void inc_next_to_send(){
 	next_to_send = (next_to_send + 1) % g_node_cnt;
+}
+void init_next_to_send(){
+	next_to_send = g_node_id % MULTI_INSTANCES * 4 % g_node_cnt;
 }
 
 //in_round is the value of batches that are sent but have not received enough responses.
@@ -612,17 +509,7 @@ unsigned char private_key[32];
 secp256k1_pubkey public_key;
 map<uint64_t, secp256k1_pubkey> public_keys;
 string get_secp_hash(string hash, RemReqType type){
-	if(type == HOTSTUFF_PREP_MSG || type == HOTSTUFF_PREP_VOTE_MSG)
-		return hash;
-	if(type == HOTSTUFF_PRECOMMIT_MSG || type == HOTSTUFF_PRECOMMIT_VOTE_MSG){
-		for ( size_t i = 0; i < 32 ; i++){      
-			hash[i] = (hash[i] + 1) % 255;
-		}
-	}else if(type == HOTSTUFF_COMMIT_MSG || type == HOTSTUFF_COMMIT_VOTE_MSG){
-		for ( size_t i = 0; i < 32 ; i++){      
-			hash[i] = (hash[i] + 2) % 255;
-		}
-	}else if(type == HOTSTUFF_DECIDE_MSG || type == HOTSTUFF_NEW_VIEW_MSG || type == HOTSTUFF_GENERIC_MSG){
+	if(type == PVP_SYNC_MSG || type == PVP_GENERIC_MSG){
 		for ( size_t i = 0; i < 32 ; i++){      
 			hash[i] = (hash[i] + 3) % 255;
 		}
@@ -648,83 +535,15 @@ bool QuorumCertificate::ThresholdSignatureVerify(RemReqType rtype){
 
 #endif
 
-#if !PVP
-std::mutex hash_QC_lock;
-unordered_map<string, QuorumCertificate> hash_to_QC;
-unordered_map<string, uint64_t> hash_to_txnid;
-#else
 std::mutex hash_QC_lock[MULTI_INSTANCES];
 vector<unordered_map<string, QuorumCertificate>> hash_to_QC;
 vector<unordered_map<string, uint64_t>> hash_to_txnid;
 vector<unordered_map<uint64_t, string>> txnid_to_hash;
-#endif
 
-
-#if !PVP
-// if sent is true, a replica considers itself not as the next primary
-// if sent is false, a replica considers itself as the next primary
-bool sent = true;
-// g_preparedQC is just the preparedQC in HOTSTUFF
-QuorumCertificate g_preparedQC;
-
-bool SafeNode(const QuorumCertificate &highQC){
-	//Liveness Rule
-	if(highQC.viewNumber>g_lockedQC.viewNumber || (highQC.viewNumber == 0 && g_lockedQC.genesis)){
-        return true;
-	}	
-	//Safety Rule
-    else if(highQC.viewNumber == g_lockedQC.viewNumber && highQC.batch_hash == g_lockedQC.batch_hash){
-        return true;
-    }
-    return false;
-}
-
-uint64_t get_view_primary(uint64_t view){
-	return view % g_node_cnt;
-}
-
-bool get_sent(){
-	return sent;
-}
-
-void set_sent(bool value){
-	if(!value){
-		fflush(stdout);
-	}
-	sent = value;
-}
-
-uint64_t get_next_idx_hotstuff(){
-	if(g_preparedQC.genesis){
-		return 0;
-	}
-	return hash_to_txnid[g_preparedQC.batch_hash] / get_batch_size() + 1;
-}
-
-void set_g_preparedQC(const QuorumCertificate& QC){
-	g_preparedQC = QC;
-}
-
-const QuorumCertificate &get_g_preparedQC(){
-	return g_preparedQC;
-}
-
-QuorumCertificate g_lockedQC;
-
-void set_g_lockedQC(const QuorumCertificate& QC){
-	g_lockedQC = QC;
-}
-
-const QuorumCertificate& get_g_lockedQC(){
-	return g_lockedQC;
-}
-
-#else
 bool sent[MULTI_INSTANCES] = {true};
 QuorumCertificate g_preparedQC[MULTI_INSTANCES];
 
-bool SafeNode(const QuorumCertificate &highQC, uint64_t instance_id, uint64_t height){
-	
+bool SafeNode(const QuorumCertificate &highQC, uint64_t instance_id){
 	//Safety Rule
     if(highQC.viewNumber == g_lockedQC[instance_id].viewNumber
 	 && highQC.batch_hash == g_lockedQC[instance_id].batch_hash){
@@ -808,6 +627,7 @@ void inc_incomplete_proposal_cnt(uint64_t instance_id){
 	separate_lock[instance_id].lock();
 	#endif
 	incomplete_proposal_cnt[instance_id]++;
+	// printf("[II]%lu %lu\n", incomplete_proposal_cnt[instance_id], instance_id);
 	#if PROPOSAL_THREAD
 	separate_lock[instance_id].unlock();
 	#endif
@@ -818,6 +638,7 @@ void dec_incomplete_proposal_cnt(uint64_t instance_id){
 	separate_lock[instance_id].lock();
 	#endif
 	incomplete_proposal_cnt[instance_id]--;
+	// printf("[DI]%lu %lu\n", incomplete_proposal_cnt[instance_id], instance_id);
 	#if PROPOSAL_THREAD
 	separate_lock[instance_id].unlock();
 	#endif
@@ -827,6 +648,7 @@ uint64_t get_incomplete_proposal_cnt(uint64_t instance_id){
 	#if PROPOSAL_THREAD
 	separate_lock[instance_id].lock();
 	uint64_t value = incomplete_proposal_cnt[instance_id];
+	// printf("[GI]%lu %lu\n", value, instance_id);
 	separate_lock[instance_id].unlock();
 	return value;
 	#else
@@ -930,13 +752,9 @@ const QuorumCertificate& get_g_lockedQC(uint64_t instance_id){
 	return g_lockedQC[instance_id];
 }
 
-#endif	// PVP
-
 #if TIMER_MANAGER
 FaultManager fault_manager;
 #endif
-
-#endif	// CONSENSUS == HOTSTUFF
 
 
 // returns the current view.
@@ -946,13 +764,8 @@ uint64_t get_current_view(uint64_t thd_id)
 }
 
 // For updating view of different threads.
-#if !PVP
-std::mutex newViewMTX[THREAD_CNT + REM_THREAD_CNT + SEND_THREAD_CNT];
-uint64_t newView[THREAD_CNT + REM_THREAD_CNT + SEND_THREAD_CNT] = {0};
-#else
 std::mutex newViewMTX[MULTI_INSTANCES];
 uint64_t newView[MULTI_INSTANCES] = {0};
-#endif
 
 uint64_t get_view(uint64_t thd_id)
 {
@@ -984,154 +797,7 @@ uint64_t get_batch_size()
 {
 	return g_batch_size;
 }
-#if SHARPER
-uint32_t last_commited_txn = 0;
-UInt32 g_shard_size = SHARD_SIZE;
-UInt32 g_shard_cnt = NODE_CNT / SHARD_SIZE;
-SpinLockMap<string, int> digest_directory;
 
-// This variable is mainly used by the client to know its current primary.
-uint32_t g_view[NODE_CNT / SHARD_SIZE] = {0};
-std::mutex viewMTX[NODE_CNT / SHARD_SIZE];
-void set_client_view(uint64_t nview, int shard)
-{
-	viewMTX[shard].lock();
-	g_view[shard] = nview;
-	viewMTX[shard].unlock();
-}
-bool is_primary_node(uint64_t thd_id, uint64_t node)
-{
-	return view_to_primary(get_current_view(thd_id), node) == node;
-}
-
-uint64_t get_shard_number(uint64_t i)
-{
-	if (i >= g_node_cnt && i < g_node_cnt + g_client_node_cnt)
-	{
-		int client_number = i - g_node_cnt;
-		return (client_number / (g_client_node_cnt / g_shard_cnt));
-	}
-	else
-		return (i / g_shard_size);
-}
-uint64_t get_client_view(int shard)
-{
-	uint64_t val;
-	viewMTX[shard].lock();
-	val = g_view[shard];
-	viewMTX[shard].unlock();
-	return val;
-}
-uint64_t view_to_primary(uint64_t view, uint64_t node)
-{
-	return get_shard_number(node) * g_shard_size + view;
-}
-uint64_t next_set_id(uint64_t prev)
-{
-	return prev + g_shard_cnt;
-}
-
-int is_in_same_shard(uint64_t first_id, uint64_t second_id)
-{
-	return (int)(first_id / g_shard_size) == (int)(second_id / g_shard_size);
-}
-bool is_local_request(uint64_t txn_id)
-{
-	if ((txn_id / g_batch_size) % (g_shard_size) == g_node_id / g_shard_size)
-		return true;
-	else
-		return false;
-}
-#elif RING_BFT
-UInt32 g_shard_size = SHARD_SIZE;
-UInt32 g_shard_cnt = NODE_CNT / SHARD_SIZE;
-SpinLockMap<string, uint64_t> digest_directory;
-SpinLockMap<string, CommitCertificateMessage *> ccm_directory;
-SpinLockSet<string> rcm_checklist;
-SpinLockSet<string> ccm_checklist;
-// This variable is mainly used by the client to know its current primary.
-uint32_t g_view[NODE_CNT / SHARD_SIZE] = {0};
-std::mutex viewMTX[NODE_CNT / SHARD_SIZE];
-void set_client_view(uint64_t nview, int shard)
-{
-	viewMTX[shard].lock();
-	g_view[shard] = nview;
-	viewMTX[shard].unlock();
-}
-bool is_primary_node(uint64_t thd_id, uint64_t node)
-{
-	return view_to_primary(get_current_view(thd_id), node) == node;
-}
-
-bool is_sending_ccm(uint64_t node_id)
-{
-	if (node_id % g_shard_size < g_min_invalid_nodes * 2 + 1)
-		return true;
-	else
-		return false;
-}
-uint64_t sending_ccm_to(uint64_t node_id, uint64_t shard_id)
-{
-	uint64_t result = node_id;
-	uint64_t source_shard = get_shard_number(node_id);
-	if (source_shard < shard_id)
-	{
-		result = result + (shard_id - source_shard) * g_shard_size;
-	}
-	else if (source_shard > shard_id)
-	{
-		result = result - (source_shard - shard_id) * g_shard_size;
-	}
-	else
-	{
-		assert(0);
-	}
-	return result;
-}
-uint64_t get_shard_number(uint64_t i)
-{
-	if (i >= g_node_cnt && i < g_node_cnt + g_client_node_cnt)
-	{
-		int client_number = i - g_node_cnt;
-		return (client_number / (g_client_node_cnt / g_shard_cnt));
-	}
-	else
-		return (i / g_shard_size);
-}
-uint64_t get_client_view(int shard)
-{
-	uint64_t val;
-	viewMTX[shard].lock();
-	val = g_view[shard];
-	viewMTX[shard].unlock();
-	return val;
-}
-uint64_t view_to_primary(uint64_t view, uint64_t node)
-{
-	return get_shard_number(node) * g_shard_size + view;
-}
-uint64_t next_set_id(uint64_t prev)
-{
-	return prev + g_shard_cnt;
-}
-
-int is_in_same_shard(uint64_t first_id, uint64_t second_id)
-{
-	return (int)(first_id / g_shard_size) == (int)(second_id / g_shard_size);
-}
-bool is_local_request(TxnManager *tman)
-{
-	uint64_t node_id = tman->client_id;
-	assert(node_id < g_total_node_cnt);
-	int client_number = node_id - g_node_cnt;
-	int primary = client_number / (g_client_node_cnt / g_shard_cnt);
-	if (is_in_same_shard(primary * g_shard_size, g_node_id))
-	{
-		return true;
-	}
-	return false;
-}
-#else
 // This variable is mainly used by the client to know its current primary.
 uint32_t g_view = 0;
 std::mutex viewMTX;
@@ -1150,29 +816,6 @@ uint64_t get_client_view()
 	viewMTX.unlock();
 	return val;
 }
-#endif
-
-#if PVP_RECOVERY
-uint64_t fail_count = 0;
-#endif
-
-#if LOCAL_FAULT || VIEW_CHANGES || PVP_RECOVERY
-// Server parameters for tracking failed replicas
-std::mutex stopMTX[SEND_THREAD_CNT];
-vector<vector<uint64_t>> stop_nodes; // List of nodes that have stopped.
-#if STOP_NODE_SET
-std::mutex stop_lock;
-set<uint64_t> stop_node_set;
-#endif
-
-// Client parameters for tracking failed replicas.
-std::mutex clistopMTX;
-vector<uint64_t> stop_replicas; // For client we assume only one O/P thread.
-#endif
-
-#if LOCAL_FAULT
-uint64_t num_nodes_to_fail = NODE_FAIL_CNT;
-#endif
 
 //Statistics global print variables.
 double idle_worker_times[THREAD_CNT] = {0};
@@ -1187,17 +830,6 @@ std::mutex client_response_lock;
 #endif
 SpinLockMap<uint64_t, uint64_t> client_responses_count;
 SpinLockMap<uint64_t, ClientResponseMessage *> client_responses_directory;
-
-// Payload for messages.
-#if PAYLOAD_ENABLE
-#if PAYLOAD == M100
-uint64_t payload_size = 12800;
-#elif PAYLOAD == M200
-uint64_t payload_size = 25600;
-#elif PAYLOAD == M400
-uint64_t payload_size = 51200;
-#endif
-#endif
 
 #if EXT_DB == SQL || EXT_DB == SQL_PERSISTENT
 DataBase *db = new SQLite();

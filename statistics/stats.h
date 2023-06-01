@@ -252,17 +252,8 @@ public:
 
     uint64_t client_batch_msg_size;
     uint64_t batch_req_msg_size;
-#if CONSENSUS == PBFT
-    uint64_t commit_msg_size;
-    uint64_t prepare_msg_size;
-#endif
     uint64_t checkpoint_msg_size;
     uint64_t client_response_msg_size;
-#if RING_BFT
-    uint64_t ring_pre_prepare_msg_size;
-    uint64_t ring_commit_msg_size;
-    uint64_t ccm_msg_size;
-#endif
 
 private:
     uint64_t thd_cnt;

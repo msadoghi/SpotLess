@@ -10,7 +10,6 @@
 #include "msg_queue.h"
 #include "wl.h"
 #include "message.h"
-#include "timer.h"
 #include "ring_all_comb.h"
 
 void ClientThread::send_key()
@@ -73,11 +72,6 @@ void ClientThread::setup()
 	commonVar++;
 	batchMTX.unlock();
 
-#if RING_BFT || SHARPER
-	txn_batch_sent_cnt = 0;
-	cross_txn_batch_sent_cnt = 0;
-#endif
-
 	if (_thd_id == 0)
 	{
 		while (commonVar < g_client_thread_cnt + g_client_rem_thread_cnt + g_client_send_thread_cnt)
@@ -135,45 +129,25 @@ RC ClientThread::run()
 #endif
 
 	uint32_t next_node_id = get_client_view();
+	init_next_to_send();
 	while (!simulation->is_done())
 	{
 		heartbeat();
 		progress_stats();
 
 		int32_t inf_cnt;
-#if MULTI_ON
-		uint32_t next_node = g_node_id % get_totInstances();
-#elif CONSENSUS == HOTSTUFF
 		uint32_t next_node = get_next_to_send();
-#else
-		uint32_t next_node = get_client_view();
-#endif
 
-#if CONSENSUS == HOTSTUFF
 		uint64_t limit = MAX_TXN_IN_FLIGHT / BATCH_SIZE / NODE_CNT + ((MAX_TXN_IN_FLIGHT / BATCH_SIZE) % NODE_CNT > next_node);
+		if(limit == 0)
+			limit = 1;
+
 		if(get_in_round(next_node) == limit){
 			inc_next_to_send();
 			continue;
 		}
-#endif
 
-
-	#if MULTI_ON
-		next_node_id = g_node_id % get_totInstances();
-	#elif CONSENSUS == HOTSTUFF
 		next_node_id = next_node;
-	#else
-		next_node_id = get_client_view();
-	#endif
-
-#if LOCAL_FAULT
-		//if a request by this client hasnt been completed in time
-		ClientQueryBatch *cbatch = NULL;
-		if (client_timer->checkTimer(cbatch))
-		{
-			cout << "TIMEOUT!!!!!!\n";
-		}
-#endif	//LOCAL_FALUT
 
 		// Just in case...
 		if (iters == UINT64_MAX)
@@ -245,53 +219,10 @@ RC ClientThread::run()
 		// Resetting and sending the message
 		if (addMore == g_batch_size)
 		{
-			#if CONSENSUS == HOTSTUFF
 			//increase the number of requests being processed
 			inc_in_round(next_node);
 			inc_next_to_send();
-			#endif
-#if RING_BFT || SHARPER
-			uint64_t shard_id = get_shard_number(g_node_id);
-			// if (txn_batch_sent_cnt % 20 < (CROSS_SHARD_PRECENTAGE / 5) && g_involved_shard[shard_id])
-			if (txn_batch_sent_cnt % 100 < CROSS_SHARD_PRECENTAGE && g_involved_shard[shard_id])
-			{
-				bmsg->is_cross_shard = true;
-				if (g_involved_shard_cnt)
-				{
-					for (uint64_t i = 0; i < g_shard_cnt; i++)
-					{
-						bmsg->involved_shards[i] = false;
-					}
-					// ------------ sliding window
-					int start_shard = ((int)get_shard_number() - (int)(cross_txn_batch_sent_cnt % g_involved_shard_cnt)) % g_shard_cnt;
-					for (int i = start_shard; i < start_shard + (int)g_involved_shard_cnt; i++)
-					{
-						bmsg->involved_shards[i % g_shard_cnt] = true;
-					}
-					// ------------ end sliding window
-				}
-				else
-					for (uint64_t i = 0; i < g_shard_cnt; i++)
-					{
-						bmsg->involved_shards[i] = g_involved_shard[i];
-					}
-				cross_txn_batch_sent_cnt++;
-			}
-			else
-				bmsg->is_cross_shard = false;
-
-#endif
 			bmsg->sign(next_node_id); // Sign the message.
-
-#if TIMER_ON
-			char *buf = create_msg_buffer(bmsg);
-			Message *deepCMsg = deep_copy_msg(buf, bmsg);
-			ClientQueryBatch *deepCqry = (ClientQueryBatch *)deepCMsg;
-			uint64_t c_txn_id = get_sys_clock();
-			deepCqry->txn_id = c_txn_id;
-			client_timer->startTimer(deepCqry->cqrySet[get_batch_size() - 1]->client_startts, deepCqry);
-			delete_msg_buffer(buf);
-#endif // TIMER_ON
 
 			vector<uint64_t> dest;
 			dest.push_back(next_node_id);
@@ -303,10 +234,6 @@ RC ClientThread::run()
 			num_txns_sent += g_batch_size;
 			txns_sent[next_node] += g_batch_size;
 			INC_STATS(get_thd_id(), txn_sent_cnt, g_batch_size);
-
-#if RING_BFT || SHARPER
-			txn_batch_sent_cnt++;
-#endif
 
 			printf("Client: thread %lu sending query to node: %u, %d, %f\n", _thd_id, next_node_id, inf_cnt, simulation->seconds_from_start(get_sys_clock()));
 			fflush(stdout);
@@ -324,48 +251,3 @@ RC ClientThread::run()
 	fflush(stdout);
 	return FINISH;
 }
-
-#if VIEW_CHANGES
-#if RING_BFT
-// Resend message to all the servers.
-void ClientThread::resend_msg(ClientQueryBatch *symsg)
-{
-	//cout << "Resend: " << symsg->cqrySet[get_batch_size()-1]->client_startts << "\n";
-	//fflush(stdout);
-
-	char *buf = create_msg_buffer(symsg);
-	uint64_t first_node_in_shard = get_shard_number(g_node_id) * g_shard_size;
-	for (uint64_t j = first_node_in_shard; j < first_node_in_shard + g_shard_size; j++)
-	{
-		vector<uint64_t> dest;
-		dest.push_back(j);
-
-		Message *deepCMsg = deep_copy_msg(buf, symsg);
-		msg_queue.enqueue(get_thd_id(), deepCMsg, dest);
-		dest.clear();
-	}
-	delete_msg_buffer(buf);
-	Message::release_message(symsg);
-}
-#else
-// Resend message to all the servers.
-void ClientThread::resend_msg(ClientQueryBatch *symsg)
-{
-	//cout << "Resend: " << symsg->cqrySet[get_batch_size()-1]->client_startts << "\n";
-	//fflush(stdout);
-
-	char *buf = create_msg_buffer(symsg);
-	for (uint64_t j = 0; j < g_node_cnt; j++)
-	{
-		vector<uint64_t> dest;
-		dest.push_back(j);
-
-		Message *deepCMsg = deep_copy_msg(buf, symsg);
-		msg_queue.enqueue(get_thd_id(), deepCMsg, dest);
-		dest.clear();
-	}
-	delete_msg_buffer(buf);
-	Message::release_message(symsg);
-}
-#endif
-#endif // VIEW_CHANGES

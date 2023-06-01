@@ -13,7 +13,6 @@
 #include "work_queue.h"
 #include "client_query.h"
 #include "crypto.h"
-#include "timer.h"
 #include "chain.h"
 #include "smart_contract_txn.h"
 
@@ -33,10 +32,6 @@ void clean();
 
 int main(int argc, char *argv[])
 {
-#if PVP
-    assert(CONSENSUS == HOTSTUFF);
-#endif
-    // 0. initialize global data structure
     parser(argc, argv);
 #if SEED != 0
     uint64_t seed = SEED + g_node_id;
@@ -148,41 +143,8 @@ int main(int argc, char *argv[])
     BlockChain = new BChain();
     printf("Done\n");
 
-#if TIMER_ON
-    printf("Initializing timers... ");
-#if !PVP
-    server_timer = new ServerTimer();
-#else
-    for(uint i=0; i < get_totInstances(); i++){
-        server_timer[i] = new ServerTimer();
-        #if PVP_RECOVERY
-        server_timer[i]->last_new_view_time = get_sys_clock();
-        #endif
-    }
-#endif
-#endif
 
-// #if LOCAL_FAULT || VIEW_CHANGES || PVP_RECOVERY
-//     // Adding a stop_nodes entry for each output thread.
-//     for (uint i = 0; i < g_send_thread_cnt; i++)
-//     {
-//         vector<uint64_t> temp;
-//         stop_nodes.push_back(temp);
-//     }
-// #endif
-
-#if MULTI_ON || PVP
   set_next_idx(g_node_id);  
-#endif
-
-#if MULTI_ON
-  for(uint64_t i=0; i<get_totInstances(); i++) {
-    set_primary(i,i);
-  }
-  
-  initialize_primaries();
-
-#endif  
 
     for (uint64_t i = 0; i < g_node_cnt + g_client_node_cnt; i++)
     {
@@ -395,9 +357,7 @@ void clean(){
      delete output_thds;
      delete simulation;
      delete BlockChain;
- #if TIMER_ON
-    //  delete server_timer;
- #endif
+
  #if EXT_DB == SQL || EXT_DB == SQL_PERSISTENT
      db->Close("");
  #elif EXT_DB == MEMORY

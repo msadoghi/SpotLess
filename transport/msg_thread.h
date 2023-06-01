@@ -43,7 +43,6 @@ struct mbuf
     bool ready()
     {
 #if CONSENSUS == HOTSTUFF
-    #if PVP_FORCE
         if (simulation->is_warmup_done() && ISSERVER)
         {
             if (cnt == MESSAGE_PER_BUFFER || (force && cnt)){
@@ -59,12 +58,6 @@ struct mbuf
             }
             return false;
         }
-    #else
-        if(cnt){
-            return true;
-        }
-        return false;
-    #endif
 #else
         if (simulation->is_warmup_done() && ISSERVER)
         {

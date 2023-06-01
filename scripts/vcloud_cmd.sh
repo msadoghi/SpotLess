@@ -4,9 +4,10 @@ HOSTS="$1"
 SCRIPT="$2"
 count=0
 # IDENTITY="~/Desktop/pvp/kdk.pem"
-#IDENTITY="~/kdkCA.pem"
+# IDENTITY="~/kdkCA.pem"
 # IDENTITY="~/oracle2.key"
-IDENTITY="~/kdk_oracle.key"
+# IDENTITY="~/kdk_oracle.key"
+IDENTITY="~/aws.pem"
 
 for HOSTNAME in ${HOSTS}; do
 	ssh -i ${IDENTITY} -n -o BatchMode=yes -o StrictHostKeyChecking=no -l ${USERNAME} ${HOSTNAME} "${SCRIPT}" &

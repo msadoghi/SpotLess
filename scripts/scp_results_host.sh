@@ -3,7 +3,7 @@
 #
 USERNAME=ubuntu
 # IDENTITY="~/Desktop/pvp/kdkCA.pem"
-IDENTITY="~/Desktop/pvp/kdk_oracle.key"
+IDENTITY="~/Desktop/pvp/aws.pem"
 # IDENTITY="~/kdkCA.pem"
 # HOSTNAME='155.248.208.168'	# sanjose
 HOSTNAME='150.136.223.66'	# ashburn

@@ -540,6 +540,12 @@ void TxnManager::send_pbft_prep_msgs()
         dest.push_back(i);
     }
 
+#if MULTI_INSTANCES > 1
+    if(instance_id % MESSAGE_PER_BUFFER == 0){
+        pmsg->force = true;
+    }
+#endif
+
     msg_queue.enqueue(get_thd_id(), pmsg, dest);
     dest.clear();
 }
@@ -595,6 +601,12 @@ void TxnManager::send_pbft_commit_msgs()
         }
         dest.push_back(i);
     }
+
+    #if MULTI_INSTANCES > 1
+    if(instance_id % MESSAGE_PER_BUFFER == 0){
+        cmsg->force = true;
+    }
+#endif
 
     msg_queue.enqueue(get_thd_id(), cmsg, dest);
     dest.clear();

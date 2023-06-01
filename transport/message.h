@@ -73,6 +73,10 @@ public:
 #if SHARPER
     bool is_cross_shard = false;
 #endif
+#if MULTI_INSTANCES > 1
+    bool force = false;
+#endif
+
 };
 
 // Message types

@@ -6,7 +6,7 @@ HOSTS="$1"
 ifconfig=1
 i=0
 #IDENTITY="~/kdkCA.pem"
-IDENTITY="~/kdk_oracle.key"
+IDENTITY="~/aws.pem"
 for HOSTNAME in ${HOSTS}; do
 
 	if_cmd="scp -i ${IDENTITY} ./ifconfig.txt ubuntu@${HOSTNAME}:${home_directory}/"

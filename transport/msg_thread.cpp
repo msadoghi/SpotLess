@@ -144,7 +144,7 @@ void MessageThread::run()
         if (msg->rtype == NEW_VIEW)
             sbuf->force = true;
 #endif
-        if (msg->rtype == PBFT_CHKPT_MSG)
+        if (msg->rtype == PBFT_CHKPT_MSG || msg->force)
             sbuf->force = true;
         msg->copy_to_buf(&(sbuf->buffer[sbuf->ptr]));
 

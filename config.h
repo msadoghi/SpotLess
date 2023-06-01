@@ -4,9 +4,9 @@
 
 #define NODE_CNT 128
 
-// make clean; make -j8; 
-// python scripts/StopSystem.py; python scripts/scp_binaries.py; python scripts/RunSystem.py
-// python scripts/scp_results.py
+// make clean; make -j8; python3 scripts/ifconfig.py
+// python3 scripts/StopSystem.py; python3 scripts/scp_binaries.py; python3 scripts/RunSystem.py
+// python3 scripts/StopSystem.py; python3 scripts/scp_results.py
 // python3 scripts/results_analysis.py
 // Number of worker threads at primary. For RBFT (6) and other algorithms (5) and RCC(NODE_CNT+3).
 #define THREAD_CNT (MULTI_ON ? MULTI_THREADS+3+CL_THD_CNT : 7)  
@@ -27,7 +27,7 @@
 #define SHARD_SIZE 4
 #define CROSS_SHARD_PRECENTAGE 0
 #define INVOLVED_SHARDS_NUMBER 0
-#define MESSAGE_PER_BUFFER 64
+#define MESSAGE_PER_BUFFER 12
 
 #define LOAD_PER_SERVER 1
 #define REPLICA_CNT 0
@@ -47,7 +47,7 @@
 #define TIME_PROF_ENABLE false
 #define FIN_BY_TIME true
 // Number of transactions each client should send without waiting.
-#define MAX_TXN_IN_FLIGHT (800*BATCH_SIZE)
+#define MAX_TXN_IN_FLIGHT (50*BATCH_SIZE)
 #define SERVER_GENERATE_QUERIES false
 #define MEM_ALLIGN 8
 #define THREAD_ALLOC false
@@ -164,7 +164,7 @@
 #define PARTITIONED 0
 #define REPLICATED 1
 // To select the amount of time to warmup and run.
-#define DONE_TIMER 300 * BILLION
+#define DONE_TIMER 120 * BILLION
 #define WARMUP_TIMER  10 * BILLION
 // Select the consensus algorithm to run.
 #define CONSENSUS PBFT

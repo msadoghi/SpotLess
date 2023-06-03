@@ -26,7 +26,17 @@
 
 * Collect the IP addresses of the machines that you will run resilientDB and put them into **scripts/hostnames.py**
 
-* Search "IDENTITY" in this repository, and replace all of them with the path to the SSH private key file for the machines on which you will run resilientDB. (In resilientDB, for easily copy the compile files to the machines, we make all the machines use the same SSH key pair).
+* Below is the configuration of the machines on which we conducted our experiments
+
+  * Oracle Cloud
+  * VM.Standard.E4.Flex
+  * 16-core AMD EPYC 7742 processor running at 3.4 GHz
+  * 32 GB memory
+  * Ubuntu 20.04
+  * Networking Configuration with TCP connections allowed
+
+* Search "IDENTITY" in this repository, and replace all of them with the SSH private key file for the machines on which you will 
+  run resilientDB. (All the machines use the same SSH key pair).
 
   ​      IDENTITY="your_SSH_private_key_file"
 
@@ -34,9 +44,9 @@
 
   ​    python3 scripts/nodeModify.py
 
-* Select the machines that you will run resilientDB in the next experiment in **scripts/hostnames.py**. For example, you will run resilientDB with 4 replicas and 4 clients, choosing the first 8 machines.
+* Select the machines that you will run resilientDB in the next experiment in **scripts/hostnames.py**. For example, you will run resilientDB with 4 replicas and 1 client, choosing the first 8 machines.
 
-  ​    hostip_machines = hostip_phx[:8]
+  ​    hostip_machines = hostip_phx[:5]
 
 * Generate **ifconfig.txt**
 
@@ -86,18 +96,13 @@
         
       make clean; make -j8;
 
-* Configure the replica number parameters in scripts, which is necessary every time you change the number of replicas in your system
+* Configure the replica number parameters in scripts
 
 
-  * ./scripts    
-  
-      nodes=4
-  
-  * ./scripts/RunSystem.py 
-  
-      nds=4
+  * ./scripts    nodes=4
+  * ./scripts/RunSystem.py nds=4
 
-* Via SSH connections, copy the **rundb** to the 4 replicas and **runcl** to the 1 client, and run resilientDB
+* Copy the **rundb** to the 4 replicas and **runcl** to the 1 client, and run resilientDB
         
       python3 scripts/StopSystem.py; python3 scripts/scp_binaries.py; python3 scripts/RunSystem.py
 

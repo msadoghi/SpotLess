@@ -28,6 +28,16 @@
 
 * Collect the IP addresses of the machines that you will run resilientDB and put them into **scripts/hostnames.py**
 
+    hostip_phx = [
+      "10.0.31.15",
+      "10.0.89.7",
+      "10.0.111.180",
+      "10.0.5.37",
+      "10.0.71.187", 
+      "10.0.135.52",
+      ....
+      ]
+
 * Below is the configuration of the machines on which we conducted our experiments
 
   * Oracle Cloud

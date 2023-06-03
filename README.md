@@ -20,6 +20,10 @@
 * The first step is to untar the dependencies:
 
   ​    cd deps && \ls | xargs -i tar -xvf {} && cd ..
+      sudo apt-get install make
+      sudo apt-get install g++
+      sudo apt-get install libgmp-dev
+
 
 * Create **obj** folder inside **resilientdb** folder, to store object files. And **results** to store the results.
 
@@ -108,7 +112,7 @@
   | MULTI_INSTANCES        | NODE_CNT         |
 
 
-* Compile the code. On compilation, two new files are created: **runcl** and **rundb**. You may fail to compile due to the lack of some packages. Please install them following the Error information.
+* Compile the code. On compilation, two new files are created: **runcl** and **rundb**. You may fail to compile due to the lack of some packages.
         
       make clean; make -j8;
 

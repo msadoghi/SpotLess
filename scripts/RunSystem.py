@@ -19,7 +19,7 @@ dashboard = None
 result_dir = "./results/"
 
 # Total nodes
-nds=128
+nds=4
 
 machines = hostip_machines
 

@@ -15,7 +15,7 @@
 
 ## Steps to Run and Compile<br/>
 
-* First Step is to untar the dependencies:
+* The first step is to untar the dependencies:
 
   ​    cd deps && \ls | xargs -i tar -xvf {} && cd ..
 
@@ -26,12 +26,11 @@
 
 * Collect the IP addresses of the machines that you will run resilientDB and put them into **scripts/hostnames.py**
 
-* Search "IDENTITY" in this repository, replace all of them with the SSH private key file for the machines on which you will 
-  run resilientDB. (All the machines use the same SSH key pair).
+* Search "IDENTITY" in this repository, and replace all of them with the path to the SSH private key file for the machines on which you will run resilientDB. (In resilientDB, for easily copy the compile files to the machines, we make all the machines use the same SSH key pair).
 
   ​      IDENTITY="your_SSH_private_key_file"
 
-* Deploy necessary environment to run resilientDB on the machines
+* Deploy the necessary environment to run resilientDB on the machines
 
   ​    python3 scripts/nodeModify.py
 
@@ -51,21 +50,49 @@
 * CLIENT_NODE_CNT               Total number of clients
 * CLIENT_THREAD_CNT             Total number of threads at a client
 * CLIENT_REM_THREAD_CNT         Total number of input threads at a client
-* SEND_THREAD_CNT               Total number of output threads at a client
+* CLIENT_SEND_THREAD_CNT        Total number of output threads at a client
 * MAX_TXN_IN_FLIGHT             Number of inflight transactions that a client can have, which are sent but not responded 
 * DONE_TIMER                    Amount of time to run the system.
 * WARMUP_TIMER                  Amount of time to warmup the system (No statistics collected).
 * BATCH_SIZE                    Number of transactions in a batch (at least 5)
 * TXN_PER_CHKPT                 Frequency at which garbage collection is done.
+* MESSAGE_PER_BUFFER            The number of messages that a replica sends at one time
+* MULTI_INSTANCES								The number of concurrent instances
 * ...
 </pre>
 
 
-* Compile the code. On compilation, two new files are created: **runcl** and **rundb**. You may fail to complie due to the lack of some packages. Please install them following the Error information.
+* For example, to run PVP with 4 replicas and 1 client (the current setting in the *main* branch), we set the parameters as follows (Keep other parameters unchanged).
+
+  | PARAMETER_NAME         | VALUE            |
+  | ---------------------- | ---------------- |
+  | NODE_CNT               | 4                |
+  | THREAD_CNT             | MULTI_THREADS+5  |
+  | REM_THREAD_CNT         | 3                |
+  | SEND_THREAD_CNT        | 4                |
+  | CLIENT_NODE_CNT        | 1                |
+  | CLIENT_THREAD_CNT      | 1                |
+  | CLIENT_REM_THREAD_CNT  | 12               |
+  | CLINET_SEND_THREAD_CNT | 1                |
+  | MAX_TXN_IN_FLIGHT      | (400*BATCH_SIZE) |
+  | DONE_TIMER             | 120 * BILLION    |
+  | WARMUP_TIMER           | 10 * BILLION     |
+  | BATCH_SIZE             | 100              |
+  | MESSAGE_PER_BUFFER     | 3                |
+  | MULTI_INSTANCES        | NODE_CNT         |
+
+
+* Compile the code. On compilation, two new files are created: **runcl** and **rundb**. You may fail to compile due to the lack of some packages. Please install them following the Error information.
         
       make clean; make -j8;
 
-* Copy the **rundb** to replicas and **runcl** to clients, and run resilientDB
+* Configure the replica number parameters in scripts
+
+
+  * ./scripts    nodes=4
+  * ./scripts/RunSystem.py nds=4
+
+* Copy the **rundb** to the 4 replicas and **runcl** to the 1 client, and run resilientDB
         
       python3 scripts/StopSystem.py; python3 scripts/scp_binaries.py; python3 scripts/RunSystem.py
 
@@ -74,12 +101,11 @@
   ​    python3 scripts/scp_results.py
 
 
-* Note: We specify the the parameter setup of different experiments in our paper in this form (https://docs.google.com/spreadsheets/d/1uhtWqk0hYLP9kd3SxUXk_oXCRZl2A17EKXyHfAT2Q_Y/edit?usp=sharing)
+* Note: We specify the parameter setup of different experiments in our paper in this form (https://docs.google.com/spreadsheets/d/1uhtWqk0hYLP9kd3SxUXk_oXCRZl2A17EKXyHfAT2Q_Y/edit?usp=sharing)
 
 * Note: There are several other parameters in *config.h*, which are unusable (or not fully tested) in the current version.
 
 * Different protocols are implemented in different branches. 
-
 
   * Experiments without failures are done in main, hotstuff, and rcc.
   * Experiments with failures are done in main, hotstuff_recovery and rcc_recovery.

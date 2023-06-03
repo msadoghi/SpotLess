@@ -1,7 +1,7 @@
 #ifndef _CONFIG_H_
 #define _CONFIG_H_
 // Specify the number of servers or replicas
-#define NODE_CNT 128
+#define NODE_CNT 4
 
 // make clean; make -j8; python3 scripts/ifconfig.py
 // python3 scripts/StopSystem.py; python3 scripts/scp_binaries.py; python3 scripts/RunSystem.py
@@ -9,18 +9,18 @@
 // python3 scripts/results_analysis.py
 // ssh -i oracle2.key ubuntu@10.0.112.243
 // Number of worker threads at primary. For RBFT (6) and other algorithms (5). For PVP (NODE_CNT + 3).
-#define THREAD_CNT (PROPOSAL_THREAD? MULTI_THREADS+5: MULTI_INSTANCES+3)
-#define REM_THREAD_CNT 8
+#define THREAD_CNT MULTI_THREADS+5
+#define REM_THREAD_CNT 3
 #define SEND_THREAD_CNT 4
 #define PART_CNT 1
 // Specify the number of clients.
-#define CLIENT_NODE_CNT 8
+#define CLIENT_NODE_CNT 4
 #define CLIENT_THREAD_CNT 1
 #define CLIENT_REM_THREAD_CNT 12
 #define CLIENT_SEND_THREAD_CNT 1
 #define CLIENT_RUNTIME false
 
-#define MESSAGE_PER_BUFFER 4
+#define MESSAGE_PER_BUFFER 3
 
 #define LOAD_PER_SERVER 1
 #define REPLICA_CNT 0
@@ -40,7 +40,7 @@
 #define TIME_PROF_ENABLE false
 #define FIN_BY_TIME true
 // Number of transactions each client should send without waiting.
-#define MAX_TXN_IN_FLIGHT (160*BATCH_SIZE)
+#define MAX_TXN_IN_FLIGHT (400*BATCH_SIZE)
 #define SERVER_GENERATE_QUERIES false
 #define MEM_ALLIGN 8
 #define THREAD_ALLOC false
@@ -158,7 +158,7 @@
 #define REPLICATED 1
 // To select the amount of time to warmup and run.
 #define DONE_TIMER 120 * BILLION
-#define WARMUP_TIMER  3 * BILLION
+#define WARMUP_TIMER  10 * BILLION
 // Select the consensus algorithm to run.
 #define CONSENSUS HOTSTUFF
 #define DBFT 1
@@ -210,7 +210,7 @@
 
 #define AUTO_POST PVP_FAIL
 #define TIMER_MANAGER PVP_FAIL
-#define PVP_FAIL true
+#define PVP_FAIL false
 
 #define THRESHOLD_SIGNATURE true
 #define SECP256K1 true

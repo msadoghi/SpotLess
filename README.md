@@ -86,13 +86,18 @@
         
       make clean; make -j8;
 
-* Configure the replica number parameters in scripts
+* Configure the replica number parameters in scripts, which is necessary every time you change the number of replicas in your system
 
 
-  * ./scripts    nodes=4
-  * ./scripts/RunSystem.py nds=4
+  * ./scripts    
+  
+      nodes=4
+  
+  * ./scripts/RunSystem.py 
+  
+      nds=4
 
-* Copy the **rundb** to the 4 replicas and **runcl** to the 1 client, and run resilientDB
+* Via SSH connections, copy the **rundb** to the 4 replicas and **runcl** to the 1 client, and run resilientDB
         
       python3 scripts/StopSystem.py; python3 scripts/scp_binaries.py; python3 scripts/RunSystem.py
 

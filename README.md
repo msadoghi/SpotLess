@@ -54,7 +54,8 @@
 
 * Deploy the necessary environment to run resilientDB on the machines
 
-  ​    python3 scripts/nodeModify.py
+      cd scripts
+  ​    python3 nodeModify.py
 
 * Select the machines that you will run resilientDB in the next experiment in **scripts/hostnames.py**. For example, you will run resilientDB with 4 replicas and 1 client, choosing the first 8 machines.
 
@@ -111,8 +112,13 @@
 * Configure the replica number parameters in scripts
 
 
-  * ./scripts    nodes=4
-  * ./scripts/RunSystem.py nds=4
+  * ./scripts/scp_binaries.sh
+  
+        nodes=4
+  
+  * ./scripts/RunSystem.py 
+  
+        nds=4
 
 * Copy the **rundb** to the 4 replicas and **runcl** to the 1 client, and run resilientDB
         

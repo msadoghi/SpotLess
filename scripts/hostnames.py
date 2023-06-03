@@ -160,7 +160,7 @@ hostip_phx = ["10.0.31.15",
 "10.0.165.43"
 ]
 
-hostip_machines = hostip_phx[:5]
+hostip_machines = hostip_phx[:]
 
 # python3 scripts/ifconfig.py
 # python3 scripts/StopSystem.py

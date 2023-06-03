@@ -135,6 +135,10 @@
 
   ​    python3 scripts/scp_results.py
 
+* Stop the Running **rundb** and **runcl**
+
+      python3 scripts/StopSystem.py;
+
 
 * Note: We specify the parameter setup of different experiments in our paper in this form (https://docs.google.com/spreadsheets/d/1uhtWqk0hYLP9kd3SxUXk_oXCRZl2A17EKXyHfAT2Q_Y/edit?usp=sharing)
 

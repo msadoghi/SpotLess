@@ -15,6 +15,8 @@
 
 ## Steps to Run and Compile<br/>
 
+* **ResileintDB is only supported on Ubuntu, and we recommend Ubuntu 20.04**
+
 * The first step is to untar the dependencies:
 
   ​    cd deps && \ls | xargs -i tar -xvf {} && cd ..

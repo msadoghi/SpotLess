@@ -56,12 +56,15 @@
 
       cd scripts
   ​    python3 nodeModify.py
+      cd ..
 
 * Select the machines that you will run resilientDB in the next experiment in **scripts/hostnames.py**. For example, you will run resilientDB with 4 replicas and 1 client, choosing the first 8 machines.
 
   ​    hostip_machines = hostip_phx[:5]
 
 * Generate **ifconfig.txt**
+
+      python3 scripts/ifconfig.py
 
 * Here are important relevant parameters of "config.h"
 

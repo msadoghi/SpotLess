@@ -3,7 +3,7 @@
 
 USERNAME=ubuntu
 HOSTS="$1"
-IDENTITY="~/Desktop/pvp/kdk.pem"
+IDENTITY="~/aws.pem"
 nodes=3
 i=0
 for HOSTNAME in ${HOSTS}; do

@@ -5,7 +5,6 @@ nodes=4
 HOSTS="$1"
 ifconfig=1
 i=0
-#IDENTITY="~/kdkCA.pem"
 IDENTITY="~/aws.pem"
 for HOSTNAME in ${HOSTS}; do
 

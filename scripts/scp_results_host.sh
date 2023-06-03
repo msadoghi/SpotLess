@@ -2,10 +2,7 @@
 # RES_FILE --> Name of the result file.
 #
 USERNAME=ubuntu
-# IDENTITY="~/Desktop/pvp/kdkCA.pem"
-IDENTITY="~/Desktop/pvp/kdk_oracle.key"
-# IDENTITY="~/kdkCA.pem"
-# HOSTNAME='155.248.208.168'	# sanjose
+IDENTITY="~/aws.pem"
 HOSTNAME='150.136.223.66'	# ashburn
 count=0
 while(( $count<5 ))

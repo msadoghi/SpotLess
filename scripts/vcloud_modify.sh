@@ -2,7 +2,6 @@
 #
 USERNAME=ubuntu
 HOSTS="$1"
-#IDENTITY="~/kdkCA.pem"
 IDENTITY="~/aws.pem"
 
 for HOSTNAME in ${HOSTS}; do

@@ -51,7 +51,7 @@
   * Ubuntu 20.04
   * Networking Configuration with TCP connections allowed
 
-* Search "IDENTITY" in this repository, and replace all of them with the SSH private key file for the machines on which you will 
+* Search "IDENTITY=" in this repository, and replace all of them with the SSH private key file for the machines on which you will 
   run resilientDB. (All the machines use the same SSH key pair).
 
   ​      IDENTITY="your_SSH_private_key_file"

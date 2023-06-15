@@ -368,7 +368,7 @@ RC WorkerThread::run()
 
 #if AUTO_POST
         #if NEW_DIVIDER && FAIL_DIVIDER == 3
-		while(!(g_node_id % DIV1 < LIMIT1 && g_node_id % DIV2 != LIMIT2) && thd_id >= 0 && thd_id < get_multi_threads())
+		while(!(g_node_id % DIV1 >= LIMIT1 && g_node_id % DIV2 != LIMIT2) && thd_id >= 0 && thd_id < get_multi_threads())
 		#else
         while(g_node_id % FAIL_DIVIDER != FAIL_ID  && thd_id >= 0 && thd_id < get_multi_threads())
         #endif
@@ -379,7 +379,7 @@ RC WorkerThread::run()
                 uint64_t cview = get_current_view(to_id);
                 uint64_t value = get_view_primary(cview, to_id);
                 #if NEW_DIVIDER && FAIL_DIVIDER == 3
-                if(cview >= CRASH_VIEW && value % DIV1 < LIMIT1 && value % DIV2 != LIMIT2){
+                if(cview >= CRASH_VIEW && value % DIV1 >= LIMIT1 && value % DIV2 != LIMIT2){
                 #else
                 if(cview >= CRASH_VIEW && value % FAIL_DIVIDER == FAIL_ID){
                 #endif
@@ -413,7 +413,7 @@ RC WorkerThread::run()
         }
 #if PVP_FAIL
         #if NEW_DIVIDER && FAIL_DIVIDER == 3
-        else if(g_node_id % DIV1 < LIMIT1 && g_node_id % DIV2 != LIMIT2 && thd_id >= 0 && thd_id < get_multi_threads() && get_current_view(msg->instance_id) >= CRASH_VIEW){
+        else if(g_node_id % DIV1 >= LIMIT1 && g_node_id % DIV2 != LIMIT2 && thd_id >= 0 && thd_id < get_multi_threads() && get_current_view(msg->instance_id) >= CRASH_VIEW){
         #else
         else if(g_node_id % FAIL_DIVIDER == FAIL_ID && thd_id >= 0 && thd_id < get_multi_threads() && get_current_view(msg->instance_id) >= CRASH_VIEW){
         #endif

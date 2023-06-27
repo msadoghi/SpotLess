@@ -140,7 +140,9 @@
       python3 scripts/StopSystem.py;
 
 
-* Note: We specify the parameter setup of different experiments in our paper in this form (https://docs.google.com/spreadsheets/d/1uhtWqk0hYLP9kd3SxUXk_oXCRZl2A17EKXyHfAT2Q_Y/edit?usp=sharing)
+* To run experiments with different configurations, we have provided a script that quickly generates the config file *config.h* for each experiment. We have listed the experiments that can run in each branch in this form (https://docs.google.com/spreadsheets/d/1uhtWqk0hYLP9kd3SxUXk_oXCRZl2A17EKXyHfAT2Q_Y/edit?usp=sharing). However, you still need to muanually select the machines that you want to use in **./scripts/hostnames.py**.
+
+      python3 config.py experiment_name
 
 * Note: There are several other parameters in *config.h*, which are unusable (or not fully tested) in the current version.
 

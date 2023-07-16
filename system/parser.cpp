@@ -157,6 +157,23 @@ void parser(int argc, char *argv[])
     g_total_client_thread_cnt = g_client_thread_cnt + g_client_rem_thread_cnt + g_client_send_thread_cnt;
     g_total_node_cnt = g_node_cnt + g_client_node_cnt + g_repl_cnt * g_node_cnt;
 
+#if CONSENSUS == HOTSTUFF
+#if !PVP
+    sent = g_node_id==0 ? false: true;
+    g_preparedQC = QuorumCertificate(g_node_cnt);
+    g_preparedQC.type = PREPARE;
+
+    g_lockedQC = QuorumCertificate(g_node_cnt);
+    g_lockedQC.type = PRECOMMIT;
+    hash_to_QC[g_lockedQC.batch_hash] = g_lockedQC;
+
+    #if SEMA_TEST
+        if(g_node_id==0)
+            sem_init(&new_txn_semaphore, 0, 1); // Initially, replica 0 is the primary
+        else
+            sem_init(&new_txn_semaphore, 0, 0);
+    #endif
+#else
     for(uint i = 0; i < get_totInstances(); i++){
         sent[i] = g_node_id == i ? false : true;
         g_preparedQC[i] = QuorumCertificate(g_node_cnt);
@@ -170,54 +187,19 @@ void parser(int argc, char *argv[])
         hash_to_QC.push_back(m);
         unordered_map<string, uint64_t> m2;
         hash_to_txnid.push_back(m2);
-        unordered_map<uint64_t, string> m3;
-        txnid_to_hash.push_back(m3);
-
-#if SEPARATE
-        last_sent_view[i] = 0;
-        next_send_view[i] = (g_node_cnt+g_node_id-i) % g_node_cnt;
-        incomplete_proposal_cnt[i] = 0;
-#endif
+        hash_to_view.push_back(m2);
     }
-
-    if(g_node_id < MULTI_INSTANCES){
     #if SEMA_TEST
-        #if SEPARATE
-            #if PROPOSAL_THREAD
-            sem_init(&new_txn_semaphore, 0, 1);
-            // sem_init(&proposal_semaphore, 0, 1 + ROUNDS_IN_ADVANCE);
-            sem_init(&proposal_semaphore, 0, 0);
-            #else
-            sem_init(&new_txn_semaphore, 0, 2 + ROUNDS_IN_ADVANCE);
-            #endif
-        #else
         sem_init(&new_txn_semaphore, 0, 1); // Initially, each replica is primary of one instance
-        #endif
     #endif
-    }
-    #if PROPOSAL_THREAD
-    for(uint64_t j=0; j<MULTI_INSTANCES; j++){
-        for(uint64_t i=0; i <= ROUNDS_IN_ADVANCE; i++){
-            if((i+j) % g_node_cnt == g_node_id){
-                sem_post(&proposal_semaphore);
-                break;
-            }
-        }
-    }
-    #endif
-
-#if TIMER_MANAGER
-    for(uint64_t i = 0; i < MULTI_INSTANCES; i++){
-        timer_manager[i] = TimerManager(i);
-    }
 #endif
-
+    
 #if SEMA_TEST
+    sem_init(&narwhal_signal, 0, 0);
     for(uint i = 0; i < THREAD_CNT; i++){
         sem_init(&worker_queue_semaphore[i], 0, 0);
     }
     sem_init(&execute_semaphore, 0, 0);
-    sem_init(&executable_signal, 0, 0);
     for(uint i = 0; i < SEND_THREAD_CNT; i++){
         sem_init(&output_semaphore[i], 0, 0);
     }
@@ -230,11 +212,18 @@ void parser(int argc, char *argv[])
         unsigned char c = rand() % 255;
         private_key[i] = c;
     }
-    assert(secp256k1_ec_seckey_verify(ctx, private_key));
-    assert(secp256k1_ec_pubkey_create(ctx, &public_key, private_key));
+    try{
+        assert(secp256k1_ec_seckey_verify(ctx, private_key));
+        assert(secp256k1_ec_pubkey_create(ctx, &public_key, private_key));
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
+
     public_keys[g_node_id] = public_key;
 #endif
 
+#endif  // CONSENSUS == HOTSTUFF
     if (ISCLIENT)
     {
         g_this_thread_cnt = g_client_thread_cnt;
@@ -248,10 +237,7 @@ void parser(int argc, char *argv[])
         g_this_rem_thread_cnt = g_rem_thread_cnt;
         g_this_send_thread_cnt = g_send_thread_cnt;
         g_this_total_thread_cnt = g_total_thread_cnt;
-        expectedInstance = 0;
-        #if PROPOSAL_THREAD
-        proposalInstance = 0;
-        #endif
+        expectedInstance = g_node_id;
     }
 
     printf("g_done_timer %ld\n", g_done_timer);

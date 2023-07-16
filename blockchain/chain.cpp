@@ -32,13 +32,13 @@ void BChainStruct::add_commit_proof(Message *msg) {
 void BChainStruct::release_data() {
 	Message::release_message(this->batch_info);
 
-	// PBFTCommitMessage *cmsg;
-	// while(this->commit_proof.size()>0)
-	// {
-	// 	cmsg = (PBFTCommitMessage *)this->commit_proof[0];
-	// 	this->commit_proof.erase(this->commit_proof.begin());
-	// 	Message::release_message(cmsg);
-	// }	
+	PBFTCommitMessage *cmsg;
+	while(this->commit_proof.size()>0)
+	{
+		cmsg = (PBFTCommitMessage *)this->commit_proof[0];
+		this->commit_proof.erase(this->commit_proof.begin());
+		Message::release_message(cmsg);
+	}	
 }
 
 
@@ -52,9 +52,9 @@ void BChain::add_block(TxnManager *txn) {
 	blk->set_txn_id(txn->get_txn_id());
 	blk->add_batch(txn->batchreq);
 
-	// for(uint64_t i=0; i<txn->commit_msgs.size(); i++) {
-	// 	blk->add_commit_proof(txn->commit_msgs[i]);
-	// }	
+	for(uint64_t i=0; i<txn->commit_msgs.size(); i++) {
+		blk->add_commit_proof(txn->commit_msgs[i]);
+	}	
 	
 	chainLock.lock();
 	   bchain_map.push_back(blk);

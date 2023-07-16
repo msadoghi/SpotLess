@@ -37,7 +37,7 @@ void MessageQueue::release()
              msg_entry *entry = NULL;
              while(m_queue[i]->pop(entry)){
                  if(entry&&entry->msg){
-                     Message::release_message(entry->msg, 8);
+                     Message::release_message(entry->msg);
                  }
              }
              delete m_queue[i];
@@ -97,47 +97,63 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t>
         ((ClientQueryBatch *)msg)->sign(dest[0]);
         entry->allsign.push_back(msg->signature);
         break;
-
+#if SHARPER
+    case SUPER_PROPOSE:
+#endif
+    case BATCH_REQ:
+        for (uint64_t i = 0; i < dest.size(); i++)
+        {
+            ((BatchRequests *)msg)->sign(dest[i]);
+            entry->allsign.push_back(msg->signature);
+        }
+        break;
     case PBFT_CHKPT_MSG:
         for (uint64_t i = 0; i < dest.size(); i++)
         {
-            fflush(stdout);
             ((CheckpointMessage *)msg)->sign(dest[i]);
             entry->allsign.push_back(((CheckpointMessage *)msg)->signature);
         }
         break;
+    case PBFT_PREP_MSG:
+        for (uint64_t i = 0; i < dest.size(); i++)
+        {
+            ((PBFTPrepMessage *)msg)->sign(dest[i]);
+            entry->allsign.push_back(((PBFTPrepMessage *)msg)->signature);
+        }
+        break;
         
-#if THRESHOLD_SIGNATURE
-    case PVP_SYNC_MSG:
-#if MAC_SYNC
-        for (uint64_t i = 0; i < dest.size(); i++)
-        {
-            ((PVPSyncMsg *)msg)->sign(dest[i]);
-            entry->allsign.push_back(((PVPSyncMsg *)msg)->signature);
-        }
-#else
-        ((PVPSyncMsg *)msg)->sign(dest[0]);
+#if CONSENSUS==HOTSTUFF && THRESHOLD_SIGNATURE
+    case HOTSTUFF_PREP_MSG:
+        ((HOTSTUFFPrepareMsg *)msg)->sign(dest[0]);
+        break;
+    case HOTSTUFF_PREP_VOTE_MSG:
+        ((HOTSTUFFPrepareVoteMsg *)msg)->sign(dest[0]);
+        break;
+    case HOTSTUFF_PRECOMMIT_MSG:
+        ((HOTSTUFFPreCommitMsg *)msg)->sign(dest[0]);
+        break;
+    case HOTSTUFF_PRECOMMIT_VOTE_MSG:
+        ((HOTSTUFFPreCommitVoteMsg *)msg)->sign(dest[0]);
+        break;
+    case HOTSTUFF_COMMIT_MSG:
+        ((HOTSTUFFCommitMsg *)msg)->sign(dest[0]);
+        break;
+    case HOTSTUFF_COMMIT_VOTE_MSG:
+        ((HOTSTUFFCommitVoteMsg *)msg)->sign(dest[0]);
+        break;
+    case HOTSTUFF_DECIDE_MSG:
+        ((HOTSTUFFDecideMsg *)msg)->sign(dest[0]);
+        break;
+    case HOTSTUFF_NEW_VIEW_MSG:
+        ((HOTSTUFFNewViewMsg *)msg)->sign(dest[0]);
+        break;
+    case HOTSTUFF_GENERIC_MSG:
+        ((HOTSTUFFGenericMsg *)msg)->sign(dest[0]);
+        break;
+    case NARWHAL_PAYLOAD_MSG:
+        ((NarwhalPayloadMsg *)msg)->sign(dest[0]);
+        break;
 #endif
-        break;
-    case PVP_GENERIC_MSG:
-        ((PVPGenericMsg *)msg)->sign(dest[0]);
-        break;
-#if SEPARATE
-    case PVP_PROPOSAL_MSG:
-        ((PVPProposalMsg *)msg)->sign(dest[0]);
-        break;
-#endif
-#endif
-    case PVP_ASK_MSG:
-        for (uint64_t i = 0; i < dest.size(); i++)
-        {
-            ((PVPAskMsg *)msg)->sign(dest[i]);
-            entry->allsign.push_back(((PVPAskMsg *)msg)->signature);
-        }
-        break;
-    case PVP_ASK_RESPONSE_MSG:
-        ((PVPAskResponseMsg *)msg)->sign(dest[0]);
-        break;
     default:
         break;
     }
@@ -171,36 +187,43 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t>
         INC_STATS(thd_id, msg_queue_enq_cnt, 1);
         break;
     }
-
+    case BATCH_REQ:
     case PBFT_CHKPT_MSG:
-    
-    case PVP_SYNC_MSG:
-    case PVP_GENERIC_MSG:
-#if SEPARATE
-    case PVP_PROPOSAL_MSG:
+    case PBFT_PREP_MSG:
+    case PBFT_COMMIT_MSG:
+
+#if CONSENSUS == HOTSTUFF
+    case HOTSTUFF_PREP_MSG:
+    case HOTSTUFF_PREP_VOTE_MSG:
+    case HOTSTUFF_PRECOMMIT_MSG:
+    case HOTSTUFF_PRECOMMIT_VOTE_MSG:
+    case HOTSTUFF_COMMIT_MSG:
+    case HOTSTUFF_COMMIT_VOTE_MSG:
+    case HOTSTUFF_DECIDE_MSG:
+    case HOTSTUFF_NEW_VIEW_MSG:
+    case HOTSTUFF_GENERIC_MSG:
+    case NARWHAL_PAYLOAD_MSG:
 #endif
-    case PVP_ASK_MSG:
-    case PVP_ASK_RESPONSE_MSG:
     {
-        
         // Putting in queue of all the output threads as destinations differ.
         char *buf = create_msg_buffer(entry->msg);
-        uint64_t j = 0;
-        for (; j < g_this_send_thread_cnt - 1; j++)
+        uint64_t j;
+        for(j = 0; j < g_this_send_thread_cnt - 1; j++)
         {
 #if TRANSPORT_OPTIMIZATION
             if(dest.size() == 1 && dest[0] % g_this_send_thread_cnt != j){
                 continue;
             }
 #endif
-
             msg_entry *entry2 = (msg_entry *)mem_allocator.alloc(sizeof(struct msg_entry));
             //msg_pool.get(entry2);
             new (entry2) msg_entry();
-           
+            // printf("[E5]%lu\n", j);
+            // fflush(stdout);
             Message *deepCMsg = deep_copy_msg(buf, entry->msg);
+            // printf("[E6]%lu\n", j);
+            // fflush(stdout);
             entry2->msg = deepCMsg;
-
             for (uint64_t i = 0; i < dest.size(); i++)
             {
                 entry2->msg->dest.push_back(dest[i]);
@@ -223,13 +246,14 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t>
 
             INC_STATS(thd_id, msg_queue_enq_cnt, 1);
         }
-
+        // printf("[E7]%lu\n", j);
 #if TRANSPORT_OPTIMIZATION
         if(dest.size() == 1 && dest[0] % g_this_send_thread_cnt != j){
             delete_msg_buffer(buf);
             break;
         }
 #endif
+
         // Putting in queue of the last output thread.
 
         for (uint64_t i = 0; i < dest.size(); i++)
@@ -238,7 +262,6 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t>
         }
 
         entry->starttime = get_sys_clock();
-
         while (!m_queue[j]->push(entry) && !simulation->is_done())
         {
         }
@@ -248,7 +271,7 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t>
             // After a msg is enqueued, increase the value of output_semaphore by 1
             sem_post(&output_semaphore[j]);
         #endif
-  
+        
         INC_STATS(thd_id, msg_queue_enq_cnt, 1);
 
         delete_msg_buffer(buf);
@@ -258,8 +281,8 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t>
         break;
     }
 }
-
 void MessageQueue::dequeue(uint64_t thd_id, vector<string> &allsign, Message *&msg)
+// vector<uint64_t> MessageQueue::dequeue(uint64_t thd_id, vector<string> &allsign, Message *&msg)
 {
     msg_entry *entry = NULL;
     // vector<uint64_t> dest;
@@ -338,6 +361,5 @@ void MessageQueue::dequeue(uint64_t thd_id, vector<string> &allsign, Message *&m
         return;
     }
     msg = NULL;
-    // return dest;
     return;
 }

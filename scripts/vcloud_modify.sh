@@ -2,6 +2,7 @@
 #
 USERNAME=ubuntu
 HOSTS="$1"
+#IDENTITY="~/kdkCA.pem"
 IDENTITY="~/aws.pem"
 
 for HOSTNAME in ${HOSTS}; do
@@ -12,6 +13,8 @@ for HOSTNAME in ${HOSTS}; do
   sudo sed -i '/-A INPUT -p tcp -m state --state NEW -m tcp --dport 10000:99999 -j ACCEPT/d' /etc/iptables/rules.v4 
   sudo sed -i 's/:OUTPUT ACCEPT [8:1168]/:OUTPUT ACCEPT [463:49013]/g' /etc/iptables/rules.v4
   sudo sed -i '/-A INPUT -j REJECT --reject-with icmp-host-prohibited/d' /etc/iptables/rules.v4
+  sudo sed -i 's/#MaxSessions 10/MaxSessions 200/g' /etc/ssh/sshd_config 
+  sudo iptables-restore < /etc/iptables/rules.v4
   rm -rf resdb
   mkdir resdb
   cd resdb
@@ -44,8 +47,8 @@ done
   # sudo apt-get install g++ -y
   # sudo apt-get install cmake -y
 
-sudo sed -i '/-A INPUT -p tcp -m state --state NEW -m tcp --dport 10000:99999 -j ACCEPT/d' /etc/iptables/rules.v4 
-sudo sed -i 's/:OUTPUT ACCEPT [8:1168]/:OUTPUT ACCEPT [463:49013]/g' /etc/iptables/rules.v4
-sudo sed -i '/-A INPUT -j REJECT --reject-with icmp-host-prohibited/d' /etc/iptables/rules.v4
-sudo sed -i 's/#MaxSessions 10/MaxSessions 200/g' /etc/ssh/sshd_config &
-echo ${HOSTNAME}
+# sudo sed -i '/-A INPUT -p tcp -m state --state NEW -m tcp --dport 10000:99999 -j ACCEPT/d' /etc/iptables/rules.v4 
+# sudo sed -i 's/:OUTPUT ACCEPT [8:1168]/:OUTPUT ACCEPT [463:49013]/g' /etc/iptables/rules.v4
+# sudo sed -i '/-A INPUT -j REJECT --reject-with icmp-host-prohibited/d' /etc/iptables/rules.v4
+# sudo sed -i 's/#MaxSessions 10/MaxSessions 200/g' /etc/ssh/sshd_config &
+# echo ${HOSTNAME}

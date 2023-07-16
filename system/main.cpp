@@ -13,10 +13,9 @@
 #include "work_queue.h"
 #include "client_query.h"
 #include "crypto.h"
+#include "timer.h"
 #include "chain.h"
 #include "smart_contract_txn.h"
-
-#include <jemalloc/jemalloc.h>
 
 void network_test();
 void network_test_recv();
@@ -32,6 +31,10 @@ void clean();
 
 int main(int argc, char *argv[])
 {
+#if PVP
+    assert(CONSENSUS == HOTSTUFF);
+#endif
+    // 0. initialize global data structure
     parser(argc, argv);
 #if SEED != 0
     uint64_t seed = SEED + g_node_id;
@@ -143,8 +146,18 @@ int main(int argc, char *argv[])
     BlockChain = new BChain();
     printf("Done\n");
 
-
+#if MULTI_ON || PVP
   set_next_idx(g_node_id);  
+#endif
+
+#if MULTI_ON
+  for(uint64_t i=0; i<get_totInstances(); i++) {
+    set_primary(i,i);
+  }
+  
+  initialize_primaries();
+
+#endif  
 
     for (uint64_t i = 0; i < g_node_cnt + g_client_node_cnt; i++)
     {
@@ -300,12 +313,6 @@ int main(int argc, char *argv[])
     pthread_setname_np(p_thds[id - 1], "s_logger");
 #endif
 
-#if AUTO_POST
-    pthread_t sema_thread;
-    pthread_create(&sema_thread, NULL, auto_post, NULL);
-    pthread_join(sema_thread, NULL);
-#endif
-
     for (uint64_t i = 0; i < all_thd_cnt; i++)
         pthread_join(p_thds[i], NULL);
 
@@ -357,7 +364,6 @@ void clean(){
      delete output_thds;
      delete simulation;
      delete BlockChain;
-
  #if EXT_DB == SQL || EXT_DB == SQL_PERSISTENT
      db->Close("");
  #elif EXT_DB == MEMORY

@@ -5,22 +5,28 @@
 
 // make clean; make -j8; python3 scripts/ifconfig.py
 // python3 scripts/StopSystem.py; python3 scripts/scp_binaries.py; python3 scripts/RunSystem.py
-// python3 scripts/StopSystem.py; python3 scripts/scp_results.py
+// python3 scripts/scp_results.py
 // python3 scripts/results_analysis.py
-// ssh -i oracle2.key ubuntu@10.0.112.243
+
 // Number of worker threads at primary. For RBFT (6) and other algorithms (5). For PVP (NODE_CNT + 3).
-#define THREAD_CNT MULTI_THREADS+5
-#define REM_THREAD_CNT 3
+#define THREAD_CNT (MULTI_THREADS+4)
+#define REM_THREAD_CNT 4
 #define SEND_THREAD_CNT 4
+#define CORE_CNT 8
 #define PART_CNT 1
 // Specify the number of clients.
-#define CLIENT_NODE_CNT 1
+#define CLIENT_NODE_CNT 4
 #define CLIENT_THREAD_CNT 1
 #define CLIENT_REM_THREAD_CNT 12
 #define CLIENT_SEND_THREAD_CNT 1
 #define CLIENT_RUNTIME false
-
-#define MESSAGE_PER_BUFFER 3
+// Sharding Config
+#define RING_BFT false
+#define SHARPER false
+#define SHARD_SIZE 4
+#define CROSS_SHARD_PRECENTAGE 0
+#define INVOLVED_SHARDS_NUMBER 0
+#define MESSAGE_PER_BUFFER 1
 
 #define LOAD_PER_SERVER 1
 #define REPLICA_CNT 0
@@ -157,32 +163,69 @@
 #define PARTITIONED 0
 #define REPLICATED 1
 // To select the amount of time to warmup and run.
-#define DONE_TIMER 120 * BILLION
-#define WARMUP_TIMER  10 * BILLION
+#define DONE_TIMER  30* BILLION
+#define WARMUP_TIMER 10 * BILLION
 // Select the consensus algorithm to run.
 #define CONSENSUS HOTSTUFF
 #define DBFT 1
 #define PBFT 2
 #define ZYZZYVA 3
 #define HOTSTUFF 4
+// Switching on RBFT consensus.
+// Status: Partial implementation, only for PBFT.
+#define RBFT_ON false
+// Select the type of RBFT, (1) RBFT+PBFT, and  (2) RBFT+DBFT
+#define RBFT_ALG RPBFT
+#define RPBFT 1
+#define RDBFT 2
+// Enable or Disable pipeline at primary replica.
+#define ENABLE_PIPELINE true
 // Size of each batch.
-#define LARGER_TXN false
-#define EXTRA_SIZE 0
 #define BATCH_SIZE 100
-#define BATCH_ENABLE true
+#define BATCH_ENABLE BSET
+#define BSET 1
+#define BUNSET 0
 // Number of transactions to wait for period checkpointing.
-#define TXN_PER_CHKPT NODE_CNT * BATCH_SIZE * 32
+#define TXN_PER_CHKPT NODE_CNT * BATCH_SIZE
 #define EXECUTION_THREAD true
 #define EXECUTE_THD_CNT 1
+#define SIGN_THREADS false
+#define SIGN_THD_CNT 1
 #define CLIENT_BATCH true
 #define CLIENT_RESPONSE_BATCH true
 // To Enable or disable the blockchain implementation.
 #define ENABLE_CHAIN false
+// To fail non-primary replicas.
+#define LOCAL_FAULT false
+#define NODE_FAIL_CNT 1
+// To allow view changes.
+#define VIEW_CHANGES false
+// The amount of timeout value.
+#define EXE_TIMEOUT  1*BILLION 
+#define CEXE_TIMEOUT 1*BILLION
+// To turn the timer on.
+#define TIMER_ON false
 //Global variables to choose the encryptation algorithm
 #define USE_CRYPTO true
 #define CRYPTO_METHOD_RSA false     //Options RSA,
 #define CRYPTO_METHOD_ED25519 true  // Option ED25519
 #define CRYPTO_METHOD_CMAC_AES true // CMAC<AES>
+// Test cases to check basic functioning.
+// Status: Implementation only for PBFT.
+#define TESTING_ON false
+#define TEST_CASE ONLY_PRIMARY_BATCH_EXECUTE
+#define ONLY_PRIMARY_NO_EXECUTE 1
+#define ONLY_PRIMARY_EXECUTE 2
+#define ONLY_PRIMARY_BATCH_EXECUTE 3
+// Message Payload.
+// We allow creation of two different message payloads,
+// to see affects on latency and throughput.
+// These payloads are added to each message.
+#define PAYLOAD_ENABLE false
+#define PAYLOAD M100
+#define M100 1 // 100KB.
+#define M200 2 // 200KB.
+#define M400 3 // 400KB.
 
 // To allow testing in-memory database or SQLite.
 // Further, using SQLite a user can also choose to persist the data.
@@ -195,22 +238,26 @@
 #define BANKING_SMART_CONTRACT false
 
 // Switching on MultiBFT or PVP
-#define MULTI_THREADS (MULTI_INSTANCES > 16 ? 16 : MULTI_INSTANCES)
-#define MULTI_INSTANCES NODE_CNT
+#define MULTI_ON false
+#define PVP false
+#define MULTI_THREADS 4
+#define MULTI_INSTANCES (NODE_CNT>16?16:NODE_CNT)
+#define CHAINED true
 
 // Entities for debugging
-#define SEND_NEWVIEW_PRINT PROCESS_PRINT
 #define PROCESS_PRINT false
+#define SEND_NEWVIEW_PRINT false
 #define PRINT_KEYEX false
 #define SEMA_TEST true
 
 #define FIX_INPUT_THREAD_BUG true
 #define FIX_CL_INPUT_THREAD_BUG true
 #define TRANSPORT_OPTIMIZATION true
+#define FIX_ED25519_BUG false
 
-#define AUTO_POST PVP_FAIL
-#define TIMER_MANAGER PVP_FAIL
-#define PVP_FAIL false
+#define AUTO_POST false
+#define PVP_RECOVERY false
+#define STOP_NODE_SET (false && PVP_RECOVERY)
 
 #define THRESHOLD_SIGNATURE true
 #define SECP256K1 true
@@ -219,46 +266,12 @@
 
 #define FIX_MEM_LEAK true
 
+#define SHIFT_QC false
+
+#define TS_SIMULATOR false
 #define TEMP_QUEUE true
-#define MAC_SYNC true
-#define SYNC_QC true
-#define SEPARATE true
-#define ROUNDS_IN_ADVANCE 0
-#define PROPOSAL_THREAD true
-#define MAC_VERSION true
+#define NARWHAL true
 
-#define INITIAL_TIMEOUT_LENGTH 1*BILLION
-
-#define CRASH_VIEW 100
-
-#define EXCLUSIVE_BATCH true
-#define FAIL_DIVIDER 3
-#define FAIL_ID 2
-#define MAX_TIMER_LEN 200000000
-
-#define NEW_DIVIDER true
-#define DIV1 6
-#define DIV2 3
-#define LIMIT1 3
-#define LIMIT2 1
-
-#define ENABLE_ASK false
-#define DARK_TEST false
-#define DARK_ID 2
-#define VICTIM_ID 1
-#define DARK_FREQ 3
-#define DARK_CNT 42
-
-#define IGNORE_TEST false
-#define IGNORE_ID 2
-#define IGNORE_FREQ 3
-#define IGNORE_CNT 42
-
-
-#define EQUIV_TEST false
-#define EQUIV_FREQ 3
-#define EQUIV_ID 2
-#define EQ_VICTIM_ID 1
-#define EQUIV_CNT 1
+#define LARGER_TXN false
 
 #endif

@@ -54,7 +54,18 @@ inline void ED25519GenerateKeys(string &skey, string &pkey)
 {
     AutoSeededRandomPool prng;
     // Initilize singer;
+#if FIX_ED25519_BUG
+    while(true){
+        try:{
+            signer.AccessPrivateKey().GenerateRandom(prng);
+            break;
+        }catch(Exception & e){
+            cout << e.what() << endl;
+        }
+    }
+#else
     signer.AccessPrivateKey().GenerateRandom(prng);
+#endif
     
     const ed25519PrivateKey &privKey = dynamic_cast<const ed25519PrivateKey &>(signer.GetPrivateKey());
 

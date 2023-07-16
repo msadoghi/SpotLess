@@ -59,20 +59,20 @@ void Client_txn::init()
 int32_t Client_txn::inc_inflight(uint32_t node_id)
 {
     assert(node_id < g_node_cnt);
-    node_id = 0;
-    return inflight_txns[node_id]->inc_inflight();
+    // return inflight_txns[node_id]->inc_inflight();
+    return inflight_txns[0]->inc_inflight();
 }
 
 int32_t Client_txn::dec_inflight(uint32_t node_id)
 {
     assert(node_id < g_node_cnt);
-    node_id = 0;
-    return inflight_txns[node_id]->dec_inflight();
+    // return inflight_txns[node_id]->dec_inflight();
+    return inflight_txns[0]->dec_inflight();
 }
 
 int32_t Client_txn::get_inflight(uint32_t node_id)
 {
     assert(node_id < g_node_cnt);
-    node_id = 0;
-    return inflight_txns[node_id]->get_inflight();
+    // return inflight_txns[node_id]->get_inflight();
+    return inflight_txns[0]->get_inflight();
 }

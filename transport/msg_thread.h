@@ -43,21 +43,10 @@ struct mbuf
     bool ready()
     {
 #if CONSENSUS == HOTSTUFF
-        if (simulation->is_warmup_done() && ISSERVER)
-        {
-            if (cnt == MESSAGE_PER_BUFFER || (force && cnt)){
-                force = false;
-                // printf("%lu\n",cnt);
-                return true;
-            }
-            return false;
+        if(cnt){
+            return true;
         }
-        else{
-            if(cnt){
-                return true;
-            }
-            return false;
-        }
+        return false;
 #else
         if (simulation->is_warmup_done() && ISSERVER)
         {

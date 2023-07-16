@@ -3,6 +3,8 @@ USERNAME=ubuntu
 HOSTS="$1"
 SCRIPT="$2"
 count=0
+# IDENTITY="~/Desktop/pvp/kdk.pem"
+#IDENTITY="~/kdkCA.pem"
 IDENTITY="~/aws.pem"
 
 for HOSTNAME in ${HOSTS}; do

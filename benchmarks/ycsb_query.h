@@ -22,14 +22,14 @@ public:
         this->key = req->key;
         this->value = req->value;
 #if LARGER_TXN
-        strncpy(this->payload, req->payload, EXTRA_SIZE);
+        strncpy(this->payload, req->payload, 156);
 #endif
     }
 
     uint64_t key;
     uint64_t value;
 #if LARGER_TXN
-    char payload[EXTRA_SIZE];
+    char payload[156];
     // 156, 356, 756, 1556
 #endif
 };

@@ -11,6 +11,7 @@
 #include "message.h"
 #include "client_txn.h"
 #include "work_queue.h"
+#include "timer.h"
 //#include "crypto.h"
 
 void InputThread::managekey(KeyExchange *keyex)
@@ -67,8 +68,10 @@ void InputThread::setup()
 #if FIX_INPUT_THREAD_BUG
         if(ISSERVER)
             msgs = tport_man.recv_msg(get_thd_id() - g_thread_cnt);
-        else
+        else{
             msgs = tport_man.recv_msg(get_thd_id());
+        }
+            
 #else
         msgs = tport_man.recv_msg(get_thd_id());
 #endif
@@ -99,6 +102,7 @@ void InputThread::setup()
                     else if (msg->rtype == READY)
                     {
                         totKey++;
+                        cout << "totKey2:" << totKey << endl;
                         if (totKey == g_node_cnt)
                         {
                             keyMTX.lock();
@@ -111,7 +115,13 @@ void InputThread::setup()
                 {
                     assert(ISSERVER || ISREPLICA);
                     //printf("Received Msg %d from node %ld\n",msg->rtype,msg->return_node_id);
-
+#if SHARPER
+                    // Linearizing requests.
+                    if (msg->rtype == SUPER_PROPOSE && is_primary_node(get_thd_id(), g_node_id))
+                    {
+                        msg->txn_id = get_and_inc_next_idx();
+                    }
+#endif
                     // Linearizing requests.
                     if (msg->rtype == CL_BATCH)
                     {
@@ -131,7 +141,7 @@ RC InputThread::run()
 {
     tsetup();
     printf("Running InputThread %ld\n", _thd_id);
-    fflush(stdout);
+
     if (ISCLIENT)
     {
         client_recv_loop();
@@ -156,6 +166,10 @@ RC InputThread::client_recv_loop()
 
     double sumlat = 0;
     uint64_t txncmplt = 0;
+#if RING_BFT || SHARPER
+    double c_sumlat = 0;
+    uint64_t c_txncmplt = 0;
+#endif
 
     while (!simulation->is_done())
     {
@@ -198,7 +212,7 @@ RC InputThread::client_recv_loop()
                 totKey++;
                 if (totKey == g_node_cnt)
                 {
-
+                    cout << "totKey1:" << totKey << endl;
                     keyMTX.lock();
                     keyAvail = true;
                     keyMTX.unlock();
@@ -209,9 +223,16 @@ RC InputThread::client_recv_loop()
 
             //cout<<"Node: "<<msg->return_node_id <<" :: Txn: "<< msg->txn_id <<"\n";
             //fflush(stdout);
-            uint64_t instance_id = msg->instance_id;
+            #if !PVP
+            return_node_offset = get_view_primary(((ClientResponseMessage *)msg)->view);
+            #else
+            uint64_t instance_id = msg->txn_id / get_batch_size() % get_totInstances();
             return_node_offset = get_view_primary(((ClientResponseMessage *)msg)->view, instance_id);
+            #endif
             
+#if RING_BFT
+            assert(is_in_same_shard(get_shard_number(g_node_id) * g_shard_size, msg->return_node_id));
+#endif
             if (msg->rtype != CL_RSP)
             {
                 cout << "Mtype: " << msg->rtype << " :: Nd: " << msg->return_node_id << "\n";
@@ -220,9 +241,7 @@ RC InputThread::client_recv_loop()
             }
             ClientResponseMessage *clrsp = (ClientResponseMessage *)msg;
             // Check if the response is valid.
-            #if ENABLE_ENCRYPT
             assert(clrsp->validate());
-            #endif
             uint64_t response_count = 0;
 
             #if FIX_CL_INPUT_THREAD_BUG
@@ -252,18 +271,17 @@ RC InputThread::client_recv_loop()
             #if FIX_CL_INPUT_THREAD_BUG
             client_response_lock.unlock();
             #endif
+
 //            cout << "msg->txn_id" << msg->txn_id << "   " << response_count << endl;
-            if (response_count == fp1)
+            if (response_count == g_min_invalid_nodes + 1)
             {
-                cout << "[X]" << endl;
-                fflush(stdout);
                 // If true, set this as the next transaction completed.
                 set_last_valid_txn(msg->txn_id);
                 // cout << "validated: " << clrsp->txn_id << "   " << clrsp->return_node_id << "\n";
                 // fflush(stdout);
 
 #if CLIENT_RESPONSE_BATCH == true
-                // cout << "return_node_offset = " << return_node_offset << "view = " << ((ClientResponseMessage *)msg)->view << endl;
+                // cout << "return_node_offset = " << return_node_offset << endl;
                 for (uint64_t k = 0; k < g_batch_size; k++)
                 {
                     if (simulation->is_warmup_done())
@@ -279,17 +297,23 @@ RC InputThread::client_recv_loop()
                     }
                     inf = client_man.dec_inflight(return_node_offset);
                 }
+                
                 #if FIX_CL_INPUT_THREAD_BUG
                 client_response_lock.lock();
                 #endif
+                
                 Message::release_message(client_responses_directory.get(msg->txn_id));
                 client_responses_directory.remove(msg->txn_id);
+                
                 #if FIX_CL_INPUT_THREAD_BUG
                 client_response_lock.unlock();
                 #endif
 
+                #if CONSENSUS == HOTSTUFF
                 // go to next view
+//              set_client_view(rsp_view + 1);
                 dec_in_round(return_node_offset);
+                #endif
 #else // !CLIENT_RESPONSE_BATCH
 
                 INC_STATS(get_thd_id(), txn_cnt, 1);
@@ -314,13 +338,24 @@ RC InputThread::client_recv_loop()
         }
         delete msgs;
     }
+#if RING_BFT || SHARPER
+    printf("AVG CLatency: %f\n", (c_sumlat / (c_txncmplt * BILLION)));
+    printf("AVG ILatency: %f\n", (sumlat / (txncmplt * BILLION)));
+    printf("AVG Latency: %f\n", ((sumlat + c_sumlat) / ((txncmplt + c_txncmplt) * BILLION)));
+    printf("C_LAT_TIME: %f\n", (c_sumlat / BILLION));
+    printf("C_TXN_CNT: %ld\n", c_txncmplt);
+    printf("TXN_CNT: %ld\n", txncmplt);
+    fflush(stdout);
+#else
     printf("AVG Latency: %f\n", (sumlat / (txncmplt * BILLION)));
     printf("TXN_CNT: %ld\n", txncmplt);
+#endif
     return FINISH;
 }
 
 RC InputThread::server_recv_loop()
 {
+
     myrand rdm;
     rdm.init(get_thd_id());
     RC rc = RCOK;
@@ -328,17 +363,14 @@ RC InputThread::server_recv_loop()
     uint64_t starttime = 0;
     uint64_t idle_starttime = 0;
     std::vector<Message *> *msgs;
-
     while (!simulation->is_done())
     {
-        fflush(stdout);
         heartbeat();
 #if FIX_INPUT_THREAD_BUG
         msgs = tport_man.recv_msg(get_thd_id() - g_thread_cnt);
 #else
         msgs = tport_man.recv_msg(get_thd_id());
 #endif
-        fflush(stdout);
         if (msgs == NULL)
         {
             if (idle_starttime == 0)
@@ -347,27 +379,11 @@ RC InputThread::server_recv_loop()
             }
             continue;
         }
-
         if (idle_starttime > 0 && simulation->is_warmup_done())
         {
             starttime += get_sys_clock() - idle_starttime;
             idle_starttime = 0;
         }
-
-        Message *msg = msgs->back();
-        if (msg->rtype == INIT_DONE)
-        {
-            msgs->erase(msgs->begin());
-            continue;
-        }
-        if (msg->rtype == CL_BATCH)
-        {
-            // For CL_BATCH msgs in HOTSTUFF, the txn_id is assigned after the msg in dequeued from the new_txn_queue
-            fflush(stdout);
-            INC_STATS(_thd_id, msg_cl_in, 1);
-        }
-        work_queue.enqueue(get_thd_id(), msg, false);
-        msgs->pop_back();
 
         while (!msgs->empty())
         {
@@ -377,12 +393,29 @@ RC InputThread::server_recv_loop()
                 msgs->erase(msgs->begin());
                 continue;
             }
+#if SHARPER
+            // Linearizing requests.
+            if (msg->rtype == SUPER_PROPOSE && is_primary_node(get_thd_id(), g_node_id))
+            {
+                msg->txn_id = get_and_inc_next_idx();
+                INC_STATS(_thd_id, msg_cl_in, 1);
+            }
+#endif
+#if CONSENSUS == HOTSTUFF
             if (msg->rtype == CL_BATCH)
             {
                 // For CL_BATCH msgs in HOTSTUFF, the txn_id is assigned after the msg in dequeued from the new_txn_queue
                 fflush(stdout);
                 INC_STATS(_thd_id, msg_cl_in, 1);
             }
+#else
+            if (msg->rtype == CL_BATCH)
+            {
+                // Linearizing requests.
+                msg->txn_id = get_and_inc_next_idx();
+                INC_STATS(_thd_id, msg_cl_in, 1);
+            }
+#endif
             work_queue.enqueue(get_thd_id(), msg, false);
             msgs->erase(msgs->begin());
         }
@@ -396,9 +429,6 @@ RC InputThread::server_recv_loop()
         sem_post(&worker_queue_semaphore[i]);
     }
     sem_post(&new_txn_semaphore);
-    #if PROPOSAL_THREAD
-    sem_post(&proposal_semaphore);
-    #endif
     sem_post(&execute_semaphore);
 #endif
 
@@ -466,7 +496,7 @@ RC OutputThread::run()
 
     tsetup();
     printf("Running OutputThread %ld\n", _thd_id);
-    fflush(stdout);
+
     while (!simulation->is_done())
     {
         heartbeat();

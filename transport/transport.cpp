@@ -378,7 +378,6 @@ std::vector<Message *> *Transport::recv_msg(uint64_t thd_id)
         }
         else
         { // Only servers.
-
             if (thd_id % g_this_rem_thread_cnt == 0)
             {
                 socket = recv_sockets_clients[ctr];
@@ -388,8 +387,15 @@ std::vector<Message *> *Transport::recv_msg(uint64_t thd_id)
                 uint64_t abs_tid = thd_id % (g_rem_thread_cnt - 1);
                 socket = recv_sockets_servers[abs_tid][ctr];
             }
+
             bytes = socket->sock.recv(&buf, NNG_FLAG_ALLOC | NNG_FLAG_NONBLOCK);
         }
+
+        // if (bytes <= 0 && errno != 11)
+        // {
+        //     printf("Recv Error %d %s\n", errno, strerror(errno));
+        //     nn::freemsg(buf, bytes);
+        // }
 
         if (bytes > 0)
         {

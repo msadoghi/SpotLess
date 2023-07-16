@@ -11,6 +11,7 @@ Written by Dakai Kang, October 2021.
 #include "client_query.h"
 #include <boost/lockfree/queue.hpp>
 
+#if PVP
 QWorkQueue::~QWorkQueue()
 {
     release();
@@ -71,22 +72,18 @@ void QWorkQueue::init() {
 
   uint64_t num_instances = get_totInstances();
   new_txn_queue = new boost::lockfree::queue<work_queue_entry* > * [num_instances];
-
   for(uint64_t i = 0; i < num_instances; i++) {
     new_txn_queue[i] = new boost::lockfree::queue<work_queue_entry* > (0);
   }
 
 #if TEMP_QUEUE
   temp_queue = new boost::lockfree::queue<work_queue_entry* > * [num_instances];
+  new_view_queue = new boost::lockfree::queue<work_queue_entry* > * [num_instances];
   for(uint64_t i = 0; i < num_instances; i++) {
     temp_queue[i] = new boost::lockfree::queue<work_queue_entry* > (0);
+    new_view_queue[i] = new boost::lockfree::queue<work_queue_entry* > (0);
   }
 #endif
-
-  prior_queue = new boost::lockfree::queue<work_queue_entry* > * [MULTI_THREADS];
-  for(uint64_t i = 0; i < MULTI_THREADS; i++) {
-    prior_queue[i] = new boost::lockfree::queue<work_queue_entry* > (0);
-  }
 
 }
 
@@ -107,53 +104,20 @@ void QWorkQueue::enqueue(uint64_t thd_id, Message * msg,bool busy) {
   uint64_t num_instances = get_totInstances();
 
   if(msg->rtype == CL_BATCH) {
-  #if !EXCLUSIVE_BATCH
     uint64_t qid = msg->return_node_id % g_client_node_cnt % num_instances;
     while(!new_txn_queue[qid]->push(entry) && !simulation->is_done()) {}
     #if SEMA_TEST
-    sem_post(&worker_queue_semaphore[num_multi_threads + 1]);
-    #if SEPARATE
-      sem_post(&worker_queue_semaphore[num_multi_threads]);
+    sem_post(&worker_queue_semaphore[g_thread_cnt - 3]);
     #endif
-    #endif
-  #else
-    uint64_t start_idx = idx;
-    uint64_t min_cnt = 0;
-    uint64_t _min_cnt = 0xFFFFF;
-    while(true){
-      clb_lock[idx].lock();
-      if(clb_cnt[idx] <= min_cnt){
-        while(!new_txn_queue[idx]->push(entry) && !simulation->is_done()) {}
-        sem_post(&worker_queue_semaphore[num_multi_threads + 1]);
-        sem_post(&worker_queue_semaphore[num_multi_threads]);
-        clb_cnt[idx]++;
-        // printf("EQ%lu\n", idx);
-        // printf("CLB[%lu] = %lu\n", idx, clb_cnt[idx]);
-        clb_lock[idx].unlock();
-        idx = (idx+1) % num_instances;
-        break;
-      }
-      else if(clb_cnt[idx] < _min_cnt){
-        _min_cnt = clb_cnt[idx];
-      }
-      clb_lock[idx].unlock();
-      idx = (idx+1) % num_instances;
-      if(idx == start_idx){
-        min_cnt = _min_cnt;
-      }
-    }
-  #endif
   }
   else if(msg->rtype == EXECUTE_MSG) { 
-    // printf("EE%lu\n", msg->txn_id);
-    // fflush(stdout);
     uint64_t bid = ((msg->txn_id+2) - get_batch_size()) / get_batch_size();
     uint64_t qid = (bid % indexSize) + num_multi_threads;
     while(!work_queue[qid]->push(entry) && !simulation->is_done()) {}
     #if SEMA_TEST
-    sem_post(&worker_queue_semaphore[num_multi_threads + 2]);
+    sem_post(&worker_queue_semaphore[g_thread_cnt - 2]);
     execute_msg_heap_push(msg->txn_id);
-    // if the next msg to execute is enqueued
+    //if the next msg to execute is enqueued
     if(msg->txn_id == get_expectedExecuteCount()){  
       sem_post(&execute_semaphore);
     }
@@ -163,34 +127,23 @@ void QWorkQueue::enqueue(uint64_t thd_id, Message * msg,bool busy) {
   else if(msg->rtype == PBFT_CHKPT_MSG) {
     while(!work_queue[num_multi_threads + indexSize]->push(entry) && !simulation->is_done()) {}
     #if SEMA_TEST
-    sem_post(&worker_queue_semaphore[num_multi_threads + 3]);
+    sem_post(&worker_queue_semaphore[g_thread_cnt - 1]);
     #endif
   } 
-  else if(msg->rtype == PVP_GENERIC_MSG || msg->rtype == PVP_PROPOSAL_MSG){
-    // if(msg->rtype == PVP_GENERIC_MSG){
-    //   cout << "[EG]" << msg->txn_id << endl;
-    // }
-    uint64_t instance_id = msg->instance_id;
-    uint64_t qid = instance_id % num_multi_threads;
-    while(!prior_queue[qid]->push(entry) && !simulation->is_done()){}
-    tb_lock[qid].lock();
-    prior_cnt[qid]++;
-    tb_lock[qid].unlock();
-    #if SEMA_TEST
-    sem_post(&worker_queue_semaphore[qid]);
-    #endif
-  }
-  else{
-    uint64_t instance_id = msg->instance_id;
-    uint64_t qid = instance_id % num_multi_threads;
+  else {
+    uint64_t qid;
+    if(msg->rtype == HOTSTUFF_PREP_MSG || msg->rtype == HOTSTUFF_GENERIC_MSG) {
+      //cout << "ENQUEUED[1]" << msg->txn_id;
+      qid = (((msg->txn_id+3) - get_batch_size()) / get_batch_size()) % num_instances % num_multi_threads;
+    } 
+    else {
+      qid = (((msg->txn_id+1) - get_batch_size()) / get_batch_size()) % num_instances % num_multi_threads; 
+    }
     while(!work_queue[qid]->push(entry) && !simulation->is_done()){}
     #if SEMA_TEST
     sem_post(&worker_queue_semaphore[qid]);
     #endif
   } 
-
-
-  fflush(stdout);
 
   INC_STATS(thd_id,work_queue_enqueue_time,get_sys_clock() - starttime);
   INC_STATS(thd_id,work_queue_enq_cnt,1);
@@ -208,17 +161,46 @@ Message * QWorkQueue::dequeue(uint64_t thd_id) {
   uint64_t num_instances = get_totInstances();
 
   if(thd_id < num_multi_threads) {
-    tb_lock[thd_id].lock();
-    if(prior_cnt[thd_id]){
-      valid = prior_queue[thd_id]->pop(entry);
-      if(valid){
-        prior_cnt[thd_id]--;
+
+    valid = work_queue[thd_id]->pop(entry);
+#if !TEMP_QUEUE 
+    if(valid)
+      {
+        uint64_t msg_view = 0;
+        uint64_t instance_id = entry->msg->txn_id / get_batch_size() % num_instances;
+        if(entry->msg->rtype == HOTSTUFF_PREP_MSG || entry->msg->rtype == HOTSTUFF_GENERIC_MSG){
+            HOTSTUFFPrepareMsg *pmsg = (HOTSTUFFPrepareMsg*)(entry->msg);
+            msg_view = pmsg->view;
+        }else if(entry->msg->rtype == HOTSTUFF_PREP_VOTE_MSG){
+            HOTSTUFFPrepareVoteMsg *pmsg = (HOTSTUFFPrepareVoteMsg*)(entry->msg);
+            msg_view = pmsg->view;
+        }else if(entry->msg->rtype == HOTSTUFF_PRECOMMIT_VOTE_MSG){
+            HOTSTUFFPreCommitVoteMsg *pmsg = (HOTSTUFFPreCommitVoteMsg*)(entry->msg);
+            msg_view = pmsg->view;
+        }else if(entry->msg->rtype == HOTSTUFF_COMMIT_VOTE_MSG){
+            HOTSTUFFCommitVoteMsg *pmsg = (HOTSTUFFCommitVoteMsg*)(entry->msg);
+            msg_view = pmsg->view;
+        }else if(entry->msg->rtype == HOTSTUFF_NEW_VIEW_MSG){
+            HOTSTUFFNewViewMsg *pmsg = (HOTSTUFFNewViewMsg*)(entry->msg);
+            msg_view = pmsg->view;
+        }else if(entry->msg->rtype == HOTSTUFF_PRECOMMIT_MSG){
+            HOTSTUFFPreCommitMsg *pmsg = (HOTSTUFFPreCommitMsg*)(entry->msg);
+            msg_view = pmsg->view;
+        }else if(entry->msg->rtype == HOTSTUFF_COMMIT_MSG){
+            HOTSTUFFCommitMsg *pmsg = (HOTSTUFFCommitMsg*)(entry->msg);
+            msg_view = pmsg->view;
+        }else if(entry->msg->rtype == HOTSTUFF_DECIDE_MSG){
+            HOTSTUFFDecideMsg *pmsg = (HOTSTUFFDecideMsg*)(entry->msg);
+            msg_view = pmsg->view;
+        }
+        // if a msg arrives before the decide msg of the last round, it should go back to the end of the queue
+        if(get_current_view(instance_id) < msg_view)
+        {
+            valid = false;
+            while(!work_queue[thd_id]->push(entry) && !simulation->is_done()) {}
+        }
       }
-    }
-    tb_lock[thd_id].unlock();
-    if(!valid){
-      valid = work_queue[thd_id]->pop(entry);
-    }
+#endif
   }
 
   UInt32 tcount = g_thread_cnt - g_execute_thd - g_checkpointing_thd; // 19 - 1 - 1 = 17
@@ -227,112 +209,13 @@ Message * QWorkQueue::dequeue(uint64_t thd_id) {
       // Thread for handling execute messages.
       uint64_t bid = ((get_expectedExecuteCount()+2) - get_batch_size()) /get_batch_size();
       uint64_t qid = (bid % indexSize) + num_multi_threads;
-      // cout << "[Z]";
-      // fflush(stdout);
       valid = work_queue[qid]->pop(entry);
-      // if(valid){
-      //   printf("DE%lu\n", entry->msg->txn_id);
-      //   fflush(stdout);
-      // }else{
-      //   cout << "Here" << endl;
-      // }
   } 
   else if(thd_id >= tcount + g_execute_thd) {
     // Thread for handling checkpoint messages.
     valid = work_queue[indexSize + num_multi_threads]->pop(entry);
-    if(valid){
-        g_checkpointing_lock.lock();
-        txn_chkpt_holding[thd_id % 2] = entry->msg->txn_id;
-        is_chkpt_holding[thd_id % 2] = true;
-        g_checkpointing_lock.unlock();
-    }
   }
-  
-#if SEPARATE
-#if PROPOSAL_THREAD
-   if(!valid) {
-    if(thd_id > num_multi_threads && thd_id < tcount) {
-      while(true){
-          if(simulation->is_done()){
-            return msg;
-          }
-          if(get_incomplete_proposal_cnt(expectedInstance) != 0 && g_node_id == get_view_primary(get_current_view(expectedInstance), expectedInstance)){
-            valid = true;
-            uint64_t txn_id = (get_last_sent_view(expectedInstance) * num_instances + expectedInstance) * get_batch_size() + get_batch_size() - 1;
-            entry = new work_queue_entry;
-            entry->msg = Message::create_message(PVP_GENERIC_MSG);
-            entry->msg->rtype = PVP_GENERIC_MSG_P;
-            entry->msg->txn_id = txn_id;
-            // printf("[PG]%lu\n", txn_id);
-            dec_incomplete_proposal_cnt(expectedInstance);
-            expectedInstance = (expectedInstance + num_instances - 1) % num_instances;
-            break;
-          }
-          expectedInstance = (expectedInstance + num_instances - 1) % num_instances;
-      } 
-    }
-    else if(thd_id == num_multi_threads) {
-#if !EXCLUSIVE_BATCH
-      while(true){
-          if(simulation->is_done()){
-            return msg;
-          }
-          uint64_t view = get_next_send_view(proposalInstance);
-          if(view <= get_current_view(proposalInstance) + ROUNDS_IN_ADVANCE){
-            valid = new_txn_queue[proposalInstance % g_client_node_cnt]->pop(entry);
-            if(valid){
-              entry->msg->txn_id = view * num_instances + proposalInstance;
-              // printf("DB%lu,%lu\n", proposalInstance, entry->msg->txn_id);
-              set_last_sent_view(proposalInstance, view);
-              inc_next_send_view(proposalInstance);
-              proposalInstance = (proposalInstance + num_instances - 1) % num_instances;
-              break;
-            }
-          }
-          proposalInstance = (proposalInstance + num_instances - 1) % num_instances;
-      }
-#else
-      while(true){
-          if(simulation->is_done()){
-            return msg;
-          }
-          uint64_t view = get_next_send_view(proposalInstance);
-          if(view <= get_current_view(proposalInstance) + ROUNDS_IN_ADVANCE){
-            uint64_t i = proposalInstance;
-            while(true){
-              clb_lock[i].lock();
-              // if((clb_cnt[i] > 0 && i == proposalInstance) || clb_cnt[i] > 1 ){
-              if(clb_cnt[i] > 0 && (i == proposalInstance || get_current_view(i) >= get_current_view(proposalInstance))){
-                valid = new_txn_queue[i]->pop(entry);
-                if(valid){
-                  clb_cnt[i]--;
-                  // printf("CLB[%lu] = %lu\n", idx, clb_cnt[idx]);
-                  clb_lock[i].unlock();
-                  // printf("DQ%lu %lu\n", i, proposalInstance);
-                  break;
-                }
-              }
-              clb_lock[i].unlock();
-              i = (i+1) % num_instances;
-              if(i == proposalInstance){
-                break;
-              }
-            }
-            if(valid){
-              entry->msg->txn_id = view * num_instances + proposalInstance;
-              // printf("DB%lu,%lu\n", proposalInstance, entry->msg->txn_id);
-              set_last_sent_view(proposalInstance, view);
-              inc_next_send_view(proposalInstance);
-              proposalInstance = (proposalInstance + num_instances - 1) % num_instances;
-              break;
-            }
-          }
-          proposalInstance = (proposalInstance + num_instances - 1) % num_instances;
-      }
-#endif
-    }
-  }
-#else
+
   if(!valid) {
     // Allowing new transactions to be accessed by batching threads.
     if(thd_id >= num_multi_threads && thd_id < tcount) {
@@ -340,51 +223,21 @@ Message * QWorkQueue::dequeue(uint64_t thd_id) {
         return msg;
       }
       while(true){
-        uint k = 0;
-        while(k<num_instances){
-          k++;
-          // Generic
-          if(get_incomplete_proposal_cnt(expectedInstance) != 0 && g_node_id == get_view_primary(get_current_view(expectedInstance), expectedInstance)){
-            valid = true;
-            uint64_t txn_id = (get_last_sent_view(expectedInstance) * num_instances + expectedInstance) * get_batch_size() + get_batch_size() - 1;
-            entry = new work_queue_entry;
-            entry->msg = Message::create_message(PVP_GENERIC_MSG);
-            entry->msg->rtype = PVP_GENERIC_MSG_P;
-            entry->msg->txn_id = txn_id;
-            dec_incomplete_proposal_cnt(expectedInstance);
-            expectedInstance = (expectedInstance + num_instances - 1) % num_instances;
-            break;
-          }
-          expectedInstance = (expectedInstance + num_instances - 1) % num_instances;
+        if(!get_sent(expectedInstance) && g_node_id == get_view_primary(get_current_view(expectedInstance), expectedInstance)){
+          valid = new_txn_queue[expectedInstance % g_client_node_cnt]->pop(entry);
         }
-        if(valid)
-          break;
-        // Proposal
-        k = 0;
-        while(k<num_instances){
-          k++;
-          uint64_t view = get_next_send_view(expectedInstance);
-          if(view <= get_current_view(expectedInstance) + ROUNDS_IN_ADVANCE){
-            valid = new_txn_queue[expectedInstance % g_client_node_cnt]->pop(entry);
-            if(valid){
-              entry->msg->txn_id = view * num_instances + expectedInstance;
-              set_last_sent_view(expectedInstance, view);
-              inc_next_send_view(expectedInstance);
-              inc_incomplete_proposal_cnt(expectedInstance);
-              expectedInstance = (expectedInstance + num_instances - 1) % num_instances;
-              break;
-            }
-          }
-          expectedInstance = (expectedInstance + num_instances - 1) % num_instances;
+        if(valid){
+          set_sent(true, expectedInstance);
+          entry->msg->txn_id = get_next_idx_hotstuff(expectedInstance);
         }
-        if(valid)
+        expectedInstance = (expectedInstance + num_instances - 1) % num_instances;
+        if(valid){
           break;
-      } 
-    }
+        }
+      }
+    } 
   }
-#endif
-#endif
-
+  
   if(valid) 
   {
     msg = entry->msg;
@@ -402,75 +255,69 @@ Message * QWorkQueue::dequeue(uint64_t thd_id) {
 }
 
 #if TEMP_QUEUE
-bool QWorkQueue::check_view(Message * msg){
+ bool QWorkQueue::check_view(Message * msg){
     uint64_t msg_view = 0;
-    uint64_t instance_id = msg->instance_id;
-    if(msg->rtype == PVP_SYNC_MSG || msg->rtype == PVP_PROPOSAL_MSG){
-      return false;
-    }
-    if(msg->rtype == PVP_GENERIC_MSG){
-        PVPGenericMsg *pmsg = (PVPGenericMsg*)(msg);
+    uint64_t instance_id = msg->txn_id / get_batch_size() % get_totInstances();
+    if(msg->rtype == HOTSTUFF_PREP_MSG || msg->rtype == HOTSTUFF_GENERIC_MSG){
+        HOTSTUFFPrepareMsg *pmsg = (HOTSTUFFPrepareMsg*)(msg);
         msg_view = pmsg->view;
-#if EQUIV_TEST
-        // if(get_current_view(instance_id) < msg_view && !pmsg->checkQC())
-        if(get_current_view(instance_id) < msg_view)
-#else
-        if(get_current_view(instance_id) < msg_view)
-#endif
-        {
-          work_queue_entry * entry = (work_queue_entry*)mem_allocator.align_alloc(sizeof(work_queue_entry));
-          entry->msg = msg;
-          entry->rtype = msg->rtype;
-          entry->txn_id = msg->txn_id;
-          entry->batch_id = msg->batch_id;
-          entry->starttime = get_sys_clock();
-          while(!temp_queue[instance_id]->push(entry) && !simulation->is_done()) {}
-          return true;
-        }
-    }
-#if ENABLE_ASK
-    else if(msg->rtype == PVP_ASK_RESPONSE_MSG){
-        // printf("KK %lu,%lu\n", msg->txn_id, instance_id);
-        PVPAskResponseMsg *pmsg = (PVPAskResponseMsg*)(msg);
+    }else if(msg->rtype == HOTSTUFF_PREP_VOTE_MSG){
+        HOTSTUFFPrepareVoteMsg *pmsg = (HOTSTUFFPrepareVoteMsg*)(msg);
         msg_view = pmsg->view;
-        // printf("{%lu,%lu,%lu}\n", instance_id, get_current_view(instance_id), msg_view);
-        if(get_current_view(instance_id) < msg_view)
-        {
-          work_queue_entry * entry = (work_queue_entry*)mem_allocator.align_alloc(sizeof(work_queue_entry));
-          entry->msg = msg;
-          entry->rtype = msg->rtype;
-          entry->txn_id = msg->txn_id;
-          entry->batch_id = msg->batch_id;
-          entry->starttime = get_sys_clock();
-          while(!temp_queue[instance_id]->push(entry) && !simulation->is_done()) {}
-          return true;
-        }
+    }else if(msg->rtype == HOTSTUFF_PRECOMMIT_VOTE_MSG){
+        HOTSTUFFPreCommitVoteMsg *pmsg = (HOTSTUFFPreCommitVoteMsg*)(msg);
+        msg_view = pmsg->view;
+    }else if(msg->rtype == HOTSTUFF_COMMIT_VOTE_MSG){
+        HOTSTUFFCommitVoteMsg *pmsg = (HOTSTUFFCommitVoteMsg*)(msg);
+        msg_view = pmsg->view;
+    }else if(msg->rtype == HOTSTUFF_NEW_VIEW_MSG){
+        HOTSTUFFNewViewMsg *pmsg = (HOTSTUFFNewViewMsg*)(msg);
+        msg_view = pmsg->view;
+    }else if(msg->rtype == HOTSTUFF_PRECOMMIT_MSG){
+        HOTSTUFFPreCommitMsg *pmsg = (HOTSTUFFPreCommitMsg*)(msg);
+        msg_view = pmsg->view;
+    }else if(msg->rtype == HOTSTUFF_COMMIT_MSG){
+        HOTSTUFFCommitMsg *pmsg = (HOTSTUFFCommitMsg*)(msg);
+        msg_view = pmsg->view;
+    }else if(msg->rtype == HOTSTUFF_DECIDE_MSG){
+        HOTSTUFFDecideMsg *pmsg = (HOTSTUFFDecideMsg*)(msg);
+        msg_view = pmsg->view;
     }
-#endif
     // if a msg arrives before the decide msg of the last round, it should go back to the end of the queue
-
+    if(get_current_view(instance_id) < msg_view)
+    {
+        work_queue_entry * entry = (work_queue_entry*)mem_allocator.align_alloc(sizeof(work_queue_entry));
+        entry->msg = msg;
+        entry->rtype = msg->rtype;
+        entry->txn_id = msg->txn_id;
+        entry->batch_id = msg->batch_id;
+        entry->starttime = get_sys_clock();
+        while(!temp_queue[instance_id]->push(entry) && !simulation->is_done()) {}
+        return true;
+    }
     return false;
 }
 
-void QWorkQueue::reenqueue(uint64_t instance_id){
-  	bool valid = false;
-	  work_queue_entry * entry = NULL;
-    uint64_t qid = instance_id % get_multi_threads();
-	  while(true){
-      valid = temp_queue[instance_id]->pop(entry);
-		  if(valid){
-          if(entry->msg->rtype == PVP_GENERIC_MSG || entry->msg->rtype == PVP_PROPOSAL_MSG){
-            while(!prior_queue[qid]->push(entry) && !simulation->is_done()){}
-            tb_lock[qid].lock();
-            prior_cnt[qid]++;
-            tb_lock[qid].unlock();
-          }else{
-            while(!work_queue[qid]->push(entry) && !simulation->is_done()){}
-          }
+
+void QWorkQueue::reenqueue(uint64_t instance_id, bool is_newview){
+  bool valid = false;
+  work_queue_entry * entry = NULL;
+  uint64_t qid = instance_id % get_multi_threads();
+  while(true){
+      if(is_newview){
+      valid = new_view_queue[instance_id]->pop(entry);
+      }
+      else{
+        valid = temp_queue[instance_id]->pop(entry);
+      }
+    if(valid){
+          while(!work_queue[qid]->push(entry) && !simulation->is_done()){}
           sem_post(&worker_queue_semaphore[qid]);
-		  }else{
-			  break;
-		  }
-	  }
+    }else{
+      break;
+    }
+  }
 }
 #endif
+
+#endif // PVP

@@ -10,6 +10,7 @@
 #include "msg_queue.h"
 #include "work_queue.h"
 #include "crypto.h"
+#include "timer.h"
 #include "smart_contract_txn.h"
 
 void *f(void *);

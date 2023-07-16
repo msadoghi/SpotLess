@@ -45,7 +45,7 @@ void Thread::tsetup()
     pthread_barrier_wait(&warmup_bar);
 
     setup();
-
+    
     printf("Running %ld:%ld\n", _node_id, _thd_id);
     fflush(stdout);
     pthread_barrier_wait(&warmup_bar);
@@ -63,8 +63,13 @@ void Thread::tsetup()
 
 bool Thread::has_view_changed()
 {
+#if RING_BFT
+    if (get_current_view(get_thd_id()) != 0)
+        return true;
+#else
     if (get_current_view(get_thd_id()))
         return true;
+#endif
     return false;
 }
 
@@ -79,7 +84,7 @@ void Thread::progress_stats()
     if (now_time - prog_time >= g_prog_timer)
     {
         prog_time = now_time;
-        if (get_thd_id() == 0)
+        if (get_thd_id() == get_multi_threads())
         {
             SET_STATS(get_thd_id(), total_runtime, prog_time - simulation->warmup_end_time);
             if (ISCLIENT)

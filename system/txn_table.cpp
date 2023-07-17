@@ -134,8 +134,6 @@ TxnManager *TxnTable::get_transaction_manager(uint64_t thd_id, uint64_t txn_id, 
         txn_man->txn_stats.starttime = get_sys_clock();
         txn_man->txn_stats.restart_starttime = txn_man->txn_stats.starttime;
 
-        txn_man->prepmsg = nullptr;
-
         // Put the txn manager in the list.
         LIST_PUT_TAIL(pool[pool_id]->head, pool[pool_id]->tail, t_node);
 
@@ -185,15 +183,14 @@ void TxnTable::release_transaction_manager(uint64_t thd_id, uint64_t txn_id, uin
     //assert(t_node);
     if (t_node == NULL)
     {
-        // cout << "txn: " << txn_id;
-         // assert(0);
-    }else{
-        assert(t_node->txn_man);
-        // Releasing the txn manager.
-        txn_man_pool.put(txn_id, t_node->txn_man);
-        // Releasing the node associated with the txn_mann
-        txn_table_pool.put(txn_id, t_node);
+        cout << "txn: " << txn_id;
+        assert(0);
     }
+    assert(t_node->txn_man);
+    // Releasing the txn manager.
+    txn_man_pool.put(txn_id, t_node->txn_man);
+    // Releasing the node associated with the txn_mann
+    txn_table_pool.put(txn_id, t_node);
     INC_STATS(thd_id, txn_table_release_time, get_sys_clock() - starttime);
     INC_STATS(thd_id, txn_table_release_cnt, 1);
 }

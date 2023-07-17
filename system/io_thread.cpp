@@ -68,8 +68,10 @@ void InputThread::setup()
 #if FIX_INPUT_THREAD_BUG
         if(ISSERVER)
             msgs = tport_man.recv_msg(get_thd_id() - g_thread_cnt);
-        else
+        else{
             msgs = tport_man.recv_msg(get_thd_id());
+        }
+            
 #else
         msgs = tport_man.recv_msg(get_thd_id());
 #endif
@@ -100,6 +102,7 @@ void InputThread::setup()
                     else if (msg->rtype == READY)
                     {
                         totKey++;
+                        cout << "totKey2:" << totKey << endl;
                         if (totKey == g_node_cnt)
                         {
                             keyMTX.lock();
@@ -209,7 +212,7 @@ RC InputThread::client_recv_loop()
                 totKey++;
                 if (totKey == g_node_cnt)
                 {
-
+                    cout << "totKey1:" << totKey << endl;
                     keyMTX.lock();
                     keyAvail = true;
                     keyMTX.unlock();
@@ -220,7 +223,7 @@ RC InputThread::client_recv_loop()
 
             //cout<<"Node: "<<msg->return_node_id <<" :: Txn: "<< msg->txn_id <<"\n";
             //fflush(stdout);
-            #if !SpotLess
+            #if !MUL
             return_node_offset = get_view_primary(((ClientResponseMessage *)msg)->view);
             #else
             uint64_t instance_id = msg->txn_id / get_batch_size() % get_totInstances();
@@ -274,10 +277,6 @@ RC InputThread::client_recv_loop()
             {
                 // If true, set this as the next transaction completed.
                 set_last_valid_txn(msg->txn_id);
-#if TIMER_ON
-                // End the timer.
-                client_timer->endTimer(clrsp->client_ts[get_batch_size() - 1]);
-#endif
                 // cout << "validated: " << clrsp->txn_id << "   " << clrsp->return_node_id << "\n";
                 // fflush(stdout);
 

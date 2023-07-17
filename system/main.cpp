@@ -31,7 +31,7 @@ void clean();
 
 int main(int argc, char *argv[])
 {
-#if SpotLess
+#if MUL
     assert(CONSENSUS == HOTSTUFF);
 #endif
     // 0. initialize global data structure
@@ -146,30 +146,7 @@ int main(int argc, char *argv[])
     BlockChain = new BChain();
     printf("Done\n");
 
-#if TIMER_ON
-    printf("Initializing timers... ");
-#if !SpotLess
-    server_timer = new ServerTimer();
-#else
-    for(uint i=0; i < get_totInstances(); i++){
-        server_timer[i] = new ServerTimer();
-        #if SpotLess_RECOVERY
-        server_timer[i]->last_new_view_time = get_sys_clock();
-        #endif
-    }
-#endif
-#endif
-
-// #if LOCAL_FAULT || VIEW_CHANGES || SpotLess_RECOVERY
-//     // Adding a stop_nodes entry for each output thread.
-//     for (uint i = 0; i < g_send_thread_cnt; i++)
-//     {
-//         vector<uint64_t> temp;
-//         stop_nodes.push_back(temp);
-//     }
-// #endif
-
-#if MULTI_ON || SpotLess
+#if MULTI_ON || MUL
   set_next_idx(g_node_id);  
 #endif
 
@@ -336,12 +313,6 @@ int main(int argc, char *argv[])
     pthread_setname_np(p_thds[id - 1], "s_logger");
 #endif
 
-#if AUTO_POST
-    pthread_t sema_thread;
-    pthread_create(&sema_thread, NULL, auto_post, NULL);
-    pthread_join(sema_thread, NULL);
-#endif
-
     for (uint64_t i = 0; i < all_thd_cnt; i++)
         pthread_join(p_thds[i], NULL);
 
@@ -393,9 +364,6 @@ void clean(){
      delete output_thds;
      delete simulation;
      delete BlockChain;
- #if TIMER_ON
-    //  delete server_timer;
- #endif
  #if EXT_DB == SQL || EXT_DB == SQL_PERSISTENT
      db->Close("");
  #elif EXT_DB == MEMORY

@@ -158,7 +158,7 @@ void parser(int argc, char *argv[])
     g_total_node_cnt = g_node_cnt + g_client_node_cnt + g_repl_cnt * g_node_cnt;
 
 #if CONSENSUS == HOTSTUFF
-#if !SpotLess
+#if !MUL
     sent = g_node_id==0 ? false: true;
     g_preparedQC = QuorumCertificate(g_node_cnt);
     g_preparedQC.type = PREPARE;
@@ -166,10 +166,6 @@ void parser(int argc, char *argv[])
     g_lockedQC = QuorumCertificate(g_node_cnt);
     g_lockedQC.type = PRECOMMIT;
     hash_to_QC[g_lockedQC.batch_hash] = g_lockedQC;
-
-    #if TIMER_MANAGER
-    timer_manager = TimerManager();
-    #endif
 
     #if SEMA_TEST
         if(g_node_id==0)
@@ -199,6 +195,7 @@ void parser(int argc, char *argv[])
 #endif
     
 #if SEMA_TEST
+    sem_init(&narwhal_signal, 0, 0);
     for(uint i = 0; i < THREAD_CNT; i++){
         sem_init(&worker_queue_semaphore[i], 0, 0);
     }
@@ -215,8 +212,14 @@ void parser(int argc, char *argv[])
         unsigned char c = rand() % 255;
         private_key[i] = c;
     }
-    assert(secp256k1_ec_seckey_verify(ctx, private_key));
-    assert(secp256k1_ec_pubkey_create(ctx, &public_key, private_key));
+    try{
+        assert(secp256k1_ec_seckey_verify(ctx, private_key));
+        assert(secp256k1_ec_pubkey_create(ctx, &public_key, private_key));
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
+
     public_keys[g_node_id] = public_key;
 #endif
 

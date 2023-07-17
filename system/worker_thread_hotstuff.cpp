@@ -33,7 +33,7 @@ void WorkerThread::create_and_send_hotstuff_prepare(ClientQueryBatch *msg, uint6
     HOTSTUFFGenericMsg *prep = (HOTSTUFFGenericMsg *)bmsg;
 #endif
 
-#if !SpotLess
+#if !MUL
     prep->init(0);
 #else
     uint64_t instance_id = msg->txn_id % get_totInstances();
@@ -86,7 +86,7 @@ void WorkerThread::create_and_send_hotstuff_prepare(ClientQueryBatch *msg, uint6
     assert(!txn_man->get_hash().empty());
 
 #if CHAINED
-    #if !SpotLess
+    #if !MUL
         hash_QC_lock.lock();
         hash_to_txnid[txn_man->get_hash()] = txn_man->get_txn_id();
         hash_to_view[txn_man->get_hash()] = get_current_view(0);
@@ -103,7 +103,7 @@ void WorkerThread::create_and_send_hotstuff_prepare(ClientQueryBatch *msg, uint6
 
     prep->copy_from_txn(txn_man);
 
-    #if !SpotLess
+    #if !MUL
     prep->highQC = get_g_preparedQC();
     #else
     prep->highQC = get_g_preparedQC(instance_id);
@@ -111,7 +111,7 @@ void WorkerThread::create_and_send_hotstuff_prepare(ClientQueryBatch *msg, uint6
 
     #if SHIFT_QC && !CHAINED
     if(prep->highQC.genesis == false){
-        #if !SpotLess
+        #if !MUL
         prep->genericQC = get_g_genericQC();
         #else
         prep->genericQC = get_g_genericQC(instance_id);
@@ -131,13 +131,7 @@ void WorkerThread::create_and_send_hotstuff_prepare(ClientQueryBatch *msg, uint6
     txn_man->vote_prepare.push_back(g_node_id);
 #endif
 
-#if TIMER_ON && CHAINED
-    #if !SpotLess
-        add_timer(prep, txn_man->get_hash());
-    #else
-        add_timer(prep, txn_man->get_hash(), instance_id);
-    #endif
-#endif
+    create_and_send_narwhal_payload(prep);
 
     // Send the HOTSTUFFPrepareMsg message to all the other replicas.
     vector<uint64_t> dest = nodes_to_send(0, g_node_cnt);
@@ -147,9 +141,6 @@ void WorkerThread::create_and_send_hotstuff_prepare(ClientQueryBatch *msg, uint6
 #if CHAINED
         txn_man->send_hotstuff_newview();
         advance_view();
-        #if TIMER_MANAGER
-        timer_manager.setTimer();
-        #endif
 #endif
 
 } 
@@ -176,7 +167,7 @@ RC WorkerThread::process_client_batch_hotstuff(Message *msg)
 
     // Authenticate the client signature.
     validate_msg(clbtch);
-    #if !SpotLess
+    #if !MUL
     if (g_node_id != get_view_primary(get_current_view(0)))
     #else
     uint64_t instance_id = clbtch->txn_id % get_totInstances();
@@ -184,7 +175,7 @@ RC WorkerThread::process_client_batch_hotstuff(Message *msg)
     #endif 
     {
         //client_query_check(clbtch);
-        #if !SpotLess
+        #if !MUL
         cout << "returning...   " << get_view_primary(get_current_view(0)) << endl;
         #else
         cout << "returning...   " << get_view_primary(get_current_view(instance_id), instance_id) << endl;
@@ -219,7 +210,7 @@ RC WorkerThread::process_hotstuff_prepare(Message *msg)
     fflush(stdout);
 #endif
     
-#if !SpotLess
+#if !MUL
     if(get_view_primary(get_current_view(get_thd_id())) != prep->return_node_id){
         printf("Incorrect Leader %lu in this view %lu\n", prep->return_node_id, get_current_view(get_thd_id()));
 #else
@@ -235,7 +226,7 @@ RC WorkerThread::process_hotstuff_prepare(Message *msg)
     validate_msg(prep);
     #endif
 
-#if !SpotLess
+#if !MUL
     if(!SafeNode(prep->highQC)){
         cout << "UnSafe Node" << endl;
 #else
@@ -247,17 +238,6 @@ RC WorkerThread::process_hotstuff_prepare(Message *msg)
 
     // Allocate transaction managers for all the transactions in the batch.
     set_txn_man_fields(prep, 0);
-    // assert(txn_man->preparedQC.common_signature == NULL);
-#if TIMER_ON
-    // The timer for this client batch stores the hash of last request.
-    #if !SpotLess
-    server_timer->waiting_prepare = false;
-    add_timer(prep, txn_man->get_hash());
-    #else
-    server_timer[instance_id]->waiting_prepare = false;
-    add_timer(prep, txn_man->get_hash(), instance_id);
-    #endif
-#endif
     // Storing the HOTSTUFFPrepareMsg message.
     txn_man->set_primarybatch(prep);
     // Send HOTSTUFFPrepareVote messages.
@@ -283,7 +263,7 @@ RC WorkerThread::process_hotstuff_prepare(Message *msg)
     {
         uint64_t txnid = prep->txn_id + 2;
         // update the preparedQC in the chain
-        #if !SpotLess
+        #if !MUL
         set_g_preparedQC(txn_man->preparedQC);
         hash_QC_lock.lock();
         hash_to_txnid.insert(make_pair<string&,uint64_t&>(txn_man->preparedQC.batch_hash, txnid));
@@ -318,7 +298,7 @@ RC WorkerThread::process_hotstuff_prepare(Message *msg)
         if (txn_man->is_precommitted())
         {
             // update the lockedQC in the chain
-            #if !SpotLess
+            #if !MUL
                 set_g_lockedQC(txn_man->precommittedQC);
             #else
                 set_g_lockedQC(txn_man->precommittedQC, instance_id);
@@ -341,14 +321,6 @@ RC WorkerThread::process_hotstuff_prepare(Message *msg)
 
             // If a Decide message has already arrived.
             if(txn_man->is_committed()){
-                #if TIMER_ON
-                    // End the timer for this client batch.
-                    #if !SpotLess
-                    remove_timer(txn_man->hash);
-                    #else
-                    remove_timer(txn_man->hash, instance_id);
-                    #endif
-                #endif
 
             if(!txn_man->send_hotstuff_newview()){
                 if(txn_man->is_new_viewed()){
@@ -358,7 +330,7 @@ RC WorkerThread::process_hotstuff_prepare(Message *msg)
                 advance_view();
             }
 
-#if !SpotLess
+#if !MUL
             send_execute_msg_hotstuff();
 #else
             send_execute_msg_hotstuff(instance_id);
@@ -425,7 +397,7 @@ RC WorkerThread::process_hotstuff_precommit(Message *msg)
     // Check if the incoming message is valid.
     HOTSTUFFPreCommitMsg *pcmsg = (HOTSTUFFPreCommitMsg *)msg;
 
-#if !SpotLess
+#if !MUL
     if(get_view_primary(get_current_view(get_thd_id())) != pcmsg->return_node_id){
         printf("Incorrect Leader %lu in view %lu\n", pcmsg->return_node_id, get_current_view(get_thd_id()));
 #else
@@ -455,7 +427,7 @@ RC WorkerThread::process_hotstuff_precommit(Message *msg)
 
     if(txn_man->is_prepared()){
         // Store the preparedQC
-        #if !SpotLess
+        #if !MUL
         set_g_preparedQC(txn_man->preparedQC);
         hash_QC_lock.lock();
         hash_to_txnid.insert(make_pair<string&,uint64_t&>(txn_man->preparedQC.batch_hash, pcmsg->txn_id));
@@ -489,7 +461,7 @@ RC WorkerThread::process_hotstuff_precommit(Message *msg)
         if (txn_man->is_precommitted())
         {
             // update the lockedQC in the chain
-            #if !SpotLess
+            #if !MUL
             set_g_lockedQC(txn_man->precommittedQC);
             #else
             set_g_lockedQC(txn_man->precommittedQC, instance_id);
@@ -516,14 +488,6 @@ RC WorkerThread::process_hotstuff_precommit(Message *msg)
 
             // If a Decide message has already arrived.
             if(txn_man->is_committed()){
-                #if TIMER_ON
-                    // End the timer for this client batch.
-                    #if !SpotLess
-                    remove_timer(txn_man->hash);
-                    #else
-                    remove_timer(txn_man->hash, instance_id);
-                    #endif
-                #endif
 
                 if(!txn_man->send_hotstuff_newview()){
                     if(txn_man->is_new_viewed()){
@@ -533,7 +497,7 @@ RC WorkerThread::process_hotstuff_precommit(Message *msg)
                     advance_view();
                 }
 
-#if !SpotLess
+#if !MUL
             send_execute_msg_hotstuff();
 #else
             send_execute_msg_hotstuff(instance_id);
@@ -568,9 +532,6 @@ RC WorkerThread::process_hotstuff_precommit_vote(Message *msg)
 
     // If the 2f+1 vote msgs have arrived
     if(hotstuff_precommitted(pcvmsg)){
-#if SpotLess_RECOVERY
-        fail_primary(5*BILLION, 0);
-#endif
         txn_man->send_hotstuff_commit_msgs();
     }
     return RCOK;
@@ -595,7 +556,7 @@ RC WorkerThread::process_hotstuff_commit(Message *msg)
     // Check if the incoming message is valid.
     HOTSTUFFCommitMsg *cmsg = (HOTSTUFFCommitMsg *)msg;
 
-#if !SpotLess
+#if !MUL
     if(get_view_primary(get_current_view(get_thd_id())) != cmsg->return_node_id){
         printf("Incorrect Leader %lu in this view %lu\n", cmsg->return_node_id, get_current_view(get_thd_id()));
 #else
@@ -627,7 +588,7 @@ RC WorkerThread::process_hotstuff_commit(Message *msg)
 
     if(txn_man->is_precommitted()){
         // update the lockedQC in the chain
-        #if !SpotLess
+        #if !MUL
         set_g_lockedQC(txn_man->precommittedQC);
         #else
         set_g_lockedQC(txn_man->precommittedQC, instance_id);
@@ -653,14 +614,6 @@ RC WorkerThread::process_hotstuff_commit(Message *msg)
 
         // If a Decide msg has arrived
         if(txn_man->is_committed()){
-                #if TIMER_ON
-                    // End the timer for this client batch.
-                    #if !SpotLess
-                    remove_timer(txn_man->hash);
-                    #else
-                    remove_timer(txn_man->hash, instance_id);
-                    #endif
-                #endif
 
                 if(!txn_man->send_hotstuff_newview()){
                     if(txn_man->is_new_viewed()){
@@ -669,7 +622,7 @@ RC WorkerThread::process_hotstuff_commit(Message *msg)
                 }else{
                     advance_view();
                 }
-#if !SpotLess
+#if !MUL
             send_execute_msg_hotstuff();
 #else
             send_execute_msg_hotstuff(instance_id);
@@ -705,13 +658,13 @@ RC WorkerThread::process_hotstuff_commit_vote(Message *msg)
     if(hotstuff_committed(cvmsg)){
         // fail_primary(5*BILLION);
         txn_man->send_hotstuff_decide_msgs();
-#if SpotLess
+#if MUL
         uint64_t instance_id = msg->txn_id / get_batch_size() % get_totInstances();
 #endif
         
         txn_man->send_hotstuff_newview();
         advance_view();
-#if !SpotLess
+#if !MUL
             send_execute_msg_hotstuff();
 #else
             send_execute_msg_hotstuff(instance_id);
@@ -739,7 +692,7 @@ RC WorkerThread::process_hotstuff_decide(Message *msg)
     // Check if the incoming message is valid.
     HOTSTUFFDecideMsg *dmsg = (HOTSTUFFDecideMsg *)msg;
 
-#if !SpotLess
+#if !MUL
     if(get_view_primary(get_current_view(get_thd_id())) != dmsg->return_node_id){
         printf("Incorrect Leader %lu in this view %lu\n", dmsg->return_node_id, get_current_view(get_thd_id()));
 #else
@@ -768,15 +721,6 @@ RC WorkerThread::process_hotstuff_decide(Message *msg)
         }
     }
     if(txn_man->is_committed()){
-            #if TIMER_ON
-                // End the timer for this client batch.
-                #if !SpotLess
-                remove_timer(txn_man->hash);
-                #else
-                remove_timer(txn_man->hash, instance_id);
-                #endif
-            #endif
-
             if(!txn_man->send_hotstuff_newview()){
                 if(txn_man->is_new_viewed()){
                     advance_view();
@@ -785,7 +729,7 @@ RC WorkerThread::process_hotstuff_decide(Message *msg)
                 advance_view();
             }
 
-#if !SpotLess
+#if !MUL
             send_execute_msg_hotstuff();
 #else
             send_execute_msg_hotstuff(instance_id);
@@ -799,34 +743,16 @@ RC WorkerThread::process_hotstuff_execute(Message *msg){
     cout << "EXECUTE " << msg->txn_id << " THREAD: " << get_thd_id() << "\n";
     fflush(stdout);
     #endif
-
-    ExecuteMessage *emsg = (ExecuteMessage *)msg;
-    bool valid = emsg->valid;
-    if(!emsg->valid){
-        cout << "INVALID" << endl;
-        inc_next_index(get_batch_size());
-        send_checkpoints(msg->txn_id+1);
-        // Setting the next expected prepare message id.
-        set_expectedExecuteCount(get_batch_size() + msg->txn_id);
-        // cout << "MM" << endl;
-#if NEW_DIVIDER && CRASH_DIVIDER == 3
-        uint64_t gid = get_view_primary(emsg->view);
-        if(gid % DIV1< LIMIT1 && gid % DIV2 != LIMIT2 && gid<124){
-#else
-        if(get_view_primary(emsg->view) % CRASH_DIVIDER == CRASH_ID){
-#endif
-            printf("MM%lu", emsg->view);
-            return RCOK;
-        }
-    }
-    
     uint64_t ctime = get_sys_clock();
 
     Message *rsp = Message::create_message(CL_RSP);
     ClientResponseMessage *crsp = (ClientResponseMessage *)rsp;
     crsp->init();
-    double tstart = simulation->seconds_from_start(get_sys_clock());
 
+    ExecuteMessage *emsg = (ExecuteMessage *)msg;
+// #if NARWHAL
+    double tstart = simulation->seconds_from_start(get_sys_clock());
+// #endif
     // Execute transactions in a shot
     uint64_t i;
     for (i = emsg->index; i < emsg->end_index - 4; i++)
@@ -836,7 +762,7 @@ RC WorkerThread::process_hotstuff_execute(Message *msg){
 
         TxnManager *tman = get_transaction_manager(i, 0);
 
-        // inc_next_index();
+        inc_next_index();
 #if ENABLE_EXECUTE
         // Execute the transaction
         tman->run_txn();
@@ -844,7 +770,7 @@ RC WorkerThread::process_hotstuff_execute(Message *msg){
         // Commit the results.
         tman->commit();
 #endif
-        // INC_STATS(get_thd_id(), txn_cnt, 1);
+        INC_STATS(get_thd_id(), txn_cnt, 1);
 
         crsp->copy_from_txn(tman);
     }
@@ -856,7 +782,7 @@ RC WorkerThread::process_hotstuff_execute(Message *msg){
         TxnManager *tman = get_transaction_manager(i, 0);
         unset_ready_txn(tman);
 
-        // inc_next_index();
+        inc_next_index();
 #if ENABLE_EXECUTE
         // Execute the transaction
         tman->run_txn();
@@ -866,7 +792,7 @@ RC WorkerThread::process_hotstuff_execute(Message *msg){
 #endif
         crsp->copy_from_txn(tman);
 
-        // INC_STATS(get_thd_id(), txn_cnt, 1);
+        INC_STATS(get_thd_id(), txn_cnt, 1);
 
         // Making this txn man available.
         bool ready = tman->set_ready();
@@ -877,7 +803,7 @@ RC WorkerThread::process_hotstuff_execute(Message *msg){
     txn_man = get_transaction_manager(i, 0);
     unset_ready_txn(txn_man);
 
-    // inc_next_index();
+    inc_next_index();
 #if ENABLE_EXECUTE
     // Execute the transaction
     txn_man->run_txn();
@@ -891,20 +817,17 @@ RC WorkerThread::process_hotstuff_execute(Message *msg){
     txn_man->commit();
 #endif
     crsp->copy_from_txn(txn_man);
+// #if NARWHAL
     double tend = simulation->seconds_from_start(get_sys_clock());
 
-    usleep(200*(uint)(1000000*(tend-tstart))); 
+    usleep((g_node_cnt)*(uint)(1000000*(tend-tstart)));
+// #endif
     vector<uint64_t> dest;
     dest.push_back(txn_man->client_id);
     msg_queue.enqueue(get_thd_id(), crsp, dest);
     dest.clear();
 
-    // INC_STATS(get_thd_id(), txn_cnt, 1);
-    if(valid){
-        inc_next_index(get_batch_size());
-        INC_STATS(get_thd_id(), txn_cnt, get_batch_size());
-    }
-    
+    INC_STATS(get_thd_id(), txn_cnt, 1);
     INC_STATS(_thd_id, tput_msg, 1);
     INC_STATS(_thd_id, msg_cl_out, 1);
 
@@ -912,9 +835,7 @@ RC WorkerThread::process_hotstuff_execute(Message *msg){
     send_checkpoints(txn_man->get_txn_id());
 
     // Setting the next expected prepare message id.
-    if(valid){
-        set_expectedExecuteCount(get_batch_size() + msg->txn_id);
-    }
+    set_expectedExecuteCount(get_batch_size() + msg->txn_id);
     // End the execute counter.
     INC_STATS(get_thd_id(), time_execute, get_sys_clock() - ctime);
 
@@ -934,13 +855,6 @@ RC WorkerThread::process_hotstuff_new_view(Message *msg){
 
     // If the 2f+1 vote msgs have arrived
     if(hotstuff_new_viewed(nvmsg)){
-#if SpotLess_RECOVERY && CHAINED
-        #if !SpotLess
-        fail_primary(10*BILLION, 0);
-        #else
-        fail_primary(10*BILLION, instance_id);
-        #endif
-#endif
 #if CHAINED
         if(!txn_man->get_hash().empty())
 #else
@@ -954,25 +868,19 @@ RC WorkerThread::process_hotstuff_new_view(Message *msg){
 }
 
 void WorkerThread::advance_view(bool update){
-#if !SpotLess
     uint64_t view = get_current_view(0) + 1;
+    cout << "SET_VIEW[" << view << "]" << endl;
     for(uint64_t i=0; i<g_total_thread_cnt; i++){
         set_view(i, view);
     }
     if(g_node_id == get_view_primary(view))
-#else
-    uint64_t instance_id = txn_man->get_txn_id() / get_batch_size() % get_totInstances();
-    uint64_t view = get_current_view(instance_id) + 1;
-    set_view(instance_id, view);
-    if(g_node_id == get_view_primary(view, instance_id))
-#endif
     {
 #if CHAINED
         if(update){
             string hash = txn_man->get_hash();
             txn_man->genericQC.batch_hash = hash;
             txn_man->genericQC.type = PREPARE;
-        #if !SpotLess
+        #if !MUL
             txn_man->genericQC.viewNumber =  get_g_preparedQC().genesis? 0:view - 1;
             txn_man->genericQC.parent_hash = get_g_preparedQC().batch_hash;
             hash_QC_lock.lock();
@@ -992,17 +900,11 @@ void WorkerThread::advance_view(bool update){
 
 #endif
 
-        #if !SpotLess
         set_curr_new_viewed(txn_man->get_txn_id());
         set_sent(false);
-        #else
-        
-        set_curr_new_viewed(txn_man->get_txn_id(), instance_id);
-        set_sent(false, instance_id);
-        #endif
-        
+
         #if SEMA_TEST
-        // Having received enough new_view msgs, the replica becomes the primary in HOTSTUFF (one primary in SpotLess)
+        // Having received enough new_view msgs, the replica becomes the primary in HOTSTUFF (one primary in MUL)
         sem_post(&new_txn_semaphore);
         #endif
 
@@ -1027,7 +929,7 @@ RC WorkerThread::process_hotstuff_generic(Message *msg)
     fflush(stdout);
 #endif
 
-#if !SpotLess
+#if !MUL
     if(get_view_primary(get_current_view(get_thd_id())) != gene->return_node_id){
         printf("Incorrect Leader %lu in this view %lu\n", gene->return_node_id, get_current_view(get_thd_id()));
 #else
@@ -1041,7 +943,7 @@ RC WorkerThread::process_hotstuff_generic(Message *msg)
     // Check if the message is valid.
     validate_msg(gene);
 
-#if !SpotLess
+#if !MUL
     if(!SafeNode(gene->highQC)){
         cout << "UnSafe Node" << endl;
 #else
@@ -1050,29 +952,16 @@ RC WorkerThread::process_hotstuff_generic(Message *msg)
 #endif
         return RCOK;
     }
-#if TIMER_MANAGER
-    timer_manager.pvp_timer.endTimer();
-#endif
+
     // Allocate transaction managers for all the transactions in the batch.
+
     set_txn_man_fields(gene, 0);
-
-#if TIMER_ON
-    // The timer for this client batch stores the hash of last request.
-    #if !SpotLess
-    server_timer->waiting_prepare = false;
-    add_timer(gene, txn_man->get_hash());
-    #else
-    server_timer[instance_id]->waiting_prepare = false;
-    add_timer(gene, txn_man->get_hash(), instance_id);
-    #endif
-#endif
-
     // Storing the HOTSTUFFPrepareMsg message.
     txn_man->set_primarybatch(gene);
 
     uint64_t txnid = txn_man->get_txn_id();
     string hash = txn_man->get_hash();
-#if !SpotLess
+#if !MUL
     hash_QC_lock.lock();
     hash_to_txnid.insert(make_pair<string&,uint64_t&>(hash, txnid));
     hash_to_view.insert(make_pair<string&,uint64_t&>(hash, gene->view));
@@ -1088,17 +977,24 @@ RC WorkerThread::process_hotstuff_generic(Message *msg)
     update_lockQC(gene->highQC, gene->view, instance_id);
 #endif
 
+    create_and_send_narwhal_payload(gene);
+    txn_man->narwhal_lock.lock();
+    txn_man->narwhal_count++;
+    // cout << "NC: "  << txn_man->narwhal_count << endl;
+    if(txn_man->narwhal_count == 2 * g_min_invalid_nodes + 1){
+        cout << "Here2 "  << txn_man->get_txn_id() << endl;
+        sem_post(&narwhal_signal);
+    }
+    txn_man->narwhal_lock.unlock();
     if(!txn_man->send_hotstuff_newview()){
         if(txn_man->is_new_viewed()){
             advance_view();
         }
     }else{
+        // printf("[S]\n");
+        // fflush(stdout);
         advance_view(false);
-        #if TIMER_MANAGER
-        timer_manager.setTimer();
-        #endif
     }
-    
 
     // Release this txn_man for other threads to use.
     bool ready = txn_man->set_ready();
@@ -1106,74 +1002,104 @@ RC WorkerThread::process_hotstuff_generic(Message *msg)
     // UnSetting the ready for the txn id representing this batch.
     txn_man = get_transaction_manager(msg->txn_id, 0);
     unset_ready_txn(txn_man);
+    sem_wait(&narwhal_signal);
+
     return RCOK;
 }
 
 #endif
-#if TIMER_MANAGER
-void WorkerThread::send_failed_new_view(uint64_t view){
-    vector<uint64_t> dest;
-    uint64_t dest_node_id = get_view_primary(view+1);
-    if(g_node_id == dest_node_id){
-        if(fault_manager.sufficient_voters(view, g_node_id)){
-            printf("Perfect %lu\n", view);
-            advance_failed_view(view);
-        }
-    }else{
-        Message *msg = Message::create_message(HOTSTUFF_NEW_VIEW_MSG);
-        HOTSTUFFNewViewMsg *nvmsg = (HOTSTUFFNewViewMsg*)msg;
-        nvmsg->hashSize = nvmsg->hash.size();
-        nvmsg->non_vote = true;
-        nvmsg->txn_id = 0;
-        nvmsg->view = view;
-        nvmsg->PreparedQC = get_g_preparedQC();
-        dest.push_back(dest_node_id);
-        msg_queue.enqueue(get_thd_id(), nvmsg, dest);
-        dest.clear();
-        advance_failed_view(view);
-    }
-}
 
-void WorkerThread::process_failed_new_view(HOTSTUFFNewViewMsg *msg){
-    cout << "FNW" << endl;
+RC WorkerThread::process_narwhal_payload(Message *msg)
+{
+    //uint64_t cntime = get_sys_clock();
+    NarwhalPayloadMsg* gene = (NarwhalPayloadMsg *)msg;
+#if PROCESS_PRINT
+    printf("NARWHAL PAYLOAD: TID:%ld : VIEW: %ld THD: %ld  FROM: %ld   %lf\n",gene->txn_id, gene->view, get_thd_id(), gene->return_node_id, simulation->seconds_from_start(get_sys_clock()));
     fflush(stdout);
-    if(fault_manager.sufficient_voters(msg->view, msg->return_node_id)){
-        printf("Perfect %lu\n", msg->view);
-        advance_failed_view(msg->view);
-    }
- }
-
-void WorkerThread::advance_failed_view(uint64_t view){
-    TxnManager* tman = get_transaction_manager(view * get_batch_size() -1, 0);
-    Message *msg = Message::create_message(tman, EXECUTE_MSG);
-    ExecuteMessage* emsg = (ExecuteMessage*)msg;
-    emsg->valid = false;
-    emsg->view = view - 1;
-    printf("NN %lu\n", emsg->txn_id);
-    work_queue.enqueue(get_thd_id(), emsg, false);
-
-    msg = Message::create_message(EXECUTE_MSG);
-    emsg = (ExecuteMessage*)msg;
-    emsg->txn_id = (view + 1) * get_batch_size() - 2;
-    emsg->view = view;
-    emsg->valid = false;
-    printf("NN %lu\n", emsg->txn_id);
-    work_queue.enqueue(get_thd_id(), emsg, false);
-
-    view++;
-    for(uint64_t i=0; i<g_total_thread_cnt; i++){
-        set_view(i, view);
-    }
-
-    if(g_node_id == get_view_primary(view)){
-        set_sent(false);
-        #if SEMA_TEST
-        // Having received enough new_view msgs, the replica becomes the primary in HOTSTUFF (one primary in SpotLess)
-        sem_post(&new_txn_semaphore);
-        #endif
-    }else{
-        timer_manager.setTimer();
-    }
-}
 #endif
+    // Check if the message is valid.
+    for(uint64_t i=0; i<2*g_min_invalid_nodes+1; i++){
+        validate_msg(gene);
+    }
+    // Allocate transaction managers for all the transactions in the batch.
+    read_txns(gene, 0);
+    return RCOK;
+}
+
+//Here
+void WorkerThread::create_and_send_narwhal_payload(HOTSTUFFGenericMsg *msg){
+
+    Message *bmsg = Message::create_message(NARWHAL_PAYLOAD_MSG);
+    NarwhalPayloadMsg *prep = (NarwhalPayloadMsg *)bmsg;
+
+    prep->init(0);
+
+    // String of transactions in a batch to generate hash.
+    string batchStr;
+    // Allocate transaction manager for all the requests in batch.
+    uint64_t start_id = msg->txn_id + 3 - get_batch_size();
+    for (uint64_t i = 0; i < get_batch_size() - 1; i++)
+    {
+        uint64_t txn_id = start_id + i;
+
+    	// TODO: Some memory is getting consumed while storing client query.
+        // cout << "A1" << endl;
+        auto msg_ = Message::create_message(CL_QRY);
+        auto clqry = (YCSBClientQueryMessage*)msg_;
+        auto ycsb = new ycsb_request;
+        ycsb->key = 1;
+        ycsb->value = 1;
+        // cout << "A2" << endl;
+        clqry->requests.init(1);
+        clqry->requests.add(ycsb);
+        // // cout << "A3" << endl;
+	    // char *bfr = (char *)malloc(clqry->get_size());
+	    // clqry->copy_to_buf(bfr);
+	    // Message *tmsg = Message::create_message(bfr);
+	    // YCSBClientQueryMessage *yqry = (YCSBClientQueryMessage *)tmsg;
+	    // free(bfr);
+        // delete ycsb;
+        // delete clqry;
+        // cout << "A4" << endl;
+	    prep->add_request_msg(i, clqry);
+        // cout << "A5" << endl;
+	    prep->index.add(txn_id);
+
+    }
+
+    uint64_t txn_id = start_id + get_batch_size() - 1;
+    auto msg_ = Message::create_message(CL_QRY);
+    auto clqry = (YCSBClientQueryMessage*)msg_;
+    auto ycsb = new ycsb_request;
+    ycsb->key = 1;
+    ycsb->value = 1;
+    clqry->requests.init(1);
+    clqry->requests.add(ycsb);
+	// char *bfr = (char *)malloc(clqry->get_size());
+	// clqry->copy_to_buf(bfr);
+	// Message *tmsg = Message::create_message(bfr);
+	// YCSBClientQueryMessage *yqry = (YCSBClientQueryMessage *)tmsg;
+	// free(bfr);
+    // delete ycsb;
+    // delete clqry;
+	prep->add_request_msg(get_batch_size() - 1, clqry);
+	prep->index.add(txn_id);
+    
+    txn_man = get_transaction_manager(txn_id, 0);
+
+    prep->copy_from_txn(txn_man);
+    prep->txn_id = msg->txn_id;
+    prep->highQC = QuorumCertificate(0);
+
+    // Send the HOTSTUFFPrepareMsg message to all the other replicas.
+    vector<uint64_t> dest = nodes_to_send(0, g_node_cnt);
+    // cout << "[X5]" << endl;
+    // fflush(stdout);
+    msg_queue.enqueue(get_thd_id(), prep, dest);
+    // cout << "[X7]" << endl;
+    // fflush(stdout);
+    dest.clear();
+} 
+
+
 #endif

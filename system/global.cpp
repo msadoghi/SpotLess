@@ -13,7 +13,6 @@
 #include "client_txn.h"
 #include "txn.h"
 #include "../config.h"
-#include "fault_manager.h"
 
 mem_alloc mem_allocator;
 Stats stats;
@@ -162,7 +161,7 @@ uint64_t indexSize = 2 * g_client_node_cnt * g_inflight_max;
 #if RING_BFT || SHARPER
 uint64_t g_min_invalid_nodes = (g_shard_size - 1) / 3; //min number of valid nodes
 #else
-uint64_t g_min_invalid_nodes = (g_node_cnt - 1) / 3; //min number of valid nodes
+uint64_t g_min_invalid_nodes = NARWHAL_FAIL ? 43 : (g_node_cnt-1) / 3; //min number of valid nodes
 #endif
 
 #if SHARPER || RING_BFT
@@ -207,7 +206,7 @@ uint64_t curr_next_index()
 }
 
 #if CONSENSUS == HOTSTUFF
-#if !SpotLess
+#if !MUL
 // Entities for handling hotstuff_new_view_msgs
 uint32_t g_last_stable_new_viewed = 0;
 void set_curr_new_viewed(uint64_t txn_id){
@@ -344,7 +343,7 @@ vector<uint64_t> nodes_to_send(uint64_t beg, uint64_t end)
 // STORAGE OF CLIENT DATA
 uint64_t ClientDataStore[SYNTH_TABLE_SIZE] = {0};
 
-#if MULTI_ON || SpotLess
+#if MULTI_ON || MUL || NARWHAL
 
 uint64_t totInstances = MULTI_INSTANCES;
 uint64_t multi_threads = MULTI_THREADS;
@@ -380,7 +379,7 @@ bool isPrimary(uint64_t id) {
 }
 #endif //MULTI_ON
 
-#endif // MUTLI_ON || SpotLess
+#endif // MUTLI_ON || MUL
 
 
 #if CONSENSUS == HOTSTUFF
@@ -388,6 +387,7 @@ bool isPrimary(uint64_t id) {
 // Entities for semaphore optimizations. The value of the semaphores means 
 // the number of msgs in the corresponding queues of the worker_threads.
 // Only worker_threads with msgs in their queues will be allocated with CPU resources.
+sem_t narwhal_signal;
 sem_t worker_queue_semaphore[THREAD_CNT];
 // new_txn_semaphore is the number of instances that a replica is primary and has not sent a prepare msg.
 sem_t new_txn_semaphore;
@@ -400,7 +400,7 @@ sem_t output_semaphore[SEND_THREAD_CNT];
 sem_t setup_done_barrier;
 
 #if AUTO_POST
-#if !SpotLess
+#if !MUL
 bool auto_posted = false;
 std::mutex auto_posted_lock;
 void set_auto_posted(bool value){
@@ -420,7 +420,7 @@ void* auto_post(void *ptr){
 		sleep(1);
 	}
     while (!simulation->is_done()){
-        usleep(100000);
+        usleep(500000);
         if(!is_auto_posted()){
             set_auto_posted(true);
             sem_post(&worker_queue_semaphore[0]);
@@ -448,7 +448,7 @@ void* auto_post(void *ptr){
 		sleep(1);
 	}
     while (!simulation->is_done()){
-        usleep(100000);
+        usleep(500000);
 		for(uint thd_id=0; thd_id<get_multi_threads(); thd_id++){
 			if(!is_auto_posted(thd_id)){
             	set_auto_posted(true, thd_id);
@@ -508,9 +508,9 @@ void execute_msg_heap_pop(){
 
 uint64_t expectedInstance;
 
-//Entities for client in HOTSTUFF and SpotLess.
+//Entities for client in HOTSTUFF and MUL.
 //next_to_send is just the id of primary in the next round.
-uint64_t next_to_send = 0;
+uint64_t next_to_send = g_node_id % g_node_cnt;
 uint64_t get_next_to_send(){
     return next_to_send;
 }
@@ -546,6 +546,7 @@ void dec_in_round(uint32_t node_id){
 secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
 unsigned char private_key[32];
 secp256k1_pubkey public_key;
+std::mutex public_key_lock;
 map<uint64_t, secp256k1_pubkey> public_keys;
 string get_secp_hash(string hash, RemReqType type){
 	if(type == HOTSTUFF_PREP_MSG || type == HOTSTUFF_PREP_VOTE_MSG)
@@ -558,7 +559,7 @@ string get_secp_hash(string hash, RemReqType type){
 		for ( size_t i = 0; i < 32 ; i++){      
 			hash[i] = (hash[i] + 2) % 255;
 		}
-	}else if(type == HOTSTUFF_DECIDE_MSG || type == HOTSTUFF_NEW_VIEW_MSG || type == HOTSTUFF_GENERIC_MSG){
+	}else if(type == HOTSTUFF_DECIDE_MSG || type == HOTSTUFF_NEW_VIEW_MSG || type == HOTSTUFF_GENERIC_MSG || type == NARWHAL_PAYLOAD_MSG){
 		for ( size_t i = 0; i < 32 ; i++){      
 			hash[i] = (hash[i] + 3) % 255;
 		}
@@ -572,11 +573,15 @@ bool QuorumCertificate::ThresholdSignatureVerify(RemReqType rtype){
 	unsigned char message[32];
 	memcpy(message, get_secp_hash(batch_hash, rtype).c_str(), 32);
 	for(auto it = signature_share_map.begin(); it != signature_share_map.end(); it++){
+		try{
 		if(!secp256k1_ecdsa_verify(ctx, &(it->second), message, &public_keys[it->first])){
 			cout << it->first << endl;
 			fflush(stdout);
 			return false;
 		}
+		}catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
 	}
 #endif
 	return true;
@@ -584,7 +589,7 @@ bool QuorumCertificate::ThresholdSignatureVerify(RemReqType rtype){
 
 #endif
 
-#if !SpotLess
+#if !MUL
 std::mutex hash_QC_lock;
 unordered_map<string, QuorumCertificate> hash_to_QC;
 unordered_map<string, uint64_t> hash_to_txnid;
@@ -597,7 +602,7 @@ vector<unordered_map<string, uint64_t>> hash_to_view;
 #endif
 
 
-#if !SpotLess
+#if !MUL
 // if sent is true, a replica considers itself not as the next primary
 // if sent is false, a replica considers itself as the next primary
 bool sent = true;
@@ -735,11 +740,7 @@ const QuorumCertificate& get_g_genericQC(uint64_t instance_id){
 }
 #endif
 
-#endif	// SpotLess
-
-#if TIMER_MANAGER
-FaultManager fault_manager;
-#endif
+#endif	// MUL
 
 #endif	// CONSENSUS == HOTSTUFF
 
@@ -751,7 +752,7 @@ uint64_t get_current_view(uint64_t thd_id)
 }
 
 // For updating view of different threads.
-#if !SpotLess
+#if !MUL
 std::mutex newViewMTX[THREAD_CNT + REM_THREAD_CNT + SEND_THREAD_CNT];
 uint64_t newView[THREAD_CNT + REM_THREAD_CNT + SEND_THREAD_CNT] = {0};
 #else
@@ -775,11 +776,7 @@ void set_view(uint64_t thd_id, uint64_t val)
 	newViewMTX[thd_id].unlock();
 
 	#if TEMP_QUEUE
-	#if !SpotLess
-	if(thd_id ==0 ){
-	#else
-	if(thd_id < get_totInstances()){
-	#endif
+	if(thd_id <= MULTI_THREADS){
  		work_queue.reenqueue(thd_id, false);
  	}
  	#endif
@@ -959,24 +956,6 @@ uint64_t get_client_view()
 	viewMTX.unlock();
 	return val;
 }
-#endif
-
-#if SpotLess_RECOVERY
-uint64_t fail_count = 0;
-#endif
-
-#if LOCAL_FAULT || VIEW_CHANGES || SpotLess_RECOVERY
-// Server parameters for tracking failed replicas
-std::mutex stopMTX[SEND_THREAD_CNT];
-vector<vector<uint64_t>> stop_nodes; // List of nodes that have stopped.
-#if STOP_NODE_SET
-std::mutex stop_lock;
-set<uint64_t> stop_node_set;
-#endif
-
-// Client parameters for tracking failed replicas.
-std::mutex clistopMTX;
-vector<uint64_t> stop_replicas; // For client we assume only one O/P thread.
 #endif
 
 #if LOCAL_FAULT

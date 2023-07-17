@@ -207,8 +207,6 @@ public:
 #endif
 #endif
 
-    map<uint64_t, set<uint64_t>> voters;
-
     uint64_t decr_prep_rsp_cnt();
     uint64_t get_prep_rsp_cnt();
     bool is_prepared();
@@ -252,6 +250,9 @@ public:
     bool unset_ready() { return ATOM_CAS(txn_ready, 1, 0); }
     bool is_ready() { return txn_ready == true; }
     volatile int txn_ready;
+
+    std::mutex narwhal_lock;
+    uint64_t narwhal_count = 0;
 
 protected:
     int rsp_cnt;

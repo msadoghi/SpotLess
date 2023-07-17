@@ -84,11 +84,6 @@ int main(int argc, char *argv[])
     work_queue.init();
     printf("Done\n");
     fflush(stdout);
-#if TIMER_ON
-    printf("Initializing timers... ");
-    fflush(stdout);
-    client_timer = new ClientTimer();
-#endif
 
     printf("Reading in Keys");
 

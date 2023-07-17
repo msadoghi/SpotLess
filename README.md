@@ -1,6 +1,6 @@
 # ResilientDB: A High-throughput yielding Permissioned Blockchain Fabric.
 
-### ResilientDB aims at *Making Permissioned Blockchain Systems Fast Again*. ResilientDB makes *system-centric* design decisions by adopting a *multi-thread architecture* that encompasses *deep-pipelines*. Further, we *separate* the ordering of client transactions from their execution, which allows us to perform *out-of-order processing of messages*.
+### ResilientDB aims at *Making Permissioned Blockchain Systems Fast Again*. ResilientDB makes *system-centric* design decisions by adopting a *Multi-thread architecture* that encompasses *deep-pipelines*. Further, we *separate* the ordering of client transactions from their execution, which allows us to perform *out-of-order processing of messages*.
 
 ### Quick Facts about Version 2.0 of ResilientDB
 
@@ -58,7 +58,7 @@
 
 * Deploy the necessary environment to run resilientDB on the machines
 
-  ​    cd scripts
+      cd scripts
 
   ​    python3 nodeModify.py
   ​    cd ..
@@ -69,7 +69,7 @@
 
 * Generate **ifconfig.txt**
 
-  ​    python3 scripts/ifconfig.py
+      python3 scripts/ifconfig.py
 
 * Here are important relevant parameters of "config.h"
 
@@ -88,10 +88,9 @@
 * BATCH_SIZE                    Number of transactions in a batch (at least 5)
 * TXN_PER_CHKPT                 Frequency at which garbage collection is done.
 * MESSAGE_PER_BUFFER            The number of messages that a replica sends at one time
-* MULTI_INSTANCES       The number of concurrent instances
+* MULTI_INSTANCES								The number of concurrent instances
 * ...
 </pre>
-
 
 
 
@@ -118,23 +117,23 @@
 * Compile the code. On compilation, two new files are created: **runcl** and **rundb**. You may fail to compile due to the lack of some packages.
         
 
-  ​    make clean; make -j8;
+      make clean; make -j8;
 
 * Configure the replica number parameters in scripts
 
 
   * ./scripts/scp_binaries.sh
 
-    nodes=4
+      nodes=4
 
   * ./scripts/RunSystem.py 
 
-    nds=4
+      nds=4
 
 * Copy the **rundb** to the 4 replicas and **runcl** to the 1 client, and run resilientDB
         
 
-  ​    python3 scripts/StopSystem.py; python3 scripts/scp_binaries.py; python3 scripts/RunSystem.py
+      python3 scripts/StopSystem.py; python3 scripts/scp_binaries.py; python3 scripts/RunSystem.py
 
 * Collect Results.
 
@@ -142,22 +141,22 @@
 
 * Stop the Running **rundb** and **runcl**
 
-  ​    python3 scripts/StopSystem.py;
+      python3 scripts/StopSystem.py;
 
 
 * To run experiments with different configurations, we have provided a script that quickly generates the config file *config.h* for each experiment. We have listed the experiments that can run in each branch in the file **./Configurations.xlsx**. (https://docs.google.com/spreadsheets/d/1uhtWqk0hYLP9kd3SxUXk_oXCRZl2A17EKXyHfAT2Q_Y/edit?usp=sharing). However, you still need to muanually select the machines that you want to use in **./scripts/hostnames.py**.
 
-  ​    python3 config.py experiment_name
+      python3 config.py experiment_name
 
 * Note: There are several other parameters in *config.h*, which are unusable (or not fully tested) in the current version.
 
 * Different protocols are implemented in different branches and we have create anonymous github repos for the branches. 
 
-  | Repo                                             | Implemented Protocol                        |
-  | ------------------------------------------------ | ------------------------------------------- |
-  | https://anonymous.4open.science/r/spotless-oFD4/ | SpotLess, SpotLess with recovery mechanism  |
-  | https://anonymous.4open.science/r/spotless-093B/ | HotStuff                                    |
-  | https://anonymous.4open.science/r/spotless-FBB0/ | HotStuff with recovery mechanism            |
-  | https://anonymous.4open.science/r/spotless-437D/ | RCC and PBFT                                |
-  | https://anonymous.4open.science/r/spotless-9B4C/ | RCC and PBFT with recovery mechanism        |
-  | https://anonymous.4open.science/r/spotless-DC38/ | Narwhal and Narwhal with recovery mechanism |
+  | Repo                                               | Implemented Protocol                         |
+  | ---------------------------------------------------| -------------------------------------------- |
+  | https://anonymous.4open.science/r/spotless-oFD4/   | SpotLess, SpotLess with recovery mechanism   |
+  | https://anonymous.4open.science/r/spotless-093B/   | HotStuff                                     |
+  | https://anonymous.4open.science/r/spotless-FBB0/   | HotStuff with recovery mechanism             |
+  | https://anonymous.4open.science/r/spotless-437D/   | RCC and PBFT                                 |
+  | https://anonymous.4open.science/r/spotless-9B4C/   | RCC and PBFT with recovery mechanism         |
+  | https://anonymous.4open.science/r/spotless-DC38/   | Narwhal and Narwhal with recovery mechanism  |

@@ -690,11 +690,19 @@ void Stats::print(bool prog)
     }
     fprintf(outf, "total_runtime=%f\n", totals->total_runtime / BILLION);
     fprintf(outf, "--------------------------------\n");
-    fprintf(outf, "interval_tput=%f\ttxn_cnt=%ld\n", interval_tput, totals->txn_cnt - totals->previous_interval_txn_cnt);
-    g_is_sharding ? fprintf(outf, "interval_cput=%f\tc_txn_cnt=%ld\n", interval_c_tput, totals->cross_shard_txn_cnt - totals->previous_interval_cross_shard_txn_cnt): true;
+// #if NARWHAL
+//     fprintf(outf, "interval_tput=%f\ttxn_cnt=%ld\n", interval_tput * 200, (totals->txn_cnt - totals->previous_interval_txn_cnt) * 200);
+// #else
+    fprintf(outf, "interval_tput=%f\ttxn_cnt=%ld\n", interval_tput*g_node_cnt, (totals->txn_cnt - totals->previous_interval_txn_cnt) * g_node_cnt);
+// #endif
     // fprintf(outf, "previous txn_count    %ld\n", totals->previous_interval_txn_cnt);
     fprintf(outf, "--------------------------------\n");
-    fprintf(outf, "tput         =%f\ttxn_cnt=%ld\n", tput, totals->txn_cnt);
+// #if NARWHAL
+//     fprintf(outf, "tput         =%f\ttxn_cnt=%ld\n", tput * 200, totals->txn_cnt * 200);
+// #else
+    fprintf(outf, "tput         =%f\ttxn_cnt=%ld\n", tput*g_node_cnt, totals->txn_cnt*g_node_cnt);
+// #endif
+    
     g_is_sharding ? fprintf(outf, "cput         =%f\tc_txn_cnt=%ld\n", c_tput, totals->cross_shard_txn_cnt): true;
     fprintf(outf, "=======================================================\n");
     fflush(outf);

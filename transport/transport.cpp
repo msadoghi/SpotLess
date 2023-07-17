@@ -303,7 +303,7 @@ void Transport::send_msg(uint64_t send_thread_id, uint64_t dest_node_id, void *s
     DEBUG("%ld Sending batch of %d bytes to node %ld on socket %ld\n", send_thread_id, size, dest_node_id, (uint64_t)socket);
     INC_GLOB_STATS_ARR(bytes_sent, dest_node_id, size);
 
-#if VIEW_CHANGES || LOCAL_FAULT || PVP_RECOVERY
+#if VIEW_CHANGES || LOCAL_FAULT || SpotLess_RECOVERY
     bool failednode = false;
 
     if (ISSERVER)

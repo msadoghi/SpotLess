@@ -31,7 +31,7 @@ void clean();
 
 int main(int argc, char *argv[])
 {
-#if PVP
+#if SpotLess
     assert(CONSENSUS == HOTSTUFF);
 #endif
     // 0. initialize global data structure
@@ -148,19 +148,19 @@ int main(int argc, char *argv[])
 
 #if TIMER_ON
     printf("Initializing timers... ");
-#if !PVP
+#if !SpotLess
     server_timer = new ServerTimer();
 #else
     for(uint i=0; i < get_totInstances(); i++){
         server_timer[i] = new ServerTimer();
-        #if PVP_RECOVERY
+        #if SpotLess_RECOVERY
         server_timer[i]->last_new_view_time = get_sys_clock();
         #endif
     }
 #endif
 #endif
 
-// #if LOCAL_FAULT || VIEW_CHANGES || PVP_RECOVERY
+// #if LOCAL_FAULT || VIEW_CHANGES || SpotLess_RECOVERY
 //     // Adding a stop_nodes entry for each output thread.
 //     for (uint i = 0; i < g_send_thread_cnt; i++)
 //     {
@@ -169,7 +169,7 @@ int main(int argc, char *argv[])
 //     }
 // #endif
 
-#if MULTI_ON || PVP
+#if MULTI_ON || SpotLess
   set_next_idx(g_node_id);  
 #endif
 
@@ -336,7 +336,7 @@ int main(int argc, char *argv[])
     pthread_setname_np(p_thds[id - 1], "s_logger");
 #endif
 
-#if AUTO_POST && PVP_RECOVERY
+#if AUTO_POST && SpotLess_RECOVERY
     pthread_t sema_thread;
     pthread_create(&sema_thread, NULL, auto_post, NULL);
     pthread_join(sema_thread, NULL);

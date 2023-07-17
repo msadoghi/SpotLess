@@ -158,7 +158,7 @@ void parser(int argc, char *argv[])
     g_total_node_cnt = g_node_cnt + g_client_node_cnt + g_repl_cnt * g_node_cnt;
 
 #if CONSENSUS == HOTSTUFF
-#if !PVP
+#if !SpotLess
     sent = g_node_id==0 ? false: true;
     g_preparedQC = QuorumCertificate(g_node_cnt);
     g_preparedQC.type = PREPARE;

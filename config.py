@@ -4,7 +4,7 @@ import sys
 def update_config(node_cnt = 4, client_cnt = 4, input_thread = 3, output_thread = 4, client_input_thread = 12,
                   client_output_thread = 1, client_thread = 1, message_per_buffer = 1, max_txn_inflight = 40000,
                   batch_size = 100, done_timer = 120 * 10 ** 9, warmup_timer = 10 * 10 ** 9, multi_instances = 1,
-                  multi_threads=1, larger_txn = "false", extra_size = 0, pvp_fail = "false", rcc_fail = "false",
+                  multi_threads=1, larger_txn = "false", extra_size = 0, spotless_fail = "false", rcc_fail = "false",
                   pbft_fail = "false", fail_divider = 128, new_divider = "false", enable_ask = "false",
                   dark_test = "false", equiv_test = "false", ignore_test = "false", fail_id = 2, dark_cnt = 0,
                   equiv_cnt = 0, ignore_cnt = 0, narwhal = "false"):
@@ -28,7 +28,7 @@ def update_config(node_cnt = 4, client_cnt = 4, input_thread = 3, output_thread 
         "MULTI_THREADS": multi_threads,
         "LARGER_TXN": larger_txn,
         "EXTRA_SIZE": extra_size,
-        "PVP_FAIL": pvp_fail,
+        "SpotLess_FAIL": spotless_fail,
         "RCC_FAIL": rcc_fail,
         "PBFT_FAIL": pbft_fail,
         "FAIL_DIVIDER": fail_divider,

@@ -73,7 +73,7 @@ public:
 
     void add(const T& item)
     {
-#if PVP_RECOVERY
+#if SpotLess_RECOVERY
         if(count < capacity){
             items[count] = item;
             ++count;

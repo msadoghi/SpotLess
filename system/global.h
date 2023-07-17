@@ -483,7 +483,7 @@ public:
 
 
 // Entities for handling hotstuff_new_view_msgs
-#if !PVP
+#if !SpotLess
 extern uint32_t g_last_stable_new_viewed;
 void set_curr_new_viewed(uint64_t txn_id);
 uint64_t get_curr_new_viewed();
@@ -532,7 +532,7 @@ vector<uint64_t> nodes_to_send(uint64_t beg, uint64_t end); // Destination for m
 extern uint64_t ClientDataStore[SYNTH_TABLE_SIZE];
 
 // Entities for MULTI_ON
-#if MULTI_ON || PVP
+#if MULTI_ON || SpotLess
 extern uint64_t totInstances;	// Number of parallel instances.
 extern uint64_t multi_threads;  // Number of threads to manage these instances
 uint64_t get_totInstances();
@@ -568,7 +568,7 @@ extern sem_t output_semaphore[SEND_THREAD_CNT];
 extern sem_t setup_done_barrier;
 
 #if AUTO_POST
-#if !PVP
+#if !SpotLess
 extern bool auto_posted;
 extern std::mutex auto_posted_lock;
 extern void set_auto_posted(bool value);
@@ -596,7 +596,7 @@ void execute_msg_heap_pop();
 
 extern uint64_t expectedInstance;
 
-//Entities for client in HOTSTUFF and PVP.
+//Entities for client in HOTSTUFF and SpotLess.
 //next_to_send is just the id of primary in the next round.
 extern uint64_t next_to_send;
 uint64_t get_next_to_send();
@@ -618,7 +618,7 @@ extern string get_secp_hash(string hash, RemReqType type);
 
 #endif
 
-#if !PVP
+#if !SpotLess
 extern std::mutex hash_QC_lock;
 extern unordered_map<string, QuorumCertificate> hash_to_QC;
 extern unordered_map<string, uint64_t> hash_to_txnid;
@@ -631,7 +631,7 @@ extern vector<unordered_map<string, uint64_t>> hash_to_view;
 #endif
 
 
-#if !PVP
+#if !SpotLess
 // if sent is true, a replica considers itself not as the next primary
 // if sent is false, a replica considers itself as the next primary
 extern bool sent;
@@ -689,10 +689,10 @@ extern uint64_t get_view_primary(uint64_t view, uint64_t instance_id);
 // Entities pertaining to the current view.
 uint64_t get_current_view(uint64_t thd_id);
 
-//#if VIEW_CHANGES || MULTI_ON || PVP
+//#if VIEW_CHANGES || MULTI_ON || SpotLess
 // For updating view for input threads, batching threads, execute thread
 // and checkpointing thread.
-#if !PVP
+#if !SpotLess
 extern std::mutex newViewMTX[THREAD_CNT + REM_THREAD_CNT + SEND_THREAD_CNT];
 extern uint64_t view[THREAD_CNT + REM_THREAD_CNT + SEND_THREAD_CNT];
 #else
@@ -754,11 +754,11 @@ void set_client_view(uint64_t nview);
 uint64_t get_client_view();
 #endif
 
-#if PVP_RECOVERY
+#if SpotLess_RECOVERY
 extern uint64_t fail_count;
 #endif
 
-#if LOCAL_FAULT || VIEW_CHANGES || PVP_RECOVERY
+#if LOCAL_FAULT || VIEW_CHANGES || SpotLess_RECOVERY
 // Server parameters for tracking failed replicas
 // extern std::mutex stopMTX[SEND_THREAD_CNT];
 // extern vector<vector<uint64_t>> stop_nodes; // List of nodes that have stopped.

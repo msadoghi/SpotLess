@@ -96,7 +96,7 @@ bool ServerTimer::checkTimer()
 }
 
 
-#if CONSENSUS == HOTSTUFF && PVP_RECOVERY
+#if CONSENSUS == HOTSTUFF && SpotLess_RECOVERY
 bool ServerTimer::checkTimer(Timer*& ptimer)
 {
 	if(this->timeout){
@@ -270,7 +270,7 @@ Timer *ClientTimer::fetchPendingRequests()
 /* Timers */
 
 ClientTimer *client_timer;
-#if !PVP
+#if !SpotLess
 ServerTimer *server_timer;
 std::mutex tlock;
 #else

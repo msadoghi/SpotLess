@@ -159,7 +159,7 @@ void parser(int argc, char *argv[])
     g_total_node_cnt = g_node_cnt + g_client_node_cnt + g_repl_cnt * g_node_cnt;
 #if SEMA_TEST
     #if CONSENSUS == HOTSTUFF
-        #if !PVP 
+        #if !SpotLess 
             if(g_node_id==0)
                 sem_init(&new_txn_semaphore, 0, 1); // Initially, replica 0 is the primary
             else

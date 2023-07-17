@@ -4,7 +4,7 @@
 
 ### Quick Facts about Version 2.0 of ResilientDB
 
-1. Consensus protocols like **PBFT, RCC, HotStuff and PVP** are implemented in ResilientDB
+1. Consensus protocols like **PBFT, RCC, HotStuff and SpotLess** are implemented in ResilientDB
 2. ResilientDB expects minimum **3f+1** replicas, where **f** is the maximum number of byzantine (or malicious) replicas.
 3. At present, each client only sends YCSB-style transactions for processing, to the primary.
 4. Each client transaction has an associated **transaction manager**, which stores all the data related to the transaction.
@@ -15,14 +15,14 @@
 
 ## Steps to Run and Compile<br/>
 
-* **ResileintDB is only supported on Ubuntu, and we recommend Ubuntu 20.04**
+* **ResilientDB is only supported on Ubuntu, and we recommend Ubuntu 20.04**
 
 * The first step is to untar the dependencies:
 
   ​    cd deps && \ls | xargs -i tar -xvf {} && cd ..
-      sudo apt-get install make
-      sudo apt-get install g++
-      sudo apt-get install libgmp-dev
+  ​    sudo apt-get install make
+  ​    sudo apt-get install g++
+  ​    sudo apt-get install libgmp-dev
 
 
 * Create **obj** folder inside **resilientdb** folder, to store object files. And **results** to store the results.
@@ -32,15 +32,15 @@
 
 * Collect the IP addresses of the machines that you will run resilientDB and put them into **scripts/hostnames.py**
 
-    hostip_phx = [
-      "10.0.31.15",
-      "10.0.89.7",
-      "10.0.111.180",
-      "10.0.5.37",
-      "10.0.71.187", 
-      "10.0.135.52",
-      ....
-      ]
+  hostip_phx = [
+    "10.0.31.15",
+    "10.0.89.7",
+    "10.0.111.180",
+    "10.0.5.37",
+    "10.0.71.187", 
+    "10.0.135.52",
+    ....
+    ]
 
 * Below is the configuration of the machines on which we conducted our experiments
 
@@ -59,8 +59,9 @@
 * Deploy the necessary environment to run resilientDB on the machines
 
       cd scripts
+
   ​    python3 nodeModify.py
-      cd ..
+  ​    cd ..
 
 * Select the machines that you will run resilientDB in the next experiment in **scripts/hostnames.py**. For example, you will run resilientDB with 4 replicas and 1 client, choosing the first 8 machines.
 
@@ -87,12 +88,13 @@
 * BATCH_SIZE                    Number of transactions in a batch (at least 5)
 * TXN_PER_CHKPT                 Frequency at which garbage collection is done.
 * MESSAGE_PER_BUFFER            The number of messages that a replica sends at one time
-* MULTI_INSTANCES								The number of concurrent instances
+* MULTI_INSTANCES		The number of concurrent instances
 * ...
 </pre>
 
 
-* For example, to run PVP with 4 replicas and 1 client (the current setting in the *main* branch), we set the parameters as follows (Keep other parameters unchanged).
+
+* For example, to run SpotLess with 4 replicas and 1 client (the current setting in the *main* branch), we set the parameters as follows (Keep other parameters unchanged).
 
   | PARAMETER_NAME         | VALUE            |
   | ---------------------- | ---------------- |
@@ -114,21 +116,23 @@
 
 * Compile the code. On compilation, two new files are created: **runcl** and **rundb**. You may fail to compile due to the lack of some packages.
         
+
       make clean; make -j8;
 
 * Configure the replica number parameters in scripts
 
 
   * ./scripts/scp_binaries.sh
-  
-        nodes=4
-  
+
+      nodes=4
+
   * ./scripts/RunSystem.py 
-  
-        nds=4
+
+      nds=4
 
 * Copy the **rundb** to the 4 replicas and **runcl** to the 1 client, and run resilientDB
         
+
       python3 scripts/StopSystem.py; python3 scripts/scp_binaries.py; python3 scripts/RunSystem.py
 
 * Collect Results.
@@ -140,21 +144,19 @@
       python3 scripts/StopSystem.py;
 
 
-* To run experiments with different configurations, we have provided a script that quickly generates the config file *config.h* for each experiment. We have listed the experiments that can run in each branch in this form (https://docs.google.com/spreadsheets/d/1uhtWqk0hYLP9kd3SxUXk_oXCRZl2A17EKXyHfAT2Q_Y/edit?usp=sharing). However, you still need to muanually select the machines that you want to use in **./scripts/hostnames.py**.
+* To run experiments with different configurations, we have provided a script that quickly generates the config file *config.h* for each experiment. We have listed the experiments that can run in each branch in the file **./Configurations.xlsx**. (https://docs.google.com/spreadsheets/d/1uhtWqk0hYLP9kd3SxUXk_oXCRZl2A17EKXyHfAT2Q_Y/edit?usp=sharing). However, you still need to muanually select the machines that you want to use in **./scripts/hostnames.py**.
 
       python3 config.py experiment_name
 
 * Note: There are several other parameters in *config.h*, which are unusable (or not fully tested) in the current version.
 
-* Different protocols are implemented in different branches. 
+* Different protocols are implemented in different branches and we have create anonymous github repos for the branches. 
 
-  * Experiments without failures are done in main, hotstuff, and rcc.
-  * Experiments with failures are done in main, hotstuff_recovery and rcc_recovery.
-
-  | Branch            | Implemented Protocol                         |
-  | ----------------- | -------------------------------------------- |
-  | main              | PVP, PVP with recovery mechanism             |
-  | hotstuff          | HotStuff and Narwhal                         |
-  | hotstuff_recovery | HotStuff and Narwhal with recovery mechanism |
-  | rcc               | RCC and PBFT                                 |
-  | rcc_recovery      | RCC and PBFTwith recovery mechanism          |
+  | Repo                                               | Implemented Protocol                         |
+  | ---------------------------------------------------| -------------------------------------------- |
+  | https://anonymous.4open.science/r/spotless-oFD4/   | SpotLess, SpotLess with recovery mechanism   |
+  | https://anonymous.4open.science/r/spotless-093B/   | HotStuff                                     |
+  | https://anonymous.4open.science/r/spotless-FBB0/   | HotStuff with recovery mechanism             |
+  | https://anonymous.4open.science/r/spotless-437D/   | RCC and PBFT                                 |
+  | https://anonymous.4open.science/r/spotless-9B4C/   | RCC and PBFT with recovery mechanism         |
+  | https://anonymous.4open.science/r/spotless-DC38/   | Narwhal and Narwhal with recovery mechanism  |

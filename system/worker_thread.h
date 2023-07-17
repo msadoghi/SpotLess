@@ -106,13 +106,13 @@ public:
 #if CHAINED
     RC process_hotstuff_generic(Message *msg);
     
-    #if !PVP
+    #if !MUL
     void update_lockQC(const QuorumCertificate& QC, uint64_t view);
     #else
     void update_lockQC(const QuorumCertificate& QC, uint64_t view, uint64_t instance_id);
     #endif
 #endif
-    #if !PVP
+    #if !MUL
         void send_execute_msg_hotstuff();
         void send_execute_msg_hotstuff(TxnManager *t_man);
     #else

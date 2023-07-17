@@ -11,7 +11,7 @@ Written by Dakai Kang, October 2021.
 #include "client_query.h"
 #include <boost/lockfree/queue.hpp>
 
-#if PVP
+#if MUL
 QWorkQueue::~QWorkQueue()
 {
     release();
@@ -320,4 +320,4 @@ void QWorkQueue::reenqueue(uint64_t instance_id, bool is_newview){
 }
 #endif
 
-#endif // PVP
+#endif // MUL

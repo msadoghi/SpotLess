@@ -1,7 +1,7 @@
 #!/bin/bash
 
 home_directory="resdb"
-nds=4
+nds=32
 HOSTS="$1"
 ifconfig=1
 i=0

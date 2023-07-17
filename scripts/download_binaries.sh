@@ -3,7 +3,7 @@
 
 USERNAME=ubuntu
 HOSTS="52.14.129.171"
-IDENTITY="~/Desktop/pvp/kdk.pem"
+IDENTITY="~/Desktop/spotless/kdk.pem"
 
 rm -rf ../rundb
 rm -rf ../runcl

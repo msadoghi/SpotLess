@@ -286,9 +286,9 @@ RC WorkerThread::process_key_exchange(Message *msg)
 #if THRESHOLD_SIGNATURE
     if (algorithm == "SECP"){
         cout << "SECP:" << keyex->return_node << " " << get_thd_id() << endl;
-        // public_key_lock.lock();
+        public_key_lock.lock();
         public_keys[keyex->return_node_id] = keyex->public_share;
-        // public_key_lock.unlock();
+        public_key_lock.unlock();
     }
 #endif
 
@@ -1185,7 +1185,7 @@ RC WorkerThread::process_pbft_chkpt_msg(Message *msg)
     uint64_t del_range = 0;
 
 #if CONSENSUS == HOTSTUFF
-#if !PVP
+#if !MUL
     uint64_t min_stable_new_viewed = get_curr_new_viewed();
 #else
     uint64_t min_stable_new_viewed = get_curr_new_viewed(0);
@@ -1284,7 +1284,7 @@ bool WorkerThread::exception_msg_handling(Message *msg)
         }
 #if CONSENSUS == HOTSTUFF
         else if(msg->rtype == HOTSTUFF_NEW_VIEW_MSG){
-            #if !PVP
+            #if !MUL
             if (((HOTSTUFFNewViewMsg*)msg)->view < get_current_view(0) || (((HOTSTUFFNewViewMsg*)msg)->view == get_current_view(0) && msg->txn_id <= get_curr_new_viewed()))
             #else
             uint64_t instance_id = msg->txn_id / get_batch_size() % get_totInstances();
@@ -1602,7 +1602,7 @@ bool WorkerThread::validate_msg(Message *msg)
 bool WorkerThread::checkMsg(Message *msg)
 {
 #if CONSENSUS == HOTSTUFF
-    #if !PVP
+    #if !MUL
     uint64_t instance_id = 0;
     #else
     uint64_t instance_id = msg->txn_id / get_batch_size() % get_totInstances();
@@ -1761,7 +1761,7 @@ bool WorkerThread::hotstuff_prepared(HOTSTUFFPrepareVoteMsg* msg){
     }
     if (!checkMsg(msg))
     {
-        #if !PVP
+        #if !MUL
         uint64_t instance_id = get_thd_id();
         #else
         uint64_t instance_id = msg->txn_id / get_batch_size() % get_totInstances();
@@ -1784,7 +1784,7 @@ bool WorkerThread::hotstuff_prepared(HOTSTUFFPrepareVoteMsg* msg){
 #endif
     if (--txn_man->prepare_vote_cnt == 0)
     {
-    #if !PVP
+    #if !MUL
         txn_man->preparedQC.viewNumber =  get_g_preparedQC().genesis? 0:get_current_view(0);
         txn_man->preparedQC.parent_hash = get_g_preparedQC().batch_hash;
         txn_man->preparedQC.batch_hash = txn_man->get_hash();
@@ -1823,7 +1823,7 @@ bool WorkerThread::hotstuff_precommitted(HOTSTUFFPreCommitVoteMsg* msg){
     }
     if (!checkMsg(msg))
     {
-        #if !PVP
+        #if !MUL
         uint64_t instance_id = get_thd_id();
         #else
         uint64_t instance_id = msg->txn_id / get_batch_size() % get_totInstances();
@@ -1851,7 +1851,7 @@ bool WorkerThread::hotstuff_precommitted(HOTSTUFFPreCommitVoteMsg* msg){
         txn_man->precommittedQC.batch_hash = txn_man->preparedQC.batch_hash;
         txn_man->precommittedQC.type = PRECOMMIT;
 
-#if !PVP
+#if !MUL
         hash_QC_lock.lock();
         hash_to_QC[txn_man->precommittedQC.batch_hash] = txn_man->precommittedQC;
         hash_QC_lock.unlock();
@@ -1862,7 +1862,7 @@ bool WorkerThread::hotstuff_precommitted(HOTSTUFFPreCommitVoteMsg* msg){
         hash_QC_lock[instance_id].unlock();
 #endif
 
-        #if !PVP
+        #if !MUL
         set_g_lockedQC(txn_man->precommittedQC);
         #else
         set_g_lockedQC(txn_man->precommittedQC, instance_id);
@@ -1885,7 +1885,7 @@ bool WorkerThread::hotstuff_committed(HOTSTUFFCommitVoteMsg* msg){
     }
     if (!checkMsg(msg))
     {
-        #if !PVP
+        #if !MUL
         uint64_t instance_id = get_thd_id();
         #else
         uint64_t instance_id = msg->txn_id / get_batch_size() % get_totInstances();
@@ -1915,7 +1915,7 @@ bool WorkerThread::hotstuff_committed(HOTSTUFFCommitVoteMsg* msg){
         txn_man->committedQC.batch_hash = txn_man->precommittedQC.batch_hash;
         txn_man->committedQC.type = COMMIT;
 
-#if !PVP
+#if !MUL
         hash_QC_lock.lock();
         hash_to_QC[txn_man->committedQC.batch_hash] = txn_man->committedQC;
         hash_QC_lock.unlock();
@@ -1983,7 +1983,7 @@ void WorkerThread::set_txn_man_fields(HOTSTUFFPrepareMsg *prep, uint64_t bid)
     unset_ready_txn(txn_man);
     txn_man->set_hash(prep->hash);
 }
-#if !PVP
+#if !MUL
 void WorkerThread::send_execute_msg_hotstuff()
 #else
 void WorkerThread::send_execute_msg_hotstuff(uint64_t instance_id)
@@ -1991,7 +1991,7 @@ void WorkerThread::send_execute_msg_hotstuff(uint64_t instance_id)
 {
     TxnManager* tman;
     Message *tmsg;
-#if !PVP
+#if !MUL
     hash_QC_lock.lock();
     QuorumCertificate QC = hash_to_QC[txn_man->get_hash()];
     QC = hash_to_QC[QC.parent_hash];
@@ -2003,7 +2003,7 @@ void WorkerThread::send_execute_msg_hotstuff(uint64_t instance_id)
     hash_QC_lock[instance_id].unlock();
 #endif
     while(QC.type != COMMIT && !QC.batch_hash.empty()){
-#if !PVP
+#if !MUL
         hash_QC_lock.lock();
         tman = get_transaction_manager(hash_to_txnid[QC.batch_hash], 0);
         hash_QC_lock.unlock();
@@ -2014,7 +2014,7 @@ void WorkerThread::send_execute_msg_hotstuff(uint64_t instance_id)
 #endif
         tmsg = Message::create_message(tman, EXECUTE_MSG);
         work_queue.enqueue(get_thd_id(), tmsg, false);
-#if !PVP
+#if !MUL
         hash_QC_lock.lock();
         hash_to_QC[QC.batch_hash].type = COMMIT;
         QC = hash_to_QC[QC.parent_hash];
@@ -2037,7 +2037,7 @@ void WorkerThread::send_execute_msg_hotstuff(uint64_t instance_id)
 }
 
 
-#if !PVP
+#if !MUL
 void WorkerThread::send_execute_msg_hotstuff(TxnManager *t_man)
 #else
 void WorkerThread::send_execute_msg_hotstuff(TxnManager *t_man, uint64_t instance_id)
@@ -2045,7 +2045,7 @@ void WorkerThread::send_execute_msg_hotstuff(TxnManager *t_man, uint64_t instanc
 {
     TxnManager* tman;
     Message *tmsg;
-#if !PVP
+#if !MUL
     hash_QC_lock.lock();
     QuorumCertificate QC = hash_to_QC[t_man->get_hash()];
     QC = hash_to_QC[QC.parent_hash];
@@ -2058,7 +2058,7 @@ void WorkerThread::send_execute_msg_hotstuff(TxnManager *t_man, uint64_t instanc
 #endif
     
     while(QC.type != COMMIT && !QC.batch_hash.empty()){ 
-#if !PVP
+#if !MUL
         hash_QC_lock.lock();
         tman = get_transaction_manager(hash_to_txnid[QC.batch_hash], 0);
         hash_QC_lock.unlock();
@@ -2069,7 +2069,7 @@ void WorkerThread::send_execute_msg_hotstuff(TxnManager *t_man, uint64_t instanc
 #endif
         tmsg = Message::create_message(tman, EXECUTE_MSG);
         work_queue.enqueue(get_thd_id(), tmsg, false);
-#if !PVP
+#if !MUL
         hash_QC_lock.lock();
         hash_to_QC[QC.batch_hash].type = COMMIT;
         QC = hash_to_QC[QC.parent_hash];
@@ -2097,7 +2097,7 @@ void WorkerThread::send_execute_msg_hotstuff(TxnManager *t_man, uint64_t instanc
 
 #if CHAINED
 
-#if !PVP
+#if !MUL
 void WorkerThread::update_lockQC(const QuorumCertificate& QC, uint64_t view)
 #else
 void WorkerThread::update_lockQC(const QuorumCertificate& QC, uint64_t view, uint64_t instance_id)
@@ -2106,7 +2106,7 @@ void WorkerThread::update_lockQC(const QuorumCertificate& QC, uint64_t view, uin
     QuorumCertificate B1, B2, B3;
     B1 = QC;
 
-#if !PVP
+#if !MUL
     hash_QC_lock.lock();
     B2 = hash_to_QC[B1.parent_hash];
     B3 = hash_to_QC[B2.parent_hash];
@@ -2119,14 +2119,14 @@ void WorkerThread::update_lockQC(const QuorumCertificate& QC, uint64_t view, uin
 #endif
 
     if(B1.viewNumber + 1 == view){
-        #if !PVP
+        #if !MUL
         set_g_preparedQC(B1);
         #else
         set_g_preparedQC(B1, instance_id);
         #endif
     }
     if(B1.viewNumber + 1 == view && B2.viewNumber + 2 == view){
-        #if !PVP
+        #if !MUL
         hash_QC_lock.lock();
         hash_to_QC[B2.batch_hash].type = PRECOMMIT;
         set_g_lockedQC(B2);
@@ -2140,7 +2140,7 @@ void WorkerThread::update_lockQC(const QuorumCertificate& QC, uint64_t view, uin
     }
 
     if(B1.viewNumber + 1 == view && B2.viewNumber + 2 == view && B3.viewNumber + 3 == view){
-#if !PVP
+#if !MUL
         hash_QC_lock.lock();
         hash_to_QC[B3.batch_hash].type = COMMIT;
         uint64_t committed_txn_id = hash_to_txnid[B3.batch_hash];

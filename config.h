@@ -1,16 +1,16 @@
 #ifndef _CONFIG_H_
 #define _CONFIG_H_
 // Specify the number of servers or replicas
-#define NODE_CNT 4
+#define NODE_CNT 32
 
 // make clean; make -j8; python3 scripts/ifconfig.py
 // python3 scripts/StopSystem.py; python3 scripts/scp_binaries.py; python3 scripts/RunSystem.py
 // python3 scripts/scp_results.py
 // python3 scripts/results_analysis.py
 
-// Number of worker threads at primary. For RBFT (6) and other algorithms (5). For PVP (NODE_CNT + 3).
+// Number of worker threads at primary. For RBFT (6) and other algorithms (5). For MUL (NODE_CNT + 3).
 #define THREAD_CNT (MULTI_THREADS+4)
-#define REM_THREAD_CNT 4
+#define REM_THREAD_CNT 6
 #define SEND_THREAD_CNT 4
 #define CORE_CNT 8
 #define PART_CNT 1
@@ -164,7 +164,7 @@
 #define REPLICATED 1
 // To select the amount of time to warmup and run.
 #define DONE_TIMER  30* BILLION
-#define WARMUP_TIMER 10 * BILLION
+#define WARMUP_TIMER 3 * BILLION
 // Select the consensus algorithm to run.
 #define CONSENSUS HOTSTUFF
 #define DBFT 1
@@ -181,7 +181,7 @@
 // Enable or Disable pipeline at primary replica.
 #define ENABLE_PIPELINE true
 // Size of each batch.
-#define BATCH_SIZE 100
+#define BATCH_SIZE 400
 #define BATCH_ENABLE BSET
 #define BSET 1
 #define BUNSET 0
@@ -237,10 +237,10 @@
 // To allow testing of a Banking Smart Contracts.
 #define BANKING_SMART_CONTRACT false
 
-// Switching on MultiBFT or PVP
+// Switching on MultiBFT or MUL
 #define MULTI_ON false
-#define PVP false
-#define MULTI_THREADS 4
+#define MUL false
+#define MULTI_THREADS 16
 #define MULTI_INSTANCES (NODE_CNT>16?16:NODE_CNT)
 #define CHAINED true
 
@@ -256,8 +256,8 @@
 #define FIX_ED25519_BUG false
 
 #define AUTO_POST false
-#define PVP_RECOVERY false
-#define STOP_NODE_SET (false && PVP_RECOVERY)
+#define MUL_RECOVERY false
+#define STOP_NODE_SET (false && MUL_RECOVERY)
 
 #define THRESHOLD_SIGNATURE true
 #define SECP256K1 true
@@ -271,6 +271,7 @@
 #define TS_SIMULATOR false
 #define TEMP_QUEUE true
 #define NARWHAL true
+#define NARWHAL_FAIL false
 
 #define LARGER_TXN false
 

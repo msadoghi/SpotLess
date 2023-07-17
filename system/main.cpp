@@ -31,7 +31,7 @@ void clean();
 
 int main(int argc, char *argv[])
 {
-#if PVP
+#if MUL
     assert(CONSENSUS == HOTSTUFF);
 #endif
     // 0. initialize global data structure
@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
     BlockChain = new BChain();
     printf("Done\n");
 
-#if MULTI_ON || PVP
+#if MULTI_ON || MUL
   set_next_idx(g_node_id);  
 #endif
 

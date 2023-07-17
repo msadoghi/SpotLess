@@ -223,7 +223,7 @@ RC InputThread::client_recv_loop()
 
             //cout<<"Node: "<<msg->return_node_id <<" :: Txn: "<< msg->txn_id <<"\n";
             //fflush(stdout);
-            #if !PVP
+            #if !MUL
             return_node_offset = get_view_primary(((ClientResponseMessage *)msg)->view);
             #else
             uint64_t instance_id = msg->txn_id / get_batch_size() % get_totInstances();

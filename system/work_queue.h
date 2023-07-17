@@ -83,7 +83,7 @@ private:
     boost::lockfree::queue<work_queue_entry *> **work_queue = nullptr;
     #if NARWHAL
     boost::lockfree::queue<work_queue_entry *> *new_txn_queue = nullptr;
-    #elif !PVP
+    #elif !MUL
     boost::lockfree::queue<work_queue_entry *> *new_txn_queue = nullptr;
     #else
     boost::lockfree::queue<work_queue_entry *> **new_txn_queue = nullptr;
@@ -93,7 +93,7 @@ private:
     #if NARWHAL
         boost::lockfree::queue<work_queue_entry *> **temp_queue = nullptr;
         boost::lockfree::queue<work_queue_entry *> *new_view_queue = nullptr;
-    #elif !PVP
+    #elif !MUL
         boost::lockfree::queue<work_queue_entry *> *temp_queue = nullptr;
         boost::lockfree::queue<work_queue_entry *> *new_view_queue = nullptr;
     #else

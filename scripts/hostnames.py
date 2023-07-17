@@ -133,7 +133,7 @@ hostip_phx = [
 "10.0.78.68"
 ]
 
-hostip_machines = hostip_phx[:8]
+hostip_machines = hostip_phx[:32+4]
 
 # python3 scripts/ifconfig.py
 # python3 scripts/StopSystem.py

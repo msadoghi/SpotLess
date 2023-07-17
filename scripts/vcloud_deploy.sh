@@ -6,7 +6,7 @@ HOSTS="$1"
 NODE_CNT="$2"
 RES_FILE="$3"
 count=0
-# IDENTITY="~/Desktop/pvp/kdk.pem"
+# IDENTITY="~/Desktop/spotless/kdk.pem"
 #IDENTITY="~/kdkCA.pem"
 IDENTITY="~/aws.pem"
 

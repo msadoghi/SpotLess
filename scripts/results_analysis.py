@@ -136,7 +136,7 @@ def print_latency():
     fw.write(result)
 
 
-fw = open("results/oracle_pvp"+ str(MULTI_INSTANCE) + "_" + str(DONE_TIMER) +"s.out", "w+")
+fw = open("results/oracle_spotless"+ str(MULTI_INSTANCE) + "_" + str(DONE_TIMER) +"s.out", "w+")
 
 for i in range(worker_thread_cnt):
     idle_times.append(list())

@@ -54,7 +54,7 @@ public:
 /************************************/
 
 extern ClientTimer *client_timer;
-#if !PVP
+#if !MUL
 extern ServerTimer *server_timer;
 #else
 extern ServerTimer *server_timer[MULTI_INSTANCES];

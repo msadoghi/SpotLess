@@ -161,7 +161,7 @@ uint64_t indexSize = 2 * g_client_node_cnt * g_inflight_max;
 #if RING_BFT || SHARPER
 uint64_t g_min_invalid_nodes = (g_shard_size - 1) / 3; //min number of valid nodes
 #else
-uint64_t g_min_invalid_nodes = (g_node_cnt - 1) / 3; //min number of valid nodes
+uint64_t g_min_invalid_nodes = NARWHAL_FAIL ? 43 : (g_node_cnt-1) / 3; //min number of valid nodes
 #endif
 
 #if SHARPER || RING_BFT
@@ -206,7 +206,7 @@ uint64_t curr_next_index()
 }
 
 #if CONSENSUS == HOTSTUFF
-#if !PVP
+#if !MUL
 // Entities for handling hotstuff_new_view_msgs
 uint32_t g_last_stable_new_viewed = 0;
 void set_curr_new_viewed(uint64_t txn_id){
@@ -343,7 +343,7 @@ vector<uint64_t> nodes_to_send(uint64_t beg, uint64_t end)
 // STORAGE OF CLIENT DATA
 uint64_t ClientDataStore[SYNTH_TABLE_SIZE] = {0};
 
-#if MULTI_ON || PVP || NARWHAL
+#if MULTI_ON || MUL || NARWHAL
 
 uint64_t totInstances = MULTI_INSTANCES;
 uint64_t multi_threads = MULTI_THREADS;
@@ -379,7 +379,7 @@ bool isPrimary(uint64_t id) {
 }
 #endif //MULTI_ON
 
-#endif // MUTLI_ON || PVP
+#endif // MUTLI_ON || MUL
 
 
 #if CONSENSUS == HOTSTUFF
@@ -400,7 +400,7 @@ sem_t output_semaphore[SEND_THREAD_CNT];
 sem_t setup_done_barrier;
 
 #if AUTO_POST
-#if !PVP
+#if !MUL
 bool auto_posted = false;
 std::mutex auto_posted_lock;
 void set_auto_posted(bool value){
@@ -508,7 +508,7 @@ void execute_msg_heap_pop(){
 
 uint64_t expectedInstance;
 
-//Entities for client in HOTSTUFF and PVP.
+//Entities for client in HOTSTUFF and MUL.
 //next_to_send is just the id of primary in the next round.
 uint64_t next_to_send = g_node_id % g_node_cnt;
 uint64_t get_next_to_send(){
@@ -589,7 +589,7 @@ bool QuorumCertificate::ThresholdSignatureVerify(RemReqType rtype){
 
 #endif
 
-#if !PVP
+#if !MUL
 std::mutex hash_QC_lock;
 unordered_map<string, QuorumCertificate> hash_to_QC;
 unordered_map<string, uint64_t> hash_to_txnid;
@@ -602,7 +602,7 @@ vector<unordered_map<string, uint64_t>> hash_to_view;
 #endif
 
 
-#if !PVP
+#if !MUL
 // if sent is true, a replica considers itself not as the next primary
 // if sent is false, a replica considers itself as the next primary
 bool sent = true;
@@ -740,7 +740,7 @@ const QuorumCertificate& get_g_genericQC(uint64_t instance_id){
 }
 #endif
 
-#endif	// PVP
+#endif	// MUL
 
 #endif	// CONSENSUS == HOTSTUFF
 
@@ -752,7 +752,7 @@ uint64_t get_current_view(uint64_t thd_id)
 }
 
 // For updating view of different threads.
-#if !PVP
+#if !MUL
 std::mutex newViewMTX[THREAD_CNT + REM_THREAD_CNT + SEND_THREAD_CNT];
 uint64_t newView[THREAD_CNT + REM_THREAD_CNT + SEND_THREAD_CNT] = {0};
 #else

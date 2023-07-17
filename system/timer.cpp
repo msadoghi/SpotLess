@@ -231,7 +231,7 @@ Timer *ClientTimer::fetchPendingRequests()
 /* Timers */
 
 ClientTimer *client_timer;
-#if !PVP
+#if !MUL
 ServerTimer *server_timer;
 std::mutex tlock;
 #else

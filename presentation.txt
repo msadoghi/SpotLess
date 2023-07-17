@@ -1,9 +1,0 @@
-As you know, in ResilientDB, compared to PBFT codebase, the biggest and the most important difference of RCC codebase is that RCC has multiple workerthreads, the number of which equals the number of instances, while PBFT only has one workerthread. Just to clarify it, I am talking about the pure workerthreads, excluding batch_thread, execute_thread and checkpoint_thread. And each workerthread has its own worker_queue, similarly, I am talking about the pure worker_queues, not including the checkpoint_queue and execute_queue.
-
-Since it is the most important difference, I wanna focus on this part today. And if you have any questions about other parts, please ask me.
-
-As you can see in the config file, I have set each replica as a primary of an instance. And the number of threads is the number of instances plus 3. The 3 other threads are one batch_thread, one execute_thread and one checkpoint_thread.
-
-And... each instance has its own worker_queue. When a message is enqueued, based on its type and txn_id, we will calculate the queue that it should be pushed into. And when a thread can only pop a message from specific threads based on its thread id. For example, a workerthread can only pop from its own worker_queue, and batch_thread can only pop from the new_txn_queue.
-
-All workerthreads work concurrently, making a better use of the CPU resources. All instances work concurrently, making a better use of network resources, in comparison with PBFT.

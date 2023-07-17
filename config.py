@@ -28,7 +28,7 @@ def update_config(node_cnt = 4, client_cnt = 4, input_thread = 3, output_thread 
         "MULTI_THREADS": multi_threads,
         "LARGER_TXN": larger_txn,
         "EXTRA_SIZE": extra_size,
-        "PVP_FAIL": pvp_fail,
+        "SpotLess_FAIL": pvp_fail,
         "RCC_FAIL": rcc_fail,
         "PBFT_FAIL": pbft_fail,
         "FAIL_DIVIDER": fail_divider,

@@ -11,7 +11,7 @@ Written by Dakai Kang, October 2021.
 #include "client_query.h"
 #include <boost/lockfree/queue.hpp>
 
-#if MUL
+#if SpotLess
 QWorkQueue::~QWorkQueue()
 {
     release();
@@ -298,6 +298,16 @@ Message * QWorkQueue::dequeue(uint64_t thd_id) {
     return false;
 }
 
+void QWorkQueue::temp_store_newview(Message *msg){
+  uint64_t instance_id = msg->txn_id / get_batch_size() % get_totInstances();    
+  work_queue_entry * entry = (work_queue_entry*)mem_allocator.align_alloc(sizeof(work_queue_entry));
+  entry->msg = msg;
+  entry->rtype = msg->rtype;
+  entry->txn_id = msg->txn_id;
+  entry->batch_id = msg->batch_id;
+  entry->starttime = get_sys_clock();
+  while(!new_view_queue[instance_id]->push(entry) && !simulation->is_done()) {}
+}
 
 void QWorkQueue::reenqueue(uint64_t instance_id, bool is_newview){
   bool valid = false;
@@ -320,4 +330,4 @@ void QWorkQueue::reenqueue(uint64_t instance_id, bool is_newview){
 }
 #endif
 
-#endif // MUL
+#endif // SpotLess

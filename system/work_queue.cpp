@@ -5,7 +5,7 @@
 #include "client_query.h"
 #include <boost/lockfree/queue.hpp>
 
-#if !(MULTI_ON||MUL||NARWHAL)
+#if !(MULTI_ON||SpotLess)
 
 QWorkQueue::~QWorkQueue()
 {
@@ -138,6 +138,8 @@ void QWorkQueue::enqueue(uint64_t thd_id, Message *msg, bool busy)
     }
     else if (msg->rtype == EXECUTE_MSG)
     {
+        // cout << "EE" << msg->txn_id << endl;
+        fflush(stdout);
         uint64_t bid = ((msg->txn_id + 2) - get_batch_size()) / get_batch_size();
         uint64_t qid = bid % indexSize;
         while (!work_queue[qid + 1]->push(entry) && !simulation->is_done())
@@ -249,6 +251,10 @@ Message *QWorkQueue::dequeue(uint64_t thd_id)
         uint64_t bid = ((get_expectedExecuteCount() + 2) - get_batch_size()) / get_batch_size();
         uint64_t qid = bid % indexSize;
         valid = work_queue[qid + 1]->pop(entry);
+        if(valid){
+            // cout << "DE" << entry->msg->txn_id << endl;
+            fflush(stdout);
+        }
     }
     else if (thd_id >= tcount + g_execute_thd)
     {
@@ -274,9 +280,9 @@ Message *QWorkQueue::dequeue(uint64_t thd_id)
             while(true){
                 valid = new_txn_queue->pop(entry);
                 if(valid){
-                    if(!get_sent() && g_node_id == get_current_view(thd_id) % g_node_cnt){
+                    if(!get_sent() && g_node_id == get_view_primary(get_current_view(thd_id))){
                         set_sent(true);
-                        entry->msg->txn_id = get_next_idx_hotstuff();
+                        entry->msg->txn_id = get_current_view(thd_id);
                         break;
                     }
                     else{
@@ -350,6 +356,15 @@ Message *QWorkQueue::dequeue(uint64_t thd_id)
     return false;
 }
 
+void QWorkQueue::temp_store_newview(Message *msg){  
+  work_queue_entry * entry = (work_queue_entry*)mem_allocator.align_alloc(sizeof(work_queue_entry));
+  entry->msg = msg;
+  entry->rtype = msg->rtype;
+  entry->txn_id = msg->txn_id;
+  entry->batch_id = msg->batch_id;
+  entry->starttime = get_sys_clock();
+  while(!new_view_queue->push(entry) && !simulation->is_done()) {}
+}
 
 void QWorkQueue::reenqueue(uint64_t instance_id, bool is_newview){
   bool valid = false;

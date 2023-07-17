@@ -41,6 +41,8 @@
 #include "hash_set.h"
 
 #include "semaphore.h"
+#include "timer_manager.h"
+#include "fault_manager.h"
 
 #if THRESHOLD_SIGNATURE
 #include <secp256k1.h>
@@ -243,8 +245,7 @@ enum RemReqType
     HOTSTUFF_COMMIT_VOTE_MSG,
     HOTSTUFF_DECIDE_MSG,
     HOTSTUFF_NEW_VIEW_MSG,
-    HOTSTUFF_GENERIC_MSG,
-    NARWHAL_PAYLOAD_MSG
+    HOTSTUFF_GENERIC_MSG
 #endif
 
 };
@@ -484,7 +485,7 @@ public:
 
 
 // Entities for handling hotstuff_new_view_msgs
-#if !MUL
+#if !SpotLess
 extern uint32_t g_last_stable_new_viewed;
 void set_curr_new_viewed(uint64_t txn_id);
 uint64_t get_curr_new_viewed();
@@ -533,7 +534,7 @@ vector<uint64_t> nodes_to_send(uint64_t beg, uint64_t end); // Destination for m
 extern uint64_t ClientDataStore[SYNTH_TABLE_SIZE];
 
 // Entities for MULTI_ON
-#if MULTI_ON || MUL || NARWHAL
+#if MULTI_ON || SpotLess
 extern uint64_t totInstances;	// Number of parallel instances.
 extern uint64_t multi_threads;  // Number of threads to manage these instances
 uint64_t get_totInstances();
@@ -557,7 +558,6 @@ bool isPrimary(uint64_t id);
 // Entities for semaphore optimizations. The value of the semaphores means 
 // the number of msgs in the corresponding queues of the worker_threads.
 // Only worker_threads with msgs in their queues will be allocated with CPU resources.
-extern sem_t narwhal_signal;
 extern sem_t worker_queue_semaphore[THREAD_CNT];
 // new_txn_semaphore is the number of instances that a replica is primary and has not sent a prepare msg.
 extern sem_t new_txn_semaphore;
@@ -570,7 +570,7 @@ extern sem_t output_semaphore[SEND_THREAD_CNT];
 extern sem_t setup_done_barrier;
 
 #if AUTO_POST
-#if !MUL
+#if !SpotLess
 extern bool auto_posted;
 extern std::mutex auto_posted_lock;
 extern void set_auto_posted(bool value);
@@ -598,7 +598,7 @@ void execute_msg_heap_pop();
 
 extern uint64_t expectedInstance;
 
-//Entities for client in HOTSTUFF and MUL.
+//Entities for client in HOTSTUFF and SpotLess.
 //next_to_send is just the id of primary in the next round.
 extern uint64_t next_to_send;
 uint64_t get_next_to_send();
@@ -615,13 +615,12 @@ void dec_in_round(uint32_t node_id);
 extern secp256k1_context *ctx;
 extern unsigned char private_key[32];
 extern secp256k1_pubkey public_key;
-extern std::mutex public_key_lock;
 extern map<uint64_t, secp256k1_pubkey> public_keys;
 extern string get_secp_hash(string hash, RemReqType type);
 
 #endif
 
-#if !MUL
+#if !SpotLess
 extern std::mutex hash_QC_lock;
 extern unordered_map<string, QuorumCertificate> hash_to_QC;
 extern unordered_map<string, uint64_t> hash_to_txnid;
@@ -634,7 +633,7 @@ extern vector<unordered_map<string, uint64_t>> hash_to_view;
 #endif
 
 
-#if !MUL
+#if !SpotLess
 // if sent is true, a replica considers itself not as the next primary
 // if sent is false, a replica considers itself as the next primary
 extern bool sent;
@@ -685,6 +684,10 @@ extern bool SafeNode(const QuorumCertificate &highQC, uint64_t instance_id);
 extern uint64_t get_view_primary(uint64_t view, uint64_t instance_id);
 #endif
 
+#if TIMER_MANAGER
+extern FaultManager fault_manager;
+#endif
+
 #endif
 
 // Entities related to RBFT protocol.
@@ -692,10 +695,10 @@ extern uint64_t get_view_primary(uint64_t view, uint64_t instance_id);
 // Entities pertaining to the current view.
 uint64_t get_current_view(uint64_t thd_id);
 
-//#if VIEW_CHANGES || MULTI_ON || MUL
+//#if VIEW_CHANGES || MULTI_ON || SpotLess
 // For updating view for input threads, batching threads, execute thread
 // and checkpointing thread.
-#if !MUL
+#if !SpotLess
 extern std::mutex newViewMTX[THREAD_CNT + REM_THREAD_CNT + SEND_THREAD_CNT];
 extern uint64_t view[THREAD_CNT + REM_THREAD_CNT + SEND_THREAD_CNT];
 #else
@@ -755,6 +758,24 @@ extern uint32_t g_view;
 extern std::mutex viewMTX;
 void set_client_view(uint64_t nview);
 uint64_t get_client_view();
+#endif
+
+#if SpotLess_RECOVERY
+extern uint64_t fail_count;
+#endif
+
+#if LOCAL_FAULT || VIEW_CHANGES || SpotLess_RECOVERY
+// Server parameters for tracking failed replicas
+// extern std::mutex stopMTX[SEND_THREAD_CNT];
+// extern vector<vector<uint64_t>> stop_nodes; // List of nodes that have stopped.
+#if STOP_NODE_SET
+    extern std::mutex stop_lock;
+    extern set<uint64_t> stop_node_set;
+#endif
+
+// Client parameters for tracking failed replicas.
+extern std::mutex clistopMTX;
+extern vector<uint64_t> stop_replicas; // For client we assume only one O/P thread.
 #endif
 
 #if LOCAL_FAULT

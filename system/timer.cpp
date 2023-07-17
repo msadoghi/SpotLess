@@ -95,6 +95,45 @@ bool ServerTimer::checkTimer()
 	return false;
 }
 
+
+#if CONSENSUS == HOTSTUFF && SpotLess_RECOVERY
+bool ServerTimer::checkTimer(Timer*& ptimer)
+{
+	if(this->timeout){
+		return false;
+	}
+
+	Timer *tmap;
+
+	tlock.lock();
+
+	for (uint64_t i = 0; i < txn_map.size(); i++)
+	{
+		tmap = txn_map[i];
+		if (get_sys_clock() - tmap->get_timestamp() < 5 * EXE_TIMEOUT)
+		{
+			break;
+		}
+		else
+		{
+			cout << get_sys_clock() - tmap->get_timestamp() << "  " << EXE_TIMEOUT << endl;
+			tlock.unlock();
+			ptimer = tmap;
+			timeout = true;
+			return true;
+		}
+	}
+
+	// if(waiting_prepare && get_sys_clock() - last_new_view_time >= 10 * EXE_TIMEOUT){
+	// 	tlock.unlock();
+	// 	return true;
+	// }
+
+	tlock.unlock();
+	return false;
+}
+#endif
+
 void ServerTimer::pauseTimer()
 {
 	tlock.lock();
@@ -231,7 +270,7 @@ Timer *ClientTimer::fetchPendingRequests()
 /* Timers */
 
 ClientTimer *client_timer;
-#if !MUL
+#if !SpotLess
 ServerTimer *server_timer;
 std::mutex tlock;
 #else

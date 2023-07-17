@@ -362,6 +362,8 @@ public:
 
     uint64_t end_index;
     uint64_t batch_size;
+
+    bool valid = true;
 };
 
 class CheckpointMessage : public Message
@@ -815,6 +817,8 @@ class HOTSTUFFNewViewMsg : public Message{
     uint64_t end_index;
     uint32_t batch_size;
     
+    bool non_vote = false;
+
     QuorumCertificate PreparedQC;
 };
 
@@ -823,9 +827,6 @@ class HOTSTUFFGenericMsg : public HOTSTUFFPrepareMsg{
     /* HOTSTUFFGenericMsg in ResilientDB is very similar to HOTSTUFFPrepareMessage.
     In order to simplify the implementation, we only give it a new name
     */
-};
-
-class NarwhalPayloadMsg : public HOTSTUFFGenericMsg{
 };
 
 

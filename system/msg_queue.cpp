@@ -121,6 +121,77 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t>
             entry->allsign.push_back(((PBFTPrepMessage *)msg)->signature);
         }
         break;
+
+#if CONSENSUS == PBFT && !RING_BFT
+    case PBFT_COMMIT_MSG:
+        for (uint64_t i = 0; i < dest.size(); i++)
+        {
+            ((PBFTCommitMessage *)msg)->sign(dest[i]);
+            entry->allsign.push_back(((PBFTCommitMessage *)msg)->signature);
+        }
+        break;
+#elif RING_BFT
+    case PBFT_COMMIT_MSG:
+        if (((PBFTCommitMessage *)msg)->is_cross_shard)
+        {
+            // cout << "ED2  "<< msg->txn_id / get_batch_size() << endl;fflush(stdout);
+            ((PBFTCommitMessage *)msg)->sign(dest[0]);
+            for (uint64_t i = 0; i < dest.size(); i++)
+            {
+                entry->allsign.push_back(((PBFTCommitMessage *)msg)->signature);
+            }
+        }
+        else
+        {
+            // cout << "MAC  "<< msg->txn_id / get_batch_size() << endl;fflush(stdout);
+            for (uint64_t i = 0; i < dest.size(); i++)
+            {
+                ((PBFTCommitMessage *)msg)->sign(dest[i]);
+                entry->allsign.push_back(((PBFTCommitMessage *)msg)->signature);
+            }
+        }
+        break;
+    case COMMIT_CERT_MSG:
+        if (((CommitCertificateMessage *)msg)->forwarding_from == (uint64_t)-1)
+            ((CommitCertificateMessage *)msg)->sign(dest[0]);
+        for (uint64_t i = 0; i < dest.size(); i++)
+        {
+            entry->allsign.push_back(((CommitCertificateMessage *)msg)->signature);
+        }
+        break;
+    case RING_PRE_PREPARE:
+        for (uint64_t i = 0; i < dest.size(); i++)
+        {
+            ((RingBFTPrePrepare *)msg)->sign(dest[i]);
+            entry->allsign.push_back(msg->signature);
+        }
+        break;
+    case RING_COMMIT:
+        if (((RingBFTCommit *)msg)->forwarding_from == (uint64_t)-1)
+            ((RingBFTCommit *)msg)->sign(dest[0]);
+        for (uint64_t i = 0; i < dest.size(); i++)
+        {
+            entry->allsign.push_back(((RingBFTCommit *)msg)->signature);
+        }
+        break;
+#endif
+
+#if VIEW_CHANGES
+    case VIEW_CHANGE:
+        for (uint64_t i = 0; i < dest.size(); i++)
+        {
+            ((ViewChangeMsg *)msg)->sign(dest[i]);
+            entry->allsign.push_back(((ViewChangeMsg *)msg)->signature);
+        }
+        break;
+    case NEW_VIEW:
+        for (uint64_t i = 0; i < dest.size(); i++)
+        {
+            ((NewViewMsg *)msg)->sign(dest[i]);
+            entry->allsign.push_back(((NewViewMsg *)msg)->signature);
+        }
+        break;
+#endif
         
 #if CONSENSUS==HOTSTUFF && THRESHOLD_SIGNATURE
     case HOTSTUFF_PREP_MSG:
@@ -149,9 +220,6 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t>
         break;
     case HOTSTUFF_GENERIC_MSG:
         ((HOTSTUFFGenericMsg *)msg)->sign(dest[0]);
-        break;
-    case NARWHAL_PAYLOAD_MSG:
-        ((NarwhalPayloadMsg *)msg)->sign(dest[0]);
         break;
 #endif
     default:
@@ -187,11 +255,24 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t>
         INC_STATS(thd_id, msg_queue_enq_cnt, 1);
         break;
     }
+#if SHARPER
+    case SUPER_PROPOSE:
+#endif
     case BATCH_REQ:
     case PBFT_CHKPT_MSG:
     case PBFT_PREP_MSG:
     case PBFT_COMMIT_MSG:
 
+#if RING_BFT
+    case COMMIT_CERT_MSG:
+    case RING_PRE_PREPARE:
+    case RING_COMMIT:
+#endif
+
+#if VIEW_CHANGES
+    case VIEW_CHANGE:
+    case NEW_VIEW:
+#endif
 #if CONSENSUS == HOTSTUFF
     case HOTSTUFF_PREP_MSG:
     case HOTSTUFF_PREP_VOTE_MSG:
@@ -202,13 +283,12 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t>
     case HOTSTUFF_DECIDE_MSG:
     case HOTSTUFF_NEW_VIEW_MSG:
     case HOTSTUFF_GENERIC_MSG:
-    case NARWHAL_PAYLOAD_MSG:
 #endif
     {
         // Putting in queue of all the output threads as destinations differ.
         char *buf = create_msg_buffer(entry->msg);
-        uint64_t j;
-        for(j = 0; j < g_this_send_thread_cnt - 1; j++)
+        uint64_t j = 0;
+        for (; j < g_this_send_thread_cnt - 1; j++)
         {
 #if TRANSPORT_OPTIMIZATION
             if(dest.size() == 1 && dest[0] % g_this_send_thread_cnt != j){
@@ -218,11 +298,8 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t>
             msg_entry *entry2 = (msg_entry *)mem_allocator.alloc(sizeof(struct msg_entry));
             //msg_pool.get(entry2);
             new (entry2) msg_entry();
-            // printf("[E5]%lu\n", j);
-            // fflush(stdout);
+
             Message *deepCMsg = deep_copy_msg(buf, entry->msg);
-            // printf("[E6]%lu\n", j);
-            // fflush(stdout);
             entry2->msg = deepCMsg;
             for (uint64_t i = 0; i < dest.size(); i++)
             {
@@ -246,7 +323,7 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t>
 
             INC_STATS(thd_id, msg_queue_enq_cnt, 1);
         }
-        // printf("[E7]%lu\n", j);
+
 #if TRANSPORT_OPTIMIZATION
         if(dest.size() == 1 && dest[0] % g_this_send_thread_cnt != j){
             delete_msg_buffer(buf);

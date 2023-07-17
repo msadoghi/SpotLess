@@ -73,9 +73,18 @@ public:
 
     void add(const T& item)
     {
+#if SpotLess_RECOVERY
+        if(count < capacity){
+            items[count] = item;
+            ++count;
+        }else if (count == capacity){
+            items[count - 1] = item;
+        }
+#else
         assert(count < capacity);
         items[count] = item;
         ++count;
+#endif
     }
 
     void add()

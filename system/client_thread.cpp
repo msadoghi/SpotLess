@@ -111,13 +111,9 @@ RC ClientThread::run()
 		{
 			keyMTX.unlock();
 			break;
-		}else{
-			// sleep(5);
-			break;
 		}
 		keyMTX.unlock();
 	}
-	cout << "here" << endl;
 #if !BANKING_SMART_CONTRACT
 	BaseQuery *m_query;
 #endif
@@ -155,9 +151,6 @@ RC ClientThread::run()
 
 #if CONSENSUS == HOTSTUFF
 		uint64_t limit = MAX_TXN_IN_FLIGHT / BATCH_SIZE / NODE_CNT + ((MAX_TXN_IN_FLIGHT / BATCH_SIZE) % NODE_CNT > next_node);
-		if(limit == 0){
-			limit = 1;
-		}
 		if(get_in_round(next_node) == limit){
 			inc_next_to_send();
 			continue;
@@ -197,9 +190,6 @@ RC ClientThread::run()
 		}
 		last_send_time = get_sys_clock();
 		assert(m_query);
-
-		printf("Client: thread %lu sending query to node: %u, %d, %f\n",
-			  _thd_id, next_node_id, inf_cnt, simulation->seconds_from_start(get_sys_clock()));
 
 		DEBUG("Client: thread %lu sending query to node: %u, %d, %f\n",
 			  _thd_id, next_node_id, inf_cnt, simulation->seconds_from_start(get_sys_clock()));
@@ -292,6 +282,16 @@ RC ClientThread::run()
 
 #endif
 			bmsg->sign(next_node_id); // Sign the message.
+
+#if TIMER_ON
+			char *buf = create_msg_buffer(bmsg);
+			Message *deepCMsg = deep_copy_msg(buf, bmsg);
+			ClientQueryBatch *deepCqry = (ClientQueryBatch *)deepCMsg;
+			uint64_t c_txn_id = get_sys_clock();
+			deepCqry->txn_id = c_txn_id;
+			client_timer->startTimer(deepCqry->cqrySet[get_batch_size() - 1]->client_startts, deepCqry);
+			delete_msg_buffer(buf);
+#endif // TIMER_ON
 
 			vector<uint64_t> dest;
 			dest.push_back(next_node_id);

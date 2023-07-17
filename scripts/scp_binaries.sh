@@ -1,16 +1,15 @@
 #!/bin/bash
 
 home_directory="resdb"
-nds=32
+nodes=4
 HOSTS="$1"
 ifconfig=1
 i=0
-#IDENTITY="~/kdkCA.pem"
 IDENTITY="~/aws.pem"
 for HOSTNAME in ${HOSTS}; do
 
 	if_cmd="scp -i ${IDENTITY} ./ifconfig.txt ubuntu@${HOSTNAME}:${home_directory}/"
-	if [ "$i" -lt "$nds" ];then
+	if [ "$i" -lt "$nodes" ];then
 		cmd="scp -i ${IDENTITY} ./rundb ubuntu@${HOSTNAME}:${home_directory}/"
 	else
 		cmd="scp -i ${IDENTITY} ./runcl ubuntu@${HOSTNAME}:${home_directory}/"

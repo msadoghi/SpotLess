@@ -70,7 +70,8 @@ public:
 
 #if TEMP_QUEUE
     bool check_view(Message * msg);
-    void reenqueue(uint64_t qid, bool is_newview);
+    void temp_store_newview(Message * msg);
+    void reenqueue(uint64_t instance_id, bool is_newview);
 #endif
 
     uint64_t get_cnt() { return get_wq_cnt() + get_rem_wq_cnt() + get_new_wq_cnt(); }
@@ -81,19 +82,14 @@ public:
 
 private:
     boost::lockfree::queue<work_queue_entry *> **work_queue = nullptr;
-    #if NARWHAL
-    boost::lockfree::queue<work_queue_entry *> *new_txn_queue = nullptr;
-    #elif !MUL
+    #if !SpotLess
     boost::lockfree::queue<work_queue_entry *> *new_txn_queue = nullptr;
     #else
     boost::lockfree::queue<work_queue_entry *> **new_txn_queue = nullptr;
     #endif
 
 #if TEMP_QUEUE
-    #if NARWHAL
-        boost::lockfree::queue<work_queue_entry *> **temp_queue = nullptr;
-        boost::lockfree::queue<work_queue_entry *> *new_view_queue = nullptr;
-    #elif !MUL
+    #if !SpotLess
         boost::lockfree::queue<work_queue_entry *> *temp_queue = nullptr;
         boost::lockfree::queue<work_queue_entry *> *new_view_queue = nullptr;
     #else

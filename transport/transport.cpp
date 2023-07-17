@@ -303,11 +303,62 @@ void Transport::send_msg(uint64_t send_thread_id, uint64_t dest_node_id, void *s
     DEBUG("%ld Sending batch of %d bytes to node %ld on socket %ld\n", send_thread_id, size, dest_node_id, (uint64_t)socket);
     INC_GLOB_STATS_ARR(bytes_sent, dest_node_id, size);
 
+#if VIEW_CHANGES || LOCAL_FAULT || SpotLess_RECOVERY
+    bool failednode = false;
+
+    if (ISSERVER)
+    {
+        stop_lock.lock();
+        if(stop_node_set.count(dest_node_id)){
+            failednode = true;
+        }        
+        stop_lock.unlock();
+    }
+    else
+    {
+        clistopMTX.lock();
+        for (uint i = 0; i < stop_replicas.size(); i++)
+        {
+            if (dest_node_id == stop_replicas[i])
+            {
+                failednode = true;
+                break;
+            }
+        }
+        clistopMTX.unlock();
+    }
+    if (!failednode)
+    {
+        int rc = -1;
+        uint64_t time = get_sys_clock();
+        while ((rc < 0 && (get_sys_clock() - time < MSG_TIMEOUT || !simulation->is_setup_done())) && (!simulation->is_setup_done() || !simulation->is_done()))
+        {
+            rc = socket->sock.send(sbuf, size, NNG_FLAG_NONBLOCK);
+        }
+        if (rc < 0)
+        {
+            cout << "Adding failed node: " << dest_node_id << "\n";
+            if (ISSERVER)
+            {
+                stop_lock.lock();
+                stop_node_set.insert(dest_node_id);
+                stop_lock.unlock();
+            }
+            else
+            {
+                clistopMTX.lock();
+                stop_replicas.push_back(dest_node_id);
+                clistopMTX.unlock();
+            }
+        }
+    }
+#else
     int rc = -1;
     while (rc < 0 && (!simulation->is_setup_done() || !simulation->is_done()))
     {
         rc = socket->sock.send(sbuf, size, NNG_FLAG_NONBLOCK);
     }
+#endif
 
     //nn_freemsg(sbuf);
     DEBUG("%ld Batch of %d bytes sent to node %ld\n", send_thread_id, size, dest_node_id);

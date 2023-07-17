@@ -39,11 +39,6 @@ Message *Message::create_message(char *buf)
 	RemReqType rtype = NO_MSG;
 	uint64_t ptr = 0;
 	COPY_VAL(rtype, buf, ptr);
-	// if(rtype != 3){
-	// 	cout << "rtype: " << rtype << endl;
-	// fflush(stdout);
-	// }
-
 	Message *msg = create_message(rtype);
 	msg->copy_from_buf(buf);
 	return msg;
@@ -196,9 +191,6 @@ Message *Message::create_message(RemReqType rtype)
 		break;
 	case HOTSTUFF_GENERIC_MSG:
 		msg = new HOTSTUFFGenericMsg;
-		break;
-	case NARWHAL_PAYLOAD_MSG:
-		msg = new NarwhalPayloadMsg;
 		break;
 
 #endif
@@ -543,12 +535,6 @@ void Message::release_message(Message *msg)
 	}
 	case HOTSTUFF_GENERIC_MSG:{
 		HOTSTUFFGenericMsg *m_msg = (HOTSTUFFGenericMsg *)msg;
-		m_msg->release();
-		delete m_msg;
-		break;
-	}
-	case NARWHAL_PAYLOAD_MSG:{
-		NarwhalPayloadMsg *m_msg = (NarwhalPayloadMsg *)msg;
 		m_msg->release();
 		delete m_msg;
 		break;
@@ -1007,7 +993,7 @@ void ClientResponseMessage::copy_from_txn(TxnManager *txn)
 {
 	Message::mcopy_from_txn(txn);
 #if CONSENSUS == HOTSTUFF
-	#if !MUL
+	#if !SpotLess
 		hash_QC_lock.lock();
 		#if CHAINED
 		view = hash_to_view[txn->get_hash()];
@@ -1847,7 +1833,7 @@ void ExecuteMessage::copy_from_txn(TxnManager *txn)
 {
 	// Constructing txn manager for one transaction less than end index.
 	this->txn_id = txn->get_txn_id() - 1;
-	#if !MUL
+	#if !SpotLess
 	this->view = get_current_view(txn->get_thd_id());
 	#else
 	uint64_t instance_id = this->txn_id / get_batch_size() % get_totInstances();
@@ -2959,12 +2945,12 @@ void HOTSTUFFPrepareMsg::add_request_msg(uint idx, Message * msg){
 // Initialization
 void HOTSTUFFPrepareMsg::init(uint64_t instance_id)
 {
-	// // Only primary should create this message
-	// #if !MUL
-	// assert(get_view_primary(get_current_view(0)) == g_node_id);
-	// #else
-	// assert(get_view_primary(get_current_view(instance_id), instance_id) == g_node_id);
-	// #endif
+	// Only primary should create this message
+	#if !SpotLess
+	assert(get_view_primary(get_current_view(0)) == g_node_id);
+	#else
+	assert(get_view_primary(get_current_view(instance_id), instance_id) == g_node_id);
+	#endif
 	this->view = get_current_view(instance_id);
 	this->index.init(get_batch_size());
 	this->requestMsg.resize(get_batch_size());
@@ -2975,13 +2961,10 @@ void HOTSTUFFPrepareMsg::copy_from_txn(TxnManager *txn)
 	// Setting txn_id 2 less than the actual value.
 	this->txn_id = txn->get_txn_id() - 2;
 	this->batch_size = get_batch_size();
-	// printf("[M1]\n");
-	// fflush(stdout);
+
 	// Storing the representative hash of the batch.
 	this->hash = txn->hash;
 	this->hashSize = txn->hashSize;
-	// printf("[M2]\n");
-	// fflush(stdout);
 	// Use these lines for testing plain hash function.
 	//string message = "anc_def";
 	//this->hash.add(calculateHash(message));
@@ -3072,6 +3055,11 @@ void HOTSTUFFPrepareMsg::copy_from_buf(char *buf)
 
 		Message *msg = create_message(&buf[ptr]);
 		ptr += msg->get_size();
+// #if BANKING_SMART_CONTRACT
+// 		requestMsg[i] = (BankingSmartContractMessage *)msg;
+// #else
+// 		requestMsg[i] = (YCSBClientQueryMessage *)msg;
+// #endif
 		add_request_msg(i, msg);
 	}
 
@@ -3134,14 +3122,9 @@ bool HOTSTUFFPrepareMsg::validate(uint64_t thd_id)
 #if USE_CRYPTO
 
 #if THRESHOLD_SIGNATURE
-	try{
-		unsigned char message[32];
+	unsigned char message[32];
 	memcpy(message, get_secp_hash(this->hash, this->rtype).c_str(), 32);
 	assert(secp256k1_ecdsa_verify(ctx, &sig_share, message, &public_keys[return_node_id]));
-	} catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-    }
-	
 #endif
 
 #endif
@@ -3155,7 +3138,7 @@ bool HOTSTUFFPrepareMsg::validate(uint64_t thd_id)
 	}
 
 	// Is hash of request message valid
-	if (this->hash != calculateHash(batchStr) && this->rtype != NARWHAL_PAYLOAD_MSG)
+	if (this->hash != calculateHash(batchStr))
 	{
 		assert(0);
 		return false;
@@ -3234,7 +3217,7 @@ void HOTSTUFFPrepareVoteMsg::sign(uint64_t dest_node)
 
 void HOTSTUFFPrepareVoteMsg::copy_from_txn(TxnManager *txn){
 	Message::mcopy_from_txn(txn);
-	#if !MUL
+	#if !SpotLess
 	uint64_t instance_id = 0;
 	#else
 	uint64_t instance_id = this->txn_id / get_batch_size() % get_totInstances();
@@ -3362,7 +3345,7 @@ void HOTSTUFFPreCommitMsg::sign(uint64_t dest_node)
 
 void HOTSTUFFPreCommitMsg::copy_from_txn(TxnManager *txn){
 	Message::mcopy_from_txn(txn);
-	#if !MUL
+	#if !SpotLess
 	uint64_t instance_id = 0;
 	#else
 	uint64_t instance_id = this->txn_id / get_batch_size() % get_totInstances();
@@ -3493,7 +3476,7 @@ void HOTSTUFFPreCommitVoteMsg::sign(uint64_t dest_node)
 
 void HOTSTUFFPreCommitVoteMsg::copy_from_txn(TxnManager *txn){
 	Message::mcopy_from_txn(txn);
-	#if !MUL
+	#if !SpotLess
 	uint64_t instance_id = 0;
 	#else
 	uint64_t instance_id = this->txn_id / get_batch_size() % get_totInstances();
@@ -3621,7 +3604,7 @@ void HOTSTUFFCommitMsg::sign(uint64_t dest_node)
 
 void HOTSTUFFCommitMsg::copy_from_txn(TxnManager *txn){
 	Message::mcopy_from_txn(txn);
-	#if !MUL
+	#if !SpotLess
 	uint64_t instance_id = 0;
 	#else
 	uint64_t instance_id = this->txn_id / get_batch_size() % get_totInstances();
@@ -3751,7 +3734,7 @@ void HOTSTUFFCommitVoteMsg::sign(uint64_t dest_node)
 
 void HOTSTUFFCommitVoteMsg::copy_from_txn(TxnManager *txn){
 	Message::mcopy_from_txn(txn);
-	#if !MUL
+	#if !SpotLess
 	uint64_t instance_id = 0;
 	#else
 	uint64_t instance_id = this->txn_id / get_batch_size() % get_totInstances();
@@ -3880,7 +3863,7 @@ void HOTSTUFFDecideMsg::sign(uint64_t dest_node)
 
 void HOTSTUFFDecideMsg::copy_from_txn(TxnManager *txn){
 	Message::mcopy_from_txn(txn);
-	#if !MUL
+	#if !SpotLess
 	uint64_t instance_id = 0;
 	#else
 	uint64_t instance_id = this->txn_id / get_batch_size() % get_totInstances();
@@ -3981,6 +3964,8 @@ uint64_t HOTSTUFFNewViewMsg::get_size(){
 	size += sizeof(sig_share);
 #endif
 
+	size += sizeof(non_vote);
+
 	return size;
 }
 
@@ -4012,7 +3997,7 @@ void HOTSTUFFNewViewMsg::sign(uint64_t dest_node)
 void HOTSTUFFNewViewMsg::copy_from_txn(TxnManager *txn){
 	Message::mcopy_from_txn(txn);
 	this->txn_id = txn->get_txn_id();
-#if !MUL
+#if !SpotLess
 	this->view = get_current_view(0);
 #else
 	uint64_t instance_id = this->txn_id / get_batch_size() % get_totInstances();
@@ -4024,7 +4009,7 @@ void HOTSTUFFNewViewMsg::copy_from_txn(TxnManager *txn){
 	this->hashSize = this->hash.size();
 	this->return_node = g_node_id;
 	this->batch_size = get_batch_size();
-#if !MUL
+#if !SpotLess
 	this->PreparedQC = get_g_preparedQC();
 #else
 	this->PreparedQC = get_g_preparedQC(instance_id);
@@ -4053,6 +4038,8 @@ void HOTSTUFFNewViewMsg::copy_from_buf(char *buf)
 	COPY_VAL(sig_share, buf, ptr);
 #endif
 
+	COPY_VAL(non_vote, buf, ptr);
+
 	assert(ptr == get_size());
 }
 
@@ -4080,6 +4067,9 @@ void HOTSTUFFNewViewMsg::copy_to_buf(char *buf)
 #if THRESHOLD_SIGNATURE
 	COPY_BUF(buf, sig_share, ptr);
 #endif
+
+	COPY_BUF(buf, non_vote, ptr);
+
 	assert(ptr == get_size());
 }
 
@@ -4089,18 +4079,15 @@ bool HOTSTUFFNewViewMsg::validate()
 #if USE_CRYPTO
 
 #if THRESHOLD_SIGNATURE
-	try{
 	unsigned char message[32];
 	memcpy(message, get_secp_hash(this->hash, this->rtype).c_str(), 32);
 	assert(secp256k1_ecdsa_verify(ctx, &sig_share, message, &public_keys[return_node_id]));
-	}catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-    }
 #endif
 
 #endif
 	return true;
 }
+
 #endif	//CONSENSUS == HOTSTUFF
 
 /************************************/

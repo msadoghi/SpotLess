@@ -52,6 +52,21 @@ public:
     RC process_execute_msg(Message *msg);
 #endif
 
+#if TIMER_ON
+    void add_timer(Message *msg, string qryhash);
+    void remove_timer(string qryhash);
+    #if SpotLess
+    void add_timer(Message *msg, string qryhash, uint64_t instance_id);
+    void remove_timer(string qryhash, uint64_t instance_id);
+    #endif
+#endif
+
+#if SpotLess_RECOVERY
+void check_for_timeout();
+void fail_primary(uint64_t time, uint64_t instance_id);
+#endif
+
+
 #if VIEW_CHANGES
     void client_query_check(ClientQueryBatch *clbtch);
     void check_for_timeout();
@@ -82,12 +97,10 @@ public:
     void create_and_send_pre_prepare(CommitCertificateMessage *msg, uint64_t tid);
 #endif
 
-    void read_txns(HOTSTUFFPrepareMsg *prep, uint64_t bid);
 #if CONSENSUS == HOTSTUFF
     void set_txn_man_fields(HOTSTUFFPrepareMsg *prep, uint64_t bid);
     RC process_client_batch_hotstuff(Message *msg);
     void create_and_send_hotstuff_prepare(ClientQueryBatch *msg, uint64_t tid);
-    void create_and_send_narwhal_payload(HOTSTUFFGenericMsg *msg);
     bool hotstuff_prepared(HOTSTUFFPrepareVoteMsg* msg);
     bool hotstuff_precommitted(HOTSTUFFPreCommitVoteMsg* msg);
     bool hotstuff_committed(HOTSTUFFCommitVoteMsg* msg);
@@ -102,23 +115,27 @@ public:
     RC process_hotstuff_execute(Message *msg);
     RC process_hotstuff_new_view(Message *msg);
     void advance_view(bool update = true);
-    RC process_narwhal_payload(Message *msg);
 #if CHAINED
     RC process_hotstuff_generic(Message *msg);
-    
-    #if !MUL
+    #if !SpotLess
     void update_lockQC(const QuorumCertificate& QC, uint64_t view);
     #else
     void update_lockQC(const QuorumCertificate& QC, uint64_t view, uint64_t instance_id);
     #endif
 #endif
-    #if !MUL
+    #if !SpotLess
         void send_execute_msg_hotstuff();
         void send_execute_msg_hotstuff(TxnManager *t_man);
     #else
         void send_execute_msg_hotstuff(uint64_t instance_id);
         void send_execute_msg_hotstuff(TxnManager *t_man, uint64_t instance_id);
     #endif
+#endif
+
+#if TIMER_MANAGER
+     void send_failed_new_view(uint64_t view);
+     void process_failed_new_view(HOTSTUFFNewViewMsg *msg);
+     void advance_failed_view(uint64_t view);
 #endif
 
 #if TESTING_ON

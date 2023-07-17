@@ -26,6 +26,16 @@ class ServerTimer
 	
 public:
 
+#if SpotLess_RECOVERY
+	bool waiting_prepare;
+	uint64_t last_new_view_time;
+	bool timeout = false;
+#endif
+
+#if CONSENSUS == HOTSTUFF && SpotLess_RECOVERY
+	bool checkTimer(Timer*& ptimer);
+#endif
+
 	void startTimer(string digest, Message *clqry);
 	void endTimer(string digest);
 	bool checkTimer();
@@ -54,7 +64,7 @@ public:
 /************************************/
 
 extern ClientTimer *client_timer;
-#if !MUL
+#if !SpotLess
 extern ServerTimer *server_timer;
 #else
 extern ServerTimer *server_timer[MULTI_INSTANCES];

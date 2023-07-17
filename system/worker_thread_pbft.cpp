@@ -119,6 +119,11 @@ RC WorkerThread::process_batch(Message *msg)
     // Allocate transaction managers for all the transactions in the batch.
     set_txn_man_fields(breq, 0);
 
+#if TIMER_ON
+    // The timer for this client batch stores the hash of last request.
+    add_timer(breq, txn_man->get_hash());
+#endif
+
     // Storing the BatchRequests message.
     txn_man->set_primarybatch(breq);
 
@@ -165,6 +170,10 @@ RC WorkerThread::process_batch(Message *msg)
         // If enough Commit messages have already arrived.
         if (txn_man->is_committed())
         {
+#if TIMER_ON
+            // End the timer for this client batch.
+            remove_timer(txn_man->hash);
+#endif
             // Proceed to executing this batch of transactions.
             send_execute_msg();
 
@@ -313,6 +322,10 @@ RC WorkerThread::process_pbft_commit_msg(Message *msg)
     // Check if sufficient number of Commit messages have arrived.
     if (committed_local(pcmsg))
     {
+#if TIMER_ON
+        // End the timer for this client batch.
+        remove_timer(txn_man->hash);
+#endif
 
         // Add this message to execute thread's queue.
         send_execute_msg();

@@ -459,15 +459,15 @@ void TxnManager::set_new_viewed(){
 }
 
 #if SEPARATE
-void TxnManager::set_primarybatch(PVPProposalMsg *prop){
+void TxnManager::set_primarybatch(SpotLessProposalMsg *prop){
     char *buf = create_msg_buffer(prop);
     Message *deepMsg = deep_copy_msg(buf, prop); 
-    propmsg = (PVPProposalMsg*)deepMsg;
+    propmsg = (SpotLessProposalMsg*)deepMsg;
     delete_msg_buffer(buf);
 }
 #endif
 
-bool TxnManager::send_hotstuff_newview(PVPSyncMsg* nmsg){
+bool TxnManager::send_hotstuff_newview(SpotLessSyncMsg* nmsg){
     uint64_t view = get_current_view(instance_id);
     if(nmsg){
         view = nmsg->view;
@@ -484,7 +484,7 @@ bool TxnManager::send_hotstuff_newview(PVPSyncMsg* nmsg){
 
     uint64_t dest_node_id = get_view_primary(view + 1, instance_id);
     #if PROCESS_PRINT
-    printf("%ld Send PVP_SYNC_MSG message to %ld   %f\n", get_txn_id(), dest_node_id, simulation->seconds_from_start(get_sys_clock()));
+    printf("%ld Send SpotLess_SYNC_MSG message to %ld   %f\n", get_txn_id(), dest_node_id, simulation->seconds_from_start(get_sys_clock()));
     fflush(stdout);
     #endif
 
@@ -492,11 +492,11 @@ bool TxnManager::send_hotstuff_newview(PVPSyncMsg* nmsg){
     if(nmsg)
         this->set_hash(nmsg->hash);
 
-    Message *msg = Message::create_message(this, PVP_SYNC_MSG);
-    Message *msg2 = Message::create_message(this, PVP_SYNC_MSG);
+    Message *msg = Message::create_message(this, SpotLess_SYNC_MSG);
+    Message *msg2 = Message::create_message(this, SpotLess_SYNC_MSG);
     
-    PVPSyncMsg *nvmsg = (PVPSyncMsg *)msg;
-    PVPSyncMsg *nvmsg2 = (PVPSyncMsg *)msg2;
+    SpotLessSyncMsg *nvmsg = (SpotLessSyncMsg *)msg;
+    SpotLessSyncMsg *nvmsg2 = (SpotLessSyncMsg *)msg2;
 
     if(nmsg){
         nvmsg->hash = nvmsg2->hash = nmsg->hash;
@@ -565,8 +565,8 @@ bool TxnManager::send_hotstuff_newview(PVPSyncMsg* nmsg){
 
 #if SEPARATE
 void TxnManager::send_hotstuff_generic(){
-    Message *msg = Message::create_message(this, PVP_GENERIC_MSG);
-    PVPGenericMsg *gene = (PVPGenericMsg *)msg;
+    Message *msg = Message::create_message(this, SpotLess_GENERIC_MSG);
+    SpotLessGenericMsg *gene = (SpotLessGenericMsg *)msg;
     assert(!this->get_hash().empty());
     this->highQC = gene->highQC = get_g_preparedQC(instance_id);
 
@@ -599,13 +599,13 @@ void TxnManager::send_hotstuff_generic(){
 
 #if EQUIV_TEST
 void TxnManager::equivocate_generic(){
-    Message *msg = Message::create_message(this, PVP_GENERIC_MSG);
-    PVPGenericMsg *gene = (PVPGenericMsg *)msg;
-    Message *msg2 = Message::create_message(this, PVP_GENERIC_MSG);
-    PVPGenericMsg *gene2 = (PVPGenericMsg *)msg2;
+    Message *msg = Message::create_message(this, SpotLess_GENERIC_MSG);
+    SpotLessGenericMsg *gene = (SpotLessGenericMsg *)msg;
+    Message *msg2 = Message::create_message(this, SpotLess_GENERIC_MSG);
+    SpotLessGenericMsg *gene2 = (SpotLessGenericMsg *)msg2;
     // to other malicious replicas
-    Message *msg3 = Message::create_message(this, PVP_GENERIC_MSG);
-    PVPGenericMsg *gene3 = (PVPGenericMsg *)msg3;
+    Message *msg3 = Message::create_message(this, SpotLess_GENERIC_MSG);
+    SpotLessGenericMsg *gene3 = (SpotLessGenericMsg *)msg3;
     assert(!this->get_hash().empty());
     this->highQC = gene->highQC = gene2->highQC = gene3->highQC = get_g_preparedQC(instance_id);
     
@@ -662,16 +662,16 @@ bool TxnManager::equivocate_hotstuff_newview(bool is_equi){
 
     uint64_t dest_node_id = get_view_primary(get_current_view(instance_id) + 1, instance_id);
     #if PROCESS_PRINT
-    printf("%ld Send PVP_SYNC_MSG message to %ld   %f\n", get_txn_id(), dest_node_id, simulation->seconds_from_start(get_sys_clock()));
+    printf("%ld Send SpotLess_SYNC_MSG message to %ld   %f\n", get_txn_id(), dest_node_id, simulation->seconds_from_start(get_sys_clock()));
     fflush(stdout);
     #endif
     vector<uint64_t> dest;
 
-    Message *msg = Message::create_message(this, PVP_SYNC_MSG);
-    Message *msg2 = Message::create_message(this, PVP_SYNC_MSG);
+    Message *msg = Message::create_message(this, SpotLess_SYNC_MSG);
+    Message *msg2 = Message::create_message(this, SpotLess_SYNC_MSG);
     
-    PVPSyncMsg *nvmsg = (PVPSyncMsg *)msg;
-    PVPSyncMsg *nvmsg2 = (PVPSyncMsg *)msg2;
+    SpotLessSyncMsg *nvmsg = (SpotLessSyncMsg *)msg;
+    SpotLessSyncMsg *nvmsg2 = (SpotLessSyncMsg *)msg2;
 
     if(is_equi){
         // assert(32 == hashSize2);
@@ -693,7 +693,7 @@ bool TxnManager::equivocate_hotstuff_newview(bool is_equi){
         if(is_equi && dest_node_id % EQUIV_FREQ == EQ_VICTIM_ID || 
         !is_equi && dest_node_id % EQUIV_FREQ != EQ_VICTIM_ID){
             #if SEND_NEWVIEW_PRINT
-                printf("%ld Send PVP_SYNC_MSG message to %ld   %f\n", get_txn_id(), dest_node_id, simulation->seconds_from_start(get_sys_clock()));
+                printf("%ld Send SpotLess_SYNC_MSG message to %ld   %f\n", get_txn_id(), dest_node_id, simulation->seconds_from_start(get_sys_clock()));
                 fflush(stdout);
             #endif
             dest.push_back(dest_node_id);   //send new view to the next primary 
@@ -733,12 +733,12 @@ bool TxnManager::equivocate_hotstuff_newview(bool is_equi){
 
 #endif
 
-void TxnManager::send_pvp_ask(PVPSyncMsg *nvmsg){
+void TxnManager::send_spotless_ask(SpotLessSyncMsg *nvmsg){
 #if PROCESS_PRINT
     printf("[SEND ASK]TID: %lu THD: %lu \n", this->get_txn_id(), get_thd_id());
 #endif
-    Message *msg = Message::create_message(this, PVP_ASK_MSG);
-    PVPAskMsg *ask = (PVPAskMsg *)msg;
+    Message *msg = Message::create_message(this, SpotLess_ASK_MSG);
+    SpotLessAskMsg *ask = (SpotLessAskMsg *)msg;
     ask->hash = nvmsg->hash;
     ask->hashSize = nvmsg->hashSize;
     this->highQC = nvmsg->highQC;

@@ -55,17 +55,17 @@ public:
 
 #if CONSENSUS == HOTSTUFF
 #if SEPARATE
-    void set_txn_man_fields(PVPProposalMsg *prop, uint64_t bid, bool is_equi_victim = false);
+    void set_txn_man_fields(SpotLessProposalMsg *prop, uint64_t bid, bool is_equi_victim = false);
 #endif
     RC process_client_batch_hotstuff(Message *msg);
     void create_and_send_hotstuff_prepare(ClientQueryBatch *msg, uint64_t tid);
     void equivocate(ClientQueryBatch *msg, uint64_t tid);
-    bool hotstuff_new_viewed(PVPSyncMsg* msg);
+    bool hotstuff_new_viewed(SpotLessSyncMsg* msg);
     RC process_hotstuff_execute(Message *msg);
     RC process_hotstuff_new_view(Message *msg);
     void advance_view();
-    void skip_view(PVPGenericMsg* gene);
-    void skip_view(PVPSyncMsg* nvmsg, uint64_t txn_id);
+    void skip_view(SpotLessGenericMsg* gene);
+    void skip_view(SpotLessSyncMsg* nvmsg, uint64_t txn_id);
 #if SEPARATE
     RC process_hotstuff_generic_p(Message *msg);
     RC process_hotstuff_proposal(Message *msg);
@@ -82,12 +82,12 @@ public:
 
 #if TIMER_MANAGER
     void send_failed_new_view(uint64_t instance_id, uint64_t view);
-    void process_failed_new_view(PVPSyncMsg *msg);
+    void process_failed_new_view(SpotLessSyncMsg *msg);
     void advance_failed_view(uint64_t instance_id, uint64_t view);
 #endif
 
-    RC process_pvp_ask(Message *msg);
-    RC process_pvp_ask_response(Message *msg);
+    RC process_spotless_ask(Message *msg);
+    RC process_spotless_ask_response(Message *msg);
     RC send_ask_response(uint64_t dest_node, uint64_t start_id, uint64_t view);
 
 private:

@@ -8,7 +8,7 @@
 // python3 scripts/StopSystem.py; python3 scripts/scp_results.py
 // python3 scripts/results_analysis.py
 // ssh -i oracle2.key ubuntu@10.0.112.243
-// Number of worker threads at primary. For RBFT (6) and other algorithms (5). For PVP (NODE_CNT + 3).
+// Number of worker threads at primary. For RBFT (6) and other algorithms (5). For SpotLess (NODE_CNT + 3).
 #define THREAD_CNT MULTI_THREADS+5
 #define REM_THREAD_CNT 3
 #define SEND_THREAD_CNT 4
@@ -194,7 +194,7 @@
 // To allow testing of a Banking Smart Contracts.
 #define BANKING_SMART_CONTRACT false
 
-// Switching on MultiBFT or PVP
+// Switching on MultiBFT or SpotLess
 #define MULTI_THREADS (MULTI_INSTANCES > 16 ? 16 : MULTI_INSTANCES)
 #define MULTI_INSTANCES NODE_CNT
 
@@ -208,9 +208,9 @@
 #define FIX_CL_INPUT_THREAD_BUG true
 #define TRANSPORT_OPTIMIZATION true
 
-#define AUTO_POST PVP_FAIL
-#define TIMER_MANAGER PVP_FAIL
-#define PVP_FAIL false
+#define AUTO_POST SpotLess_FAIL
+#define TIMER_MANAGER SpotLess_FAIL
+#define SpotLess_FAIL false
 
 #define THRESHOLD_SIGNATURE true
 #define SECP256K1 true

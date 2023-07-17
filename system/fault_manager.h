@@ -6,7 +6,7 @@
 #include <set>
 #include <mutex>
 
-class PVPSyncMsg;
+class SpotLessSyncMsg;
 
 class FaultVoters{
 public:

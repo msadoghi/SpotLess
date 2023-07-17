@@ -108,35 +108,35 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t>
         break;
         
 #if THRESHOLD_SIGNATURE
-    case PVP_SYNC_MSG:
+    case SpotLess_SYNC_MSG:
 #if MAC_SYNC
         for (uint64_t i = 0; i < dest.size(); i++)
         {
-            ((PVPSyncMsg *)msg)->sign(dest[i]);
-            entry->allsign.push_back(((PVPSyncMsg *)msg)->signature);
+            ((SpotLessSyncMsg *)msg)->sign(dest[i]);
+            entry->allsign.push_back(((SpotLessSyncMsg *)msg)->signature);
         }
 #else
-        ((PVPSyncMsg *)msg)->sign(dest[0]);
+        ((SpotLessSyncMsg *)msg)->sign(dest[0]);
 #endif
         break;
-    case PVP_GENERIC_MSG:
-        ((PVPGenericMsg *)msg)->sign(dest[0]);
+    case SpotLess_GENERIC_MSG:
+        ((SpotLessGenericMsg *)msg)->sign(dest[0]);
         break;
 #if SEPARATE
-    case PVP_PROPOSAL_MSG:
-        ((PVPProposalMsg *)msg)->sign(dest[0]);
+    case SpotLess_PROPOSAL_MSG:
+        ((SpotLessProposalMsg *)msg)->sign(dest[0]);
         break;
 #endif
 #endif
-    case PVP_ASK_MSG:
+    case SpotLess_ASK_MSG:
         for (uint64_t i = 0; i < dest.size(); i++)
         {
-            ((PVPAskMsg *)msg)->sign(dest[i]);
-            entry->allsign.push_back(((PVPAskMsg *)msg)->signature);
+            ((SpotLessAskMsg *)msg)->sign(dest[i]);
+            entry->allsign.push_back(((SpotLessAskMsg *)msg)->signature);
         }
         break;
-    case PVP_ASK_RESPONSE_MSG:
-        ((PVPAskResponseMsg *)msg)->sign(dest[0]);
+    case SpotLess_ASK_RESPONSE_MSG:
+        ((SpotLessAskResponseMsg *)msg)->sign(dest[0]);
         break;
     default:
         break;
@@ -174,13 +174,13 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<uint64_t>
 
     case PBFT_CHKPT_MSG:
     
-    case PVP_SYNC_MSG:
-    case PVP_GENERIC_MSG:
+    case SpotLess_SYNC_MSG:
+    case SpotLess_GENERIC_MSG:
 #if SEPARATE
-    case PVP_PROPOSAL_MSG:
+    case SpotLess_PROPOSAL_MSG:
 #endif
-    case PVP_ASK_MSG:
-    case PVP_ASK_RESPONSE_MSG:
+    case SpotLess_ASK_MSG:
+    case SpotLess_ASK_RESPONSE_MSG:
     {
         
         // Putting in queue of all the output threads as destinations differ.

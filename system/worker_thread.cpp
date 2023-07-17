@@ -167,10 +167,10 @@ void WorkerThread::process(Message *msg)
         break;
 
 #if CONSENSUS == HOTSTUFF
-    case PVP_SYNC_MSG:
+    case SpotLess_SYNC_MSG:
         rc = process_hotstuff_new_view(msg);
         break;
-    case PVP_GENERIC_MSG:
+    case SpotLess_GENERIC_MSG:
 #if EQUIV_TEST
         if(g_node_id % EQUIV_FREQ == EQUIV_ID && g_node_id / EQUIV_FREQ < EQUIV_CNT 
          && msg->return_node_id % EQUIV_FREQ == EQUIV_ID && msg->return_node_id / EQUIV_FREQ < EQUIV_CNT){
@@ -182,19 +182,19 @@ void WorkerThread::process(Message *msg)
         break;
 
 #if SEPARATE
-    case PVP_PROPOSAL_MSG:
+    case SpotLess_PROPOSAL_MSG:
         rc = process_hotstuff_proposal(msg);
         break;
-    case PVP_GENERIC_MSG_P:
+    case SpotLess_GENERIC_MSG_P:
         rc = process_hotstuff_generic_p(msg);
         break;
 #endif
 
-    case PVP_ASK_MSG:
-        rc = process_pvp_ask(msg);
+    case SpotLess_ASK_MSG:
+        rc = process_spotless_ask(msg);
         break;
-    case PVP_ASK_RESPONSE_MSG:
-        rc = process_pvp_ask_response(msg);
+    case SpotLess_ASK_RESPONSE_MSG:
+        rc = process_spotless_ask_response(msg);
         break;
 
 
@@ -411,7 +411,7 @@ RC WorkerThread::run()
             #endif
             continue;
         }
-#if PVP_FAIL
+#if SpotLess_FAIL
         #if NEW_DIVIDER && FAIL_DIVIDER == 3
         else if(g_node_id % DIV1 >= LIMIT1 && g_node_id % DIV2 != LIMIT2 && thd_id >= 0 && thd_id < get_multi_threads() && get_current_view(msg->instance_id) >= CRASH_VIEW){
         #else
@@ -425,7 +425,7 @@ RC WorkerThread::run()
         else{
             if(thd_id < get_multi_threads()){
                 if(work_queue.check_view(msg)){
-                    // if(msg->rtype == PVP_GENERIC_MSG){
+                    // if(msg->rtype == SpotLess_GENERIC_MSG){
                         // cout << "[MD]" << msg->txn_id << endl;
                     // }
                     continue;
@@ -449,15 +449,15 @@ RC WorkerThread::run()
         }
 
 #if CONSENSUS == HOTSTUFF
-        if (msg->rtype != PVP_PROPOSAL_MSG && msg->rtype != CL_BATCH && msg->rtype != EXECUTE_MSG && msg->rtype != PVP_ASK_RESPONSE_MSG)
+        if (msg->rtype != SpotLess_PROPOSAL_MSG && msg->rtype != CL_BATCH && msg->rtype != EXECUTE_MSG && msg->rtype != SpotLess_ASK_RESPONSE_MSG)
 #else
         // Based on the type of the message, we try acquiring the transaction manager.
         if (msg->rtype != CL_BATCH && msg->rtype != EXECUTE_MSG)
 #endif
         {
 #if TIMER_MANAGER
-            if(msg->rtype == PVP_SYNC_MSG){
-                PVPSyncMsg *nvmsg = (PVPSyncMsg*)msg;
+            if(msg->rtype == SpotLess_SYNC_MSG){
+                SpotLessSyncMsg *nvmsg = (SpotLessSyncMsg*)msg;
                 if(nvmsg->non_vote){
                     process_failed_new_view(nvmsg);
                     Message::release_message(msg, 1);
@@ -891,7 +891,7 @@ bool WorkerThread::exception_msg_handling(Message *msg)
 
     if (msg->rtype != CL_BATCH)
     {
-        if(msg->rtype == PVP_ASK_MSG){
+        if(msg->rtype == SpotLess_ASK_MSG){
             if (msg->txn_id + 1 - get_batch_size() <= get_curr_chkpt())
             {
                 cout << "exception msg->txn_id = " << msg->txn_id << endl;
@@ -900,7 +900,7 @@ bool WorkerThread::exception_msg_handling(Message *msg)
             }
             return false;
         }
-        if (msg->rtype != PBFT_CHKPT_MSG && msg->rtype != PVP_SYNC_MSG)
+        if (msg->rtype != PBFT_CHKPT_MSG && msg->rtype != SpotLess_SYNC_MSG)
         {
             if (msg->txn_id <= curr_next_index())
             {
@@ -910,11 +910,11 @@ bool WorkerThread::exception_msg_handling(Message *msg)
                 return true;
             }
         }
-        else if(msg->rtype == PVP_SYNC_MSG){
+        else if(msg->rtype == SpotLess_SYNC_MSG){
             uint64_t instance_id = msg->instance_id;
-            if (((PVPSyncMsg*)msg)->view < get_current_view(instance_id) ||
-             (((PVPSyncMsg*)msg)->view == get_current_view(instance_id) 
-             && msg->txn_id <= get_curr_new_viewed(instance_id) && ((PVPSyncMsg*)msg)->non_vote == false))
+            if (((SpotLessSyncMsg*)msg)->view < get_current_view(instance_id) ||
+             (((SpotLessSyncMsg*)msg)->view == get_current_view(instance_id) 
+             && msg->txn_id <= get_curr_new_viewed(instance_id) && ((SpotLessSyncMsg*)msg)->non_vote == false))
             {
                 Message::release_message(msg, 4);
                 return true;
@@ -999,41 +999,41 @@ bool WorkerThread::validate_msg(Message *msg)
         }
         break;
 #if CONSENSUS == HOTSTUFF && ENABLE_ENCRYPT
-    case PVP_SYNC_MSG:
-        if (!((PVPSyncMsg *)msg)->validate())
+    case SpotLess_SYNC_MSG:
+        if (!((SpotLessSyncMsg *)msg)->validate())
         {
             assert(0);
         }
         break;
 #if SEPARATE
-    case PVP_PROPOSAL_MSG:
-        if (!((PVPProposalMsg *)msg)->validate(get_thd_id()))
+    case SpotLess_PROPOSAL_MSG:
+        if (!((SpotLessProposalMsg *)msg)->validate(get_thd_id()))
         {
             assert(0);
         }
         break;
-    case PVP_GENERIC_MSG:
-        if (!((PVPGenericMsg *)msg)->validate())
+    case SpotLess_GENERIC_MSG:
+        if (!((SpotLessGenericMsg *)msg)->validate())
         {
             assert(0);
         }
         break;
 #else
-    case PVP_GENERIC_MSG:
-        if (!((PVPGenericMsg *)msg)->validate(get_thd_id()))
+    case SpotLess_GENERIC_MSG:
+        if (!((SpotLessGenericMsg *)msg)->validate(get_thd_id()))
         {
             assert(0);
         }
         break;
 #endif
-    case PVP_ASK_MSG:
-        if (!((PVPAskMsg *)msg)->validate())
+    case SpotLess_ASK_MSG:
+        if (!((SpotLessAskMsg *)msg)->validate())
         {
             assert(0);
         }
         break;
-    case PVP_ASK_RESPONSE_MSG:
-        if (!((PVPAskResponseMsg *)msg)->validate(get_thd_id()))
+    case SpotLess_ASK_RESPONSE_MSG:
+        if (!((SpotLessAskResponseMsg *)msg)->validate(get_thd_id()))
         {
             assert(0);
         }
@@ -1053,8 +1053,8 @@ bool WorkerThread::checkMsg(Message *msg)
 {
     uint64_t instance_id = msg->instance_id;
 #if CONSENSUS == HOTSTUFF
-    if (msg->rtype == PVP_SYNC_MSG){
-        PVPSyncMsg *nvmsg = (PVPSyncMsg *)msg;
+    if (msg->rtype == SpotLess_SYNC_MSG){
+        SpotLessSyncMsg *nvmsg = (SpotLessSyncMsg *)msg;
         if(txn_man->get_hash().compare(nvmsg->hash) == 0) { 
             if(get_current_view(instance_id) == nvmsg->view) {
                 return true;
@@ -1067,7 +1067,7 @@ bool WorkerThread::checkMsg(Message *msg)
 
 #if CONSENSUS == HOTSTUFF
 
-bool WorkerThread::hotstuff_new_viewed(PVPSyncMsg* msg){
+bool WorkerThread::hotstuff_new_viewed(SpotLessSyncMsg* msg){
     if (txn_man->is_new_viewed())
     {
         return false;
@@ -1117,7 +1117,7 @@ bool WorkerThread::hotstuff_new_viewed(PVPSyncMsg* msg){
 }
 
 #if SEPARATE
-void WorkerThread::set_txn_man_fields(PVPProposalMsg *prop, uint64_t bid, bool is_equi_victim)
+void WorkerThread::set_txn_man_fields(SpotLessProposalMsg *prop, uint64_t bid, bool is_equi_victim)
 {
     uint64_t instance_id = prop->instance_id;
     uint64_t view = prop->view;

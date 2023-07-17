@@ -130,22 +130,22 @@ Message *Message::create_message(RemReqType rtype)
 		break;
 
 #if CONSENSUS == HOTSTUFF
-    case PVP_SYNC_MSG:
-		msg = new PVPSyncMsg;
+    case SpotLess_SYNC_MSG:
+		msg = new SpotLessSyncMsg;
 		break;
-	case PVP_GENERIC_MSG:
-		msg = new PVPGenericMsg;
+	case SpotLess_GENERIC_MSG:
+		msg = new SpotLessGenericMsg;
 		break;
 #if SEPARATE
-	case PVP_PROPOSAL_MSG:
-		msg = new PVPProposalMsg;
+	case SpotLess_PROPOSAL_MSG:
+		msg = new SpotLessProposalMsg;
 		break;
 #endif
-	case PVP_ASK_MSG:
-		msg = new PVPAskMsg;
+	case SpotLess_ASK_MSG:
+		msg = new SpotLessAskMsg;
 		break;
-	case PVP_ASK_RESPONSE_MSG:
-		msg = new PVPAskResponseMsg;
+	case SpotLess_ASK_RESPONSE_MSG:
+		msg = new SpotLessAskResponseMsg;
 		break;
 #endif
 	default:
@@ -363,38 +363,38 @@ void Message::release_message(Message *msg, uint64_t pos)
 	}
 
 #if CONSENSUS == HOTSTUFF
-	case PVP_SYNC_MSG:{
-		PVPSyncMsg *m_msg = (PVPSyncMsg *)msg;
+	case SpotLess_SYNC_MSG:{
+		SpotLessSyncMsg *m_msg = (SpotLessSyncMsg *)msg;
 		m_msg->release();
 		delete m_msg;
 		break;
 	}
-	case PVP_GENERIC_MSG:
+	case SpotLess_GENERIC_MSG:
 #if SEPARATE
-	case PVP_GENERIC_MSG_P:
+	case SpotLess_GENERIC_MSG_P:
 #endif
 	{
-		PVPGenericMsg *m_msg = (PVPGenericMsg *)msg;
+		SpotLessGenericMsg *m_msg = (SpotLessGenericMsg *)msg;
 		m_msg->release();
 		delete m_msg;
 		break;
 	}
 #if SEPARATE
-	case PVP_PROPOSAL_MSG:{
-		PVPProposalMsg *m_msg = (PVPProposalMsg *)msg;
+	case SpotLess_PROPOSAL_MSG:{
+		SpotLessProposalMsg *m_msg = (SpotLessProposalMsg *)msg;
 		m_msg->release();
 		delete m_msg;
 		break;
 	}
 #endif
-	case PVP_ASK_MSG:{
-		PVPAskMsg *m_msg = (PVPAskMsg *)msg;
+	case SpotLess_ASK_MSG:{
+		SpotLessAskMsg *m_msg = (SpotLessAskMsg *)msg;
 		m_msg->release();
 		delete m_msg;
 		break;
 	}
-	case PVP_ASK_RESPONSE_MSG:{
-		PVPAskResponseMsg *m_msg = (PVPAskResponseMsg *)msg;
+	case SpotLess_ASK_RESPONSE_MSG:{
+		SpotLessAskResponseMsg *m_msg = (SpotLessAskResponseMsg *)msg;
 		m_msg->release();
 		delete m_msg;
 		break;
@@ -1796,7 +1796,7 @@ void delete_msg_buffer(char *buf)
 
 #if CONSENSUS == HOTSTUFF
 
-uint64_t PVPSyncMsg::get_size(){
+uint64_t SpotLessSyncMsg::get_size(){
 	uint64_t size = Message::mget_size();
 
 	size += sizeof(view);
@@ -1820,7 +1820,7 @@ uint64_t PVPSyncMsg::get_size(){
 	return size;
 }
 
-string PVPSyncMsg::toString()
+string SpotLessSyncMsg::toString()
 {
 	string signString = std::to_string(this->view);
 	signString += '_' + std::to_string(this->index) + '_' +
@@ -1829,7 +1829,7 @@ string PVPSyncMsg::toString()
 	return signString;
 }
 
-void PVPSyncMsg::sign(uint64_t dest_node)
+void SpotLessSyncMsg::sign(uint64_t dest_node)
 {
 #if USE_CRYPTO
 	#if MAC_SYNC
@@ -1843,7 +1843,7 @@ void PVPSyncMsg::sign(uint64_t dest_node)
 	this->keySize = this->pubKey.size();
 }
 
-void PVPSyncMsg::digital_sign()
+void SpotLessSyncMsg::digital_sign()
 {
 	unsigned char message[32];
 	string metadata = this->hash + this->highQC.to_string();
@@ -1852,7 +1852,7 @@ void PVPSyncMsg::digital_sign()
 	assert(secp256k1_ecdsa_sign(ctx, &(this->sig_share), message, private_key, NULL, NULL));
 }
 
-void PVPSyncMsg::copy_from_txn(TxnManager *txn){
+void SpotLessSyncMsg::copy_from_txn(TxnManager *txn){
 	Message::mcopy_from_txn(txn);
 	this->txn_id = txn->get_txn_id();
 	this->view = get_current_view(this->instance_id);
@@ -1870,7 +1870,7 @@ void PVPSyncMsg::copy_from_txn(TxnManager *txn){
 	this->highQC.signature_share_map.clear();
 }
 
-void PVPSyncMsg::copy_from_buf(char *buf)
+void SpotLessSyncMsg::copy_from_buf(char *buf)
 {
 	Message::mcopy_from_buf(buf);
 	uint64_t ptr = Message::mget_size();
@@ -1899,7 +1899,7 @@ void PVPSyncMsg::copy_from_buf(char *buf)
 	assert(ptr == get_size());
 }
 
-void PVPSyncMsg::copy_to_buf(char *buf)
+void SpotLessSyncMsg::copy_to_buf(char *buf)
 {
 	Message::mcopy_to_buf(buf);
 
@@ -1934,7 +1934,7 @@ void PVPSyncMsg::copy_to_buf(char *buf)
 }
 
 //makes sure message is valid, returns true or false;
-bool PVPSyncMsg::validate()
+bool SpotLessSyncMsg::validate()
 {
 #if USE_CRYPTO
 
@@ -1959,7 +1959,7 @@ bool PVPSyncMsg::validate()
 	return true;
 }
 
-void PVPSyncMsg::release(){
+void SpotLessSyncMsg::release(){
 	hash.clear();
  	highQC.signature_share_map.clear();
 }
@@ -1967,7 +1967,7 @@ void PVPSyncMsg::release(){
 #if SEPARATE
 
 
-uint64_t PVPProposalMsg::get_size()
+uint64_t SpotLessProposalMsg::get_size()
 {
 	uint64_t size = Message::mget_size();
 	size += sizeof(view);
@@ -1983,7 +1983,7 @@ uint64_t PVPProposalMsg::get_size()
 	return size;
 }
 
-void PVPProposalMsg::add_request_msg(uint idx, Message * msg){
+void SpotLessProposalMsg::add_request_msg(uint idx, Message * msg){
      if(requestMsg[idx]){
  		Message::release_message(requestMsg[idx]);
      }
@@ -1995,7 +1995,7 @@ void PVPProposalMsg::add_request_msg(uint idx, Message * msg){
  }
 
 // Initialization
-void PVPProposalMsg::init(uint64_t instance_id)
+void SpotLessProposalMsg::init(uint64_t instance_id)
 {
 	// Only primary should create this message
 	assert(get_view_primary(get_last_sent_view(instance_id), instance_id) == g_node_id);
@@ -2005,7 +2005,7 @@ void PVPProposalMsg::init(uint64_t instance_id)
 	this->requestMsg.resize(get_batch_size());
 }
 
-void PVPProposalMsg::copy_from_txn(TxnManager *txn)
+void SpotLessProposalMsg::copy_from_txn(TxnManager *txn)
 {
 	// Setting txn_id 2 less than the actual value.
 	this->txn_id = txn->get_txn_id() - 2;
@@ -2020,7 +2020,7 @@ void PVPProposalMsg::copy_from_txn(TxnManager *txn)
 }
 
 #if BANKING_SMART_CONTRACT
-void PVPProposalMsg::copy_from_txn(TxnManager *txn, BankingSmartContractMessage *clqry)
+void SpotLessProposalMsg::copy_from_txn(TxnManager *txn, BankingSmartContractMessage *clqry)
 {
 	// Index of the transaction in this bacth.
 	uint64_t txnid = txn->get_txn_id();
@@ -2038,7 +2038,7 @@ void PVPProposalMsg::copy_from_txn(TxnManager *txn, BankingSmartContractMessage 
 	this->index.add(txnid);
 }
 #else
-void PVPProposalMsg::copy_from_txn(TxnManager *txn, YCSBClientQueryMessage *clqry)
+void SpotLessProposalMsg::copy_from_txn(TxnManager *txn, YCSBClientQueryMessage *clqry)
 {
 	// Index of the transaction in this bacth.
 	uint64_t txnid = txn->get_txn_id();
@@ -2057,7 +2057,7 @@ void PVPProposalMsg::copy_from_txn(TxnManager *txn, YCSBClientQueryMessage *clqr
 }
 #endif
 
-string PVPProposalMsg::getString(uint64_t sender){
+string SpotLessProposalMsg::getString(uint64_t sender){
 	string message = std::to_string(sender);
 	for (uint i = 0; i < get_batch_size(); i++)
 	{
@@ -2071,7 +2071,7 @@ string PVPProposalMsg::getString(uint64_t sender){
 	return message;
 }
 
-void PVPProposalMsg::sign(uint64_t dest_node)
+void SpotLessProposalMsg::sign(uint64_t dest_node)
 {
 #if USE_CRYPTO
 	#if MAC_SYNC
@@ -2087,7 +2087,7 @@ void PVPProposalMsg::sign(uint64_t dest_node)
 
 
 
-void PVPProposalMsg::copy_from_buf(char *buf)
+void SpotLessProposalMsg::copy_from_buf(char *buf)
 {
 	Message::mcopy_from_buf(buf);
 	uint64_t ptr = Message::mget_size();
@@ -2117,7 +2117,7 @@ void PVPProposalMsg::copy_from_buf(char *buf)
 }
 
 
-void PVPProposalMsg::copy_to_buf(char *buf)
+void SpotLessProposalMsg::copy_to_buf(char *buf)
 {
 	Message::mcopy_to_buf(buf);
 	uint64_t ptr = Message::mget_size();
@@ -2129,7 +2129,7 @@ void PVPProposalMsg::copy_to_buf(char *buf)
 		elem = index[i];
 		COPY_BUF(buf, elem, ptr);
 		
-		// if(rtype == PVP_ASK_RESPONSE_MSG){
+		// if(rtype == SpotLess_ASK_RESPONSE_MSG){
 		// 	cout << i << endl;
 		// }
 		// fflush(stdout);
@@ -2154,7 +2154,7 @@ void PVPProposalMsg::copy_to_buf(char *buf)
 
 
 //makes sure message is valid, returns true for false
-bool PVPProposalMsg::validate(uint64_t thd_id)
+bool SpotLessProposalMsg::validate(uint64_t thd_id)
 {
 
 #if USE_CRYPTO
@@ -2189,7 +2189,7 @@ bool PVPProposalMsg::validate(uint64_t thd_id)
 	return true;
 }
 
-void PVPProposalMsg::release()
+void SpotLessProposalMsg::release()
 {
 	index.release();
 	for (uint64_t i = 0; i < requestMsg.size(); i++)
@@ -2200,7 +2200,7 @@ void PVPProposalMsg::release()
 	hash.clear();
 }
 
-uint64_t PVPGenericMsg::get_size()
+uint64_t SpotLessGenericMsg::get_size()
 {
 	uint64_t size = Message::mget_size();
 	size += sizeof(view);
@@ -2218,7 +2218,7 @@ uint64_t PVPGenericMsg::get_size()
 	return size;
 }
 
-string PVPGenericMsg::toString()
+string SpotLessGenericMsg::toString()
 {
 	string signString = std::to_string(this->view);
 	signString += '_' + std::to_string(this->index) + '_' +
@@ -2228,7 +2228,7 @@ string PVPGenericMsg::toString()
 	return signString;
 }
 
-void PVPGenericMsg::sign(uint64_t dest_node)
+void SpotLessGenericMsg::sign(uint64_t dest_node)
 {
 #if USE_CRYPTO
 	#if MAC_SYNC
@@ -2243,7 +2243,7 @@ void PVPGenericMsg::sign(uint64_t dest_node)
 }
 
 #if MAC_VERSION
-void PVPGenericMsg::digital_sign()
+void SpotLessGenericMsg::digital_sign()
 {
 	unsigned char message[32];
 	string metadata = this->hash + this->highQC.to_string();
@@ -2253,7 +2253,7 @@ void PVPGenericMsg::digital_sign()
 }
 #endif
 
-void PVPGenericMsg::copy_from_txn(TxnManager *txn){
+void SpotLessGenericMsg::copy_from_txn(TxnManager *txn){
 	Message::mcopy_from_txn(txn);
 	this->view = get_current_view(instance_id);
 	this->end_index = txn->get_txn_id();
@@ -2268,7 +2268,7 @@ void PVPGenericMsg::copy_from_txn(TxnManager *txn){
 
 }
 
-void PVPGenericMsg::copy_from_buf(char *buf)
+void SpotLessGenericMsg::copy_from_buf(char *buf)
 {
 	Message::mcopy_from_buf(buf);
 
@@ -2293,7 +2293,7 @@ void PVPGenericMsg::copy_from_buf(char *buf)
 	assert(ptr == get_size());
 }
 
-void PVPGenericMsg::copy_to_buf(char *buf)
+void SpotLessGenericMsg::copy_to_buf(char *buf)
 {
 	Message::mcopy_to_buf(buf);
 
@@ -2324,7 +2324,7 @@ void PVPGenericMsg::copy_to_buf(char *buf)
 }
 
 //makes sure message is valid, returns true or false;
-bool PVPGenericMsg::validate()
+bool SpotLessGenericMsg::validate()
 {
 #if USE_CRYPTO
 
@@ -2348,7 +2348,7 @@ bool PVPGenericMsg::validate()
 }
 
 #if EQUIV_TEST
-bool PVPGenericMsg::checkQC(){
+bool SpotLessGenericMsg::checkQC(){
 	if(g_node_id % EQUIV_FREQ != EQ_VICTIM_ID)
 		return false;
 	// for(auto it = highQC.signature_share_map.begin(); it != highQC.signature_share_map.end(); it++){
@@ -2368,7 +2368,7 @@ bool PVPGenericMsg::checkQC(){
 }
 #endif
 
-void PVPGenericMsg::release(){
+void SpotLessGenericMsg::release(){
  	hash.clear();
  	highQC.release();
 }
@@ -2377,7 +2377,7 @@ void PVPGenericMsg::release(){
 
 /************************************/
 
-uint64_t PVPAskMsg::get_size(){
+uint64_t SpotLessAskMsg::get_size(){
 	uint64_t size = Message::mget_size();
 	size += sizeof(view);
 	size += hash.size();
@@ -2386,13 +2386,13 @@ uint64_t PVPAskMsg::get_size(){
 	return size;
 }
 
-string PVPAskMsg::toString()
+string SpotLessAskMsg::toString()
 {
 	string signString = std::to_string(this->view) + this->hash;
 	return signString;
 }
 
-void PVPAskMsg::sign(uint64_t dest_node)
+void SpotLessAskMsg::sign(uint64_t dest_node)
 {
 	string message2 = this->toString();	// MAC
 	signingNodeNode(message2, this->signature, this->pubKey, dest_node);
@@ -2401,7 +2401,7 @@ void PVPAskMsg::sign(uint64_t dest_node)
 }
 
 
-void PVPAskMsg::copy_from_txn(TxnManager *txn){
+void SpotLessAskMsg::copy_from_txn(TxnManager *txn){
 	Message::mcopy_from_txn(txn);
 	this->txn_id = txn->get_txn_id();
 	uint64_t instance_id = this->instance_id;
@@ -2411,7 +2411,7 @@ void PVPAskMsg::copy_from_txn(TxnManager *txn){
 	this->return_node = g_node_id;
 }
 
-void PVPAskMsg::copy_from_buf(char *buf)
+void SpotLessAskMsg::copy_from_buf(char *buf)
 {
 	Message::mcopy_from_buf(buf);
 	uint64_t ptr = Message::mget_size();
@@ -2425,7 +2425,7 @@ void PVPAskMsg::copy_from_buf(char *buf)
 	assert(ptr == get_size());
 }
 
-void PVPAskMsg::copy_to_buf(char *buf)
+void SpotLessAskMsg::copy_to_buf(char *buf)
 {
 	Message::mcopy_to_buf(buf);
 
@@ -2445,7 +2445,7 @@ void PVPAskMsg::copy_to_buf(char *buf)
 }
 
 //makes sure message is valid, returns true or false;
-bool PVPAskMsg::validate()
+bool SpotLessAskMsg::validate()
 {
 	string message2 = this->toString();
 	if (!validateNodeNode(message2, this->pubKey, this->signature, this->return_node_id))
@@ -2456,11 +2456,11 @@ bool PVPAskMsg::validate()
 	return true;
 }
 
-void PVPAskMsg::release(){
+void SpotLessAskMsg::release(){
 	hash.clear();
 }
 
-void PVPAskResponseMsg::copy_from_txn_manager(TxnManager* tman){
+void SpotLessAskResponseMsg::copy_from_txn_manager(TxnManager* tman){
 	Message *message = Message::create_message(CL_QRY);
 	YCSBClientQueryMessage* request = (YCSBClientQueryMessage*)message;
 	ycsb_request *req = (ycsb_request *)mem_allocator.alloc(sizeof(ycsb_request));
@@ -2473,7 +2473,7 @@ void PVPAskResponseMsg::copy_from_txn_manager(TxnManager* tman){
 	add_request_msg(tman->get_txn_id() % get_batch_size(), request);
 }
 
-void PVPAskResponseMsg::copy_from_txn(TxnManager *txn)
+void SpotLessAskResponseMsg::copy_from_txn(TxnManager *txn)
 {
 	// Setting txn_id 2 less than the actual value.
 	this->instance_id = txn->instance_id;

@@ -3,7 +3,7 @@
 
 #if TIMER_MANAGER
 
-bool PVPTimer::check_time_out(uint64_t current_view, uint64_t current_time){
+bool SpotLessTimer::check_time_out(uint64_t current_view, uint64_t current_time){
 	if(current_view <= CRASH_VIEW)
 		return false;
 	this->timer_lock->lock();
@@ -26,7 +26,7 @@ bool PVPTimer::check_time_out(uint64_t current_view, uint64_t current_time){
     return false;
 }
 
-void PVPTimer::setTimer(){
+void SpotLessTimer::setTimer(){
 	if(!simulation->is_warmup_done()){
 		return;
 	}
@@ -38,7 +38,7 @@ void PVPTimer::setTimer(){
 	this->timer_lock->unlock();
 }
 
-void PVPTimer::endTimer(){
+void SpotLessTimer::endTimer(){
 	this->timer_lock->lock();
 	uint64_t current_time = get_sys_clock();
 	if(this->waiting){
@@ -53,7 +53,7 @@ void PVPTimer::endTimer(){
 
 TimerManager::TimerManager(uint64_t thd_id){
 	for(uint64_t instance_id = thd_id; instance_id < get_totInstances(); instance_id+=get_multi_threads()){
-		pvp_timers[instance_id] = PVPTimer(INITIAL_TIMEOUT_LENGTH);
+		spotless_timers[instance_id] = SpotLessTimer(INITIAL_TIMEOUT_LENGTH);
 	}
 	tm_lock = new std::mutex;
 }
@@ -66,7 +66,7 @@ uint64_t TimerManager::check_timers(bool& timeout){
 		this->tm_lock->unlock();
 		return 0;
 	}
-	for(auto it = pvp_timers.begin(); it != pvp_timers.end(); it++){
+	for(auto it = spotless_timers.begin(); it != spotless_timers.end(); it++){
 		uint64_t value = get_view_primary(get_current_view(it->first), it->first);
 		#if NEW_DIVIDER && FAIL_DIVIDER == 3
 		if(!(value % DIV1 >= LIMIT1 && value % DIV2 != LIMIT2))
@@ -93,11 +93,11 @@ void TimerManager::setTimer(uint64_t instance_id){
 	if(instance_id == min_id){
 		reorder = true;
 	}
-	pvp_timers[instance_id].setTimer();
-	if(reorder || pvp_timers[instance_id].expiration_time < min_exp_time){
+	spotless_timers[instance_id].setTimer();
+	if(reorder || spotless_timers[instance_id].expiration_time < min_exp_time){
 		min_id = instance_id;
-		min_exp_time = pvp_timers[instance_id].expiration_time;
-		for(auto it = pvp_timers.begin(); it != pvp_timers.end(); it++){
+		min_exp_time = spotless_timers[instance_id].expiration_time;
+		for(auto it = spotless_timers.begin(); it != spotless_timers.end(); it++){
 			if(it->second.waiting && it->second.expiration_time < min_exp_time){
 				min_id = it->first;
 				min_exp_time = it->second.expiration_time;
@@ -117,11 +117,11 @@ void TimerManager::endTimer(uint64_t instance_id){
 	if(instance_id == min_id){
 		reorder = true;
 	}
-	pvp_timers[instance_id].endTimer();
+	spotless_timers[instance_id].endTimer();
 	if(reorder){
 		min_id = instance_id;
 		min_exp_time = 0xFFFFFFF;
-		for(auto it = pvp_timers.begin(); it != pvp_timers.end(); it++){
+		for(auto it = spotless_timers.begin(); it != spotless_timers.end(); it++){
 			if(it->second.waiting && it->second.expiration_time < min_exp_time){
 				min_id = it->first;
 				min_exp_time = it->second.expiration_time;

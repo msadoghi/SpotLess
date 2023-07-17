@@ -159,8 +159,8 @@ public:
     bool sync_sent = false;
     uint64_t view;
 #if SEPARATE
-    PVPProposalMsg *propmsg;
-    void set_primarybatch(PVPProposalMsg *prep);
+    SpotLessProposalMsg *propmsg;
+    void set_primarybatch(SpotLessProposalMsg *prep);
     bool generic_received;
     bool proposal_received;
 #endif
@@ -180,7 +180,7 @@ public:
 #if SEPARATE
     void send_hotstuff_generic();
 #endif
-    bool send_hotstuff_newview(PVPSyncMsg* nmsg = nullptr);
+    bool send_hotstuff_newview(SpotLessSyncMsg* nmsg = nullptr);
 
 #if EQUIV_FREQ
     void equivocate_generic();
@@ -189,7 +189,7 @@ public:
 
 #endif
 
-    void send_pvp_ask(PVPSyncMsg* nvmsg);
+    void send_spotless_ask(SpotLessSyncMsg* nvmsg);
 
     map<uint64_t, set<uint64_t>> voters;
 

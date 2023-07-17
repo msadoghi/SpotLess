@@ -136,7 +136,7 @@ void MessageThread::run()
         if (msg->rtype == PBFT_CHKPT_MSG){
             sbuf->force = true;
         }
-        else if(msg->rtype == PVP_GENERIC_MSG){
+        else if(msg->rtype == SpotLess_GENERIC_MSG){
              sbuf->force = true;
         }else if(msg->force == true){
             sbuf->force = true;

@@ -466,7 +466,7 @@ uint64_t expectedInstance;
 #if PROPOSAL_THREAD
 uint64_t proposalInstance;
 #endif
-//Entities for client in PVP.
+//Entities for client in SpotLess.
 //next_to_send is just the id of primary in the next round.
 uint64_t next_to_send;
 uint64_t get_next_to_send(){
@@ -509,7 +509,7 @@ unsigned char private_key[32];
 secp256k1_pubkey public_key;
 map<uint64_t, secp256k1_pubkey> public_keys;
 string get_secp_hash(string hash, RemReqType type){
-	if(type == PVP_SYNC_MSG || type == PVP_GENERIC_MSG){
+	if(type == SpotLess_SYNC_MSG || type == SpotLess_GENERIC_MSG){
 		for ( size_t i = 0; i < 32 ; i++){      
 			hash[i] = (hash[i] + 3) % 255;
 		}

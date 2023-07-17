@@ -166,8 +166,8 @@ void QWorkQueue::enqueue(uint64_t thd_id, Message * msg,bool busy) {
     sem_post(&worker_queue_semaphore[num_multi_threads + 3]);
     #endif
   } 
-  else if(msg->rtype == PVP_GENERIC_MSG || msg->rtype == PVP_PROPOSAL_MSG){
-    // if(msg->rtype == PVP_GENERIC_MSG){
+  else if(msg->rtype == SpotLess_GENERIC_MSG || msg->rtype == SpotLess_PROPOSAL_MSG){
+    // if(msg->rtype == SpotLess_GENERIC_MSG){
     //   cout << "[EG]" << msg->txn_id << endl;
     // }
     uint64_t instance_id = msg->instance_id;
@@ -260,8 +260,8 @@ Message * QWorkQueue::dequeue(uint64_t thd_id) {
             valid = true;
             uint64_t txn_id = (get_last_sent_view(expectedInstance) * num_instances + expectedInstance) * get_batch_size() + get_batch_size() - 1;
             entry = new work_queue_entry;
-            entry->msg = Message::create_message(PVP_GENERIC_MSG);
-            entry->msg->rtype = PVP_GENERIC_MSG_P;
+            entry->msg = Message::create_message(SpotLess_GENERIC_MSG);
+            entry->msg->rtype = SpotLess_GENERIC_MSG_P;
             entry->msg->txn_id = txn_id;
             // printf("[PG]%lu\n", txn_id);
             dec_incomplete_proposal_cnt(expectedInstance);
@@ -348,8 +348,8 @@ Message * QWorkQueue::dequeue(uint64_t thd_id) {
             valid = true;
             uint64_t txn_id = (get_last_sent_view(expectedInstance) * num_instances + expectedInstance) * get_batch_size() + get_batch_size() - 1;
             entry = new work_queue_entry;
-            entry->msg = Message::create_message(PVP_GENERIC_MSG);
-            entry->msg->rtype = PVP_GENERIC_MSG_P;
+            entry->msg = Message::create_message(SpotLess_GENERIC_MSG);
+            entry->msg->rtype = SpotLess_GENERIC_MSG_P;
             entry->msg->txn_id = txn_id;
             dec_incomplete_proposal_cnt(expectedInstance);
             expectedInstance = (expectedInstance + num_instances - 1) % num_instances;
@@ -405,11 +405,11 @@ Message * QWorkQueue::dequeue(uint64_t thd_id) {
 bool QWorkQueue::check_view(Message * msg){
     uint64_t msg_view = 0;
     uint64_t instance_id = msg->instance_id;
-    if(msg->rtype == PVP_SYNC_MSG || msg->rtype == PVP_PROPOSAL_MSG){
+    if(msg->rtype == SpotLess_SYNC_MSG || msg->rtype == SpotLess_PROPOSAL_MSG){
       return false;
     }
-    if(msg->rtype == PVP_GENERIC_MSG){
-        PVPGenericMsg *pmsg = (PVPGenericMsg*)(msg);
+    if(msg->rtype == SpotLess_GENERIC_MSG){
+        SpotLessGenericMsg *pmsg = (SpotLessGenericMsg*)(msg);
         msg_view = pmsg->view;
 #if EQUIV_TEST
         // if(get_current_view(instance_id) < msg_view && !pmsg->checkQC())
@@ -429,9 +429,9 @@ bool QWorkQueue::check_view(Message * msg){
         }
     }
 #if ENABLE_ASK
-    else if(msg->rtype == PVP_ASK_RESPONSE_MSG){
+    else if(msg->rtype == SpotLess_ASK_RESPONSE_MSG){
         // printf("KK %lu,%lu\n", msg->txn_id, instance_id);
-        PVPAskResponseMsg *pmsg = (PVPAskResponseMsg*)(msg);
+        SpotLessAskResponseMsg *pmsg = (SpotLessAskResponseMsg*)(msg);
         msg_view = pmsg->view;
         // printf("{%lu,%lu,%lu}\n", instance_id, get_current_view(instance_id), msg_view);
         if(get_current_view(instance_id) < msg_view)
@@ -459,7 +459,7 @@ void QWorkQueue::reenqueue(uint64_t instance_id){
 	  while(true){
       valid = temp_queue[instance_id]->pop(entry);
 		  if(valid){
-          if(entry->msg->rtype == PVP_GENERIC_MSG || entry->msg->rtype == PVP_PROPOSAL_MSG){
+          if(entry->msg->rtype == SpotLess_GENERIC_MSG || entry->msg->rtype == SpotLess_PROPOSAL_MSG){
             while(!prior_queue[qid]->push(entry) && !simulation->is_done()){}
             tb_lock[qid].lock();
             prior_cnt[qid]++;

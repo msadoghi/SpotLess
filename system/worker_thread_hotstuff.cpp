@@ -25,11 +25,11 @@
  */
 void WorkerThread::create_and_send_hotstuff_prepare(ClientQueryBatch *msg, uint64_t tid){
 #if SEPARATE
-    Message *bmsg = Message::create_message(PVP_PROPOSAL_MSG);
-    PVPProposalMsg *prep = (PVPProposalMsg *)bmsg;
+    Message *bmsg = Message::create_message(SpotLess_PROPOSAL_MSG);
+    SpotLessProposalMsg *prep = (SpotLessProposalMsg *)bmsg;
 #else
-    Message *bmsg = Message::create_message(PVP_GENERIC_MSG);
-    PVPGenericMsg *prep = (PVPGenericMsg *)bmsg;
+    Message *bmsg = Message::create_message(SpotLess_GENERIC_MSG);
+    SpotLessGenericMsg *prep = (SpotLessGenericMsg *)bmsg;
 #endif
     
     uint64_t instance_id = msg->txn_id % get_totInstances();
@@ -276,16 +276,16 @@ RC WorkerThread::process_hotstuff_execute(Message *msg){
 
 RC WorkerThread::process_hotstuff_new_view(Message *msg){
     #if PROCESS_PRINT
-    printf("PVP_SYNC_MSG: TID: %lu THD: %lu FROM: %lu\n", msg->txn_id, get_thd_id(), msg->return_node_id);
+    printf("SpotLess_SYNC_MSG: TID: %lu THD: %lu FROM: %lu\n", msg->txn_id, get_thd_id(), msg->return_node_id);
     fflush(stdout);
     #endif
     // Check if the incoming message is valid.
-    PVPSyncMsg *nvmsg = (PVPSyncMsg *)msg;
+    SpotLessSyncMsg *nvmsg = (SpotLessSyncMsg *)msg;
     #if ENABLE_ENCRYPT
     validate_msg(nvmsg);
     #endif
     // #if PROCESS_PRINT
-    // printf("PVP_SYNC_MSG: TID: %lu THD: %lu FROM: %lu VIEW: %lu\n", msg->txn_id, get_thd_id(), msg->return_node_id, nvmsg->view);
+    // printf("SpotLess_SYNC_MSG: TID: %lu THD: %lu FROM: %lu VIEW: %lu\n", msg->txn_id, get_thd_id(), msg->return_node_id, nvmsg->view);
     // fflush(stdout);
     // #endif
     if(!txn_man->get_hash().empty()){
@@ -317,7 +317,7 @@ RC WorkerThread::process_hotstuff_new_view(Message *msg){
             return RCOK;
         }
         txn_man->instance_id = nvmsg->instance_id;
-        txn_man->send_pvp_ask(nvmsg);
+        txn_man->send_spotless_ask(nvmsg);
         if(!SafeNode(nvmsg->highQC, txn_man->instance_id)){
             cout << "UnSafe Node in Instance " << txn_man->instance_id << endl;
             return RCOK;
@@ -354,7 +354,7 @@ RC WorkerThread::process_hotstuff_new_view(Message *msg){
             set_g_preparedQC(nvmsg->highQC, nvmsg->instance_id, tid);
             update_lockQC(nvmsg->highQC, nvmsg->highQC.viewNumber, tid, nvmsg->instance_id);
             txn_man->instance_id = tman->instance_id = nvmsg->instance_id;
-            tman->send_pvp_ask(nvmsg);
+            tman->send_spotless_ask(nvmsg);
             skip_view(nvmsg, tid);
             txn_man->send_hotstuff_newview(nvmsg);
         }
@@ -368,7 +368,7 @@ RC WorkerThread::process_hotstuff_new_view(Message *msg){
 
 #if !SEPARATE
 /**
- * Process incoming PVPGenericMsg message from the Primary.
+ * Process incoming SpotLessGenericMsg message from the Primary.
  *
  * @param msg Batch of Transactions of type HOTSTUFF_PREP_MSG from the primary.
  * @return RC
@@ -376,9 +376,9 @@ RC WorkerThread::process_hotstuff_new_view(Message *msg){
 RC WorkerThread::process_hotstuff_generic(Message *msg)
 {
     //uint64_t cntime = get_sys_clock();
-    PVPGenericMsg* gene = (PVPGenericMsg *)msg;
+    SpotLessGenericMsg* gene = (SpotLessGenericMsg *)msg;
 #if PROCESS_PRINT
-    printf("PVP_GENERIC_MSG: TID:%ld : VIEW: %ld THD: %ld  FROM: %ld  %lf\n",gene->txn_id, gene->view, get_thd_id(), gene->return_node_id, simulation->seconds_from_start(get_sys_clock()));
+    printf("SpotLess_GENERIC_MSG: TID:%ld : VIEW: %ld THD: %ld  FROM: %ld  %lf\n",gene->txn_id, gene->view, get_thd_id(), gene->return_node_id, simulation->seconds_from_start(get_sys_clock()));
     fflush(stdout);
 #endif
 
@@ -435,9 +435,9 @@ RC WorkerThread::process_hotstuff_generic(Message *msg)
 #else   // SEPARATE
 RC WorkerThread::process_hotstuff_proposal(Message *msg){
     //uint64_t cntime = get_sys_clock();
-    PVPProposalMsg* prop = (PVPProposalMsg *)msg;
+    SpotLessProposalMsg* prop = (SpotLessProposalMsg *)msg;
 #if PROCESS_PRINT
-    printf("PVP_PROPOSAL_MSG: TID:%ld : VIEW: %ld THD: %ld  FROM: %ld   %lf\n",prop->txn_id, prop->view, get_thd_id(), prop->return_node_id, simulation->seconds_from_start(get_sys_clock()));
+    printf("SpotLess_PROPOSAL_MSG: TID:%ld : VIEW: %ld THD: %ld  FROM: %ld   %lf\n",prop->txn_id, prop->view, get_thd_id(), prop->return_node_id, simulation->seconds_from_start(get_sys_clock()));
     fflush(stdout);
 #endif
     txn_man = get_transaction_manager(msg->txn_id + 2, 0);
@@ -492,9 +492,9 @@ RC WorkerThread::process_hotstuff_proposal(Message *msg){
 }
 
 RC WorkerThread::process_hotstuff_generic(Message *msg){
-    PVPGenericMsg* gene = (PVPGenericMsg *)msg;
+    SpotLessGenericMsg* gene = (SpotLessGenericMsg *)msg;
 #if PROCESS_PRINT
-    printf("PVP_GENERIC_MSG: TID:%ld : VIEW: %ld THD: %ld  FROM: %ld   %lf\n",gene->txn_id, gene->view, get_thd_id(), gene->return_node_id, simulation->seconds_from_start(get_sys_clock()));
+    printf("SpotLess_GENERIC_MSG: TID:%ld : VIEW: %ld THD: %ld  FROM: %ld   %lf\n",gene->txn_id, gene->view, get_thd_id(), gene->return_node_id, simulation->seconds_from_start(get_sys_clock()));
     fflush(stdout);
 #endif
 
@@ -624,7 +624,7 @@ void WorkerThread::advance_view(){
 
 }
 
-void WorkerThread::skip_view(PVPGenericMsg* gene){
+void WorkerThread::skip_view(SpotLessGenericMsg* gene){
     uint64_t instance_id = gene->instance_id;
     uint64_t view = gene->view;
     uint64_t txn_id = txn_man->get_txn_id() - get_batch_size() * MULTI_INSTANCES;
@@ -639,7 +639,7 @@ void WorkerThread::skip_view(PVPGenericMsg* gene){
     set_curr_new_viewed(txn_id, instance_id);
 }
 
-void WorkerThread::skip_view(PVPSyncMsg* nvmsg, uint64_t txnid){
+void WorkerThread::skip_view(SpotLessSyncMsg* nvmsg, uint64_t txnid){
     uint64_t instance_id = nvmsg->instance_id;
     uint64_t view = nvmsg->view;
     set_view(instance_id, view);
@@ -650,8 +650,8 @@ void WorkerThread::skip_view(PVPSyncMsg* nvmsg, uint64_t txnid){
 
 void WorkerThread::send_failed_new_view(uint64_t instance_id, uint64_t view){
     printf("FAILED_NEW_VIEW %lu, %lu\n", instance_id, view);
-    Message *msg = Message::create_message(PVP_SYNC_MSG);
-    PVPSyncMsg *nvmsg = (PVPSyncMsg*)msg;
+    Message *msg = Message::create_message(SpotLess_SYNC_MSG);
+    SpotLessSyncMsg *nvmsg = (SpotLessSyncMsg*)msg;
     nvmsg->hashSize = nvmsg->hash.size();
     nvmsg->non_vote = true;
     nvmsg->txn_id = 0;
@@ -669,7 +669,7 @@ void WorkerThread::send_failed_new_view(uint64_t instance_id, uint64_t view){
     }
 }
 
-void WorkerThread::process_failed_new_view(PVPSyncMsg *msg){
+void WorkerThread::process_failed_new_view(SpotLessSyncMsg *msg){
     if(fault_manager.sufficient_voters(msg->instance_id, msg->view, msg->return_node_id)){
         advance_failed_view(msg->instance_id, msg->view);
     }
@@ -709,16 +709,16 @@ void WorkerThread::advance_failed_view(uint64_t instance_id, uint64_t view){
 
 
 
-RC WorkerThread::process_pvp_ask(Message *msg){
+RC WorkerThread::process_spotless_ask(Message *msg){
 #if DARK_TEST
     if(g_node_id % DARK_FREQ == DARK_ID && g_node_id / DARK_FREQ < DARK_CNT){
         return RCOK;
     }
 #endif
 
-    PVPAskMsg* ask = (PVPAskMsg *)msg;
+    SpotLessAskMsg* ask = (SpotLessAskMsg *)msg;
 #if PROCESS_PRINT
-    printf("PVP_ASK_MSG: TID:%ld : VIEW: %ld THD: %ld  FROM: %ld   %lf\n", 
+    printf("SpotLess_ASK_MSG: TID:%ld : VIEW: %ld THD: %ld  FROM: %ld   %lf\n", 
         ask->txn_id, ask->view, get_thd_id(), ask->return_node_id, simulation->seconds_from_start(get_sys_clock()));
     fflush(stdout);
 #endif
@@ -738,12 +738,12 @@ RC WorkerThread::process_pvp_ask(Message *msg){
     return RCOK;
 }
 
-RC WorkerThread::process_pvp_ask_response(Message *msg){
+RC WorkerThread::process_spotless_ask_response(Message *msg){
         //uint64_t cntime = get_sys_clock();
     
-    PVPAskResponseMsg* ares = (PVPAskResponseMsg *)msg;
+    SpotLessAskResponseMsg* ares = (SpotLessAskResponseMsg *)msg;
 #if PROCESS_PRINT
-    printf("PVPAskResponseMsg: TID:%ld : VIEW: %ld THD: %ld  FROM: %ld   %lf\n",
+    printf("SpotLessAskResponseMsg: TID:%ld : VIEW: %ld THD: %ld  FROM: %ld   %lf\n",
      ares->txn_id, ares->view, get_thd_id(), ares->return_node_id, simulation->seconds_from_start(get_sys_clock()));
     fflush(stdout);
 #endif
@@ -809,8 +809,8 @@ RC WorkerThread::send_ask_response(uint64_t dest_node, uint64_t start_id, uint64
     #if PROCESS_PRINT
     printf("[SEND ASK RESP]TID: %lu THD: %lu \n", start_id + get_batch_size() - 1, get_thd_id());
     #endif
-    Message *msg = Message::create_message(txn_man, PVP_ASK_RESPONSE_MSG);
-    PVPAskResponseMsg *ares = (PVPAskResponseMsg *)msg;
+    Message *msg = Message::create_message(txn_man, SpotLess_ASK_RESPONSE_MSG);
+    SpotLessAskResponseMsg *ares = (SpotLessAskResponseMsg *)msg;
     ares->view = view;
     for (uint64_t i = 0; i < get_batch_size(); i++)
     {
@@ -827,11 +827,11 @@ RC WorkerThread::send_ask_response(uint64_t dest_node, uint64_t start_id, uint64
 #if EQUIV_TEST
 
 void WorkerThread::equivocate(ClientQueryBatch *msg, uint64_t tid){
-    Message *bmsg = Message::create_message(PVP_PROPOSAL_MSG);
-    PVPProposalMsg *prep = (PVPProposalMsg *)bmsg;
+    Message *bmsg = Message::create_message(SpotLess_PROPOSAL_MSG);
+    SpotLessProposalMsg *prep = (SpotLessProposalMsg *)bmsg;
 
-    Message *bmsg2 = Message::create_message(PVP_PROPOSAL_MSG);
-    PVPProposalMsg *prep2 = (PVPProposalMsg *)bmsg2;
+    Message *bmsg2 = Message::create_message(SpotLess_PROPOSAL_MSG);
+    SpotLessProposalMsg *prep2 = (SpotLessProposalMsg *)bmsg2;
     
     uint64_t instance_id = msg->txn_id % get_totInstances();
     prep->init(instance_id);
@@ -936,9 +936,9 @@ void WorkerThread::equivocate(ClientQueryBatch *msg, uint64_t tid){
 
 
 RC WorkerThread::process_equivocate_generic(Message *msg){
-    PVPGenericMsg* gene = (PVPGenericMsg *)msg;
+    SpotLessGenericMsg* gene = (SpotLessGenericMsg *)msg;
 #if PROCESS_PRINT
-    printf("[EQ]PVP_GENERIC_MSG: TID:%ld : VIEW: %ld THD: %ld  FROM: %ld   %lf\n",gene->txn_id, gene->view, get_thd_id(), gene->return_node_id, simulation->seconds_from_start(get_sys_clock()));
+    printf("[EQ]SpotLess_GENERIC_MSG: TID:%ld : VIEW: %ld THD: %ld  FROM: %ld   %lf\n",gene->txn_id, gene->view, get_thd_id(), gene->return_node_id, simulation->seconds_from_start(get_sys_clock()));
     fflush(stdout);
 #endif
 

@@ -379,7 +379,7 @@ char *create_msg_buffer(Message *msg);
 Message *deep_copy_msg(char *buf, Message *msg);
 void delete_msg_buffer(char *buf);
 
-class PVPSyncMsg : public Message{
+class SpotLessSyncMsg : public Message{
     public:
     void copy_from_buf(char *buf);
     void copy_to_buf(char *buf);
@@ -408,7 +408,7 @@ class PVPSyncMsg : public Message{
 };
 
 #if SEPARATE
-class PVPProposalMsg : public Message{
+class SpotLessProposalMsg : public Message{
 public:
     void copy_from_buf(char *buf);
     void copy_to_buf(char *buf);
@@ -444,7 +444,7 @@ public:
     uint32_t batch_size;
 };
 
-class PVPGenericMsg : public Message{
+class SpotLessGenericMsg : public Message{
     public:
     void copy_from_buf(char *buf);
     void copy_to_buf(char *buf);
@@ -477,14 +477,14 @@ class PVPGenericMsg : public Message{
 };
 
 #else
-class PVPGenericMsg : public HOTSTUFFPrepareMsg{
-    /* PVPGenericMsg in ResilientDB is very similar to HOTSTUFFPrepareMessage.
+class SpotLessGenericMsg : public HOTSTUFFPrepareMsg{
+    /* SpotLessGenericMsg in ResilientDB is very similar to HOTSTUFFPrepareMessage.
     In order to simplify the implementation, we only give it a new name
     */
 };
 #endif
 
-class PVPAskMsg: public Message{
+class SpotLessAskMsg: public Message{
 public:
     void copy_from_buf(char *buf);
     void copy_to_buf(char *buf);
@@ -504,7 +504,7 @@ public:
 };
 
 
-class PVPAskResponseMsg: public PVPProposalMsg{
+class SpotLessAskResponseMsg: public SpotLessProposalMsg{
 public:
     void copy_from_txn_manager(TxnManager* tman);
     void copy_from_txn(TxnManager* tman);

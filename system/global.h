@@ -214,14 +214,14 @@ enum RemReqType
 #endif
 
     PBFT_CHKPT_MSG,   // Checkpoint and Garbage Collection
-    PVP_SYNC_MSG,
-    PVP_GENERIC_MSG,   // 24
+    SpotLess_SYNC_MSG,
+    SpotLess_GENERIC_MSG,   // 24
 #if SEPARATE
-    PVP_PROPOSAL_MSG,
-    PVP_GENERIC_MSG_P,  // 26
+    SpotLess_PROPOSAL_MSG,
+    SpotLess_GENERIC_MSG_P,  // 26
 #endif
-    PVP_ASK_MSG,
-    PVP_ASK_RESPONSE_MSG
+    SpotLess_ASK_MSG,
+    SpotLess_ASK_RESPONSE_MSG
 
 };
 
@@ -629,7 +629,7 @@ extern uint64_t expectedInstance;
 #if PROPOSAL_THREAD
 extern uint64_t proposalInstance;
 #endif
-//Entities for client in PVP.
+//Entities for client in SpotLess.
 //next_to_send is just the id of primary in the next round.
 extern uint64_t next_to_send;
 uint64_t get_next_to_send();

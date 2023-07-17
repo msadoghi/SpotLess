@@ -7,7 +7,7 @@
 
 #if TIMER_MANAGER
 
-class PVPTimer{
+class SpotLessTimer{
 public:
   bool waiting;
   uint64_t timer_length;
@@ -17,8 +17,8 @@ public:
   std::mutex *timer_lock;
   uint64_t last_timeout_view;
 
- 	PVPTimer(){}
-  PVPTimer(uint64_t timer_length):waiting(false), timer_length(timer_length){
+ 	SpotLessTimer(){}
+  SpotLessTimer(uint64_t timer_length):waiting(false), timer_length(timer_length){
     last_timeout_view = 0;
  		timer_lock = new std::mutex;
  	}
@@ -29,10 +29,10 @@ public:
 
 class TimerManager{
 public:
-  PVPTimer pvp_timer;
+  SpotLessTimer pvp_timer;
   std::mutex *tm_lock;
  	TimerManager(){
-    pvp_timer = PVPTimer(INITIAL_TIMEOUT_LENGTH);
+    pvp_timer = SpotLessTimer(INITIAL_TIMEOUT_LENGTH);
     tm_lock = new std::mutex;
   };
  	uint64_t check_timers(bool& timeout);

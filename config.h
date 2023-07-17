@@ -7,8 +7,8 @@
 // python scripts/StopSystem.py; python scripts/scp_binaries.py; python scripts/RunSystem.py
 // python scripts/scp_results.py
 
-// Number of worker threads at primary. For RBFT (6) and other algorithms (5). For PVP (NODE_CNT + 3).
-#define THREAD_CNT (PVP ? MULTI_THREADS+3: 4)
+// Number of worker threads at primary. For RBFT (6) and other algorithms (5). For SpotLess (NODE_CNT + 3).
+#define THREAD_CNT (SpotLess ? MULTI_THREADS+3: 4)
 #define REM_THREAD_CNT 4
 #define SEND_THREAD_CNT 4
 #define CORE_CNT 8
@@ -236,9 +236,9 @@
 // To allow testing of a Banking Smart Contracts.
 #define BANKING_SMART_CONTRACT false
 
-// Switching on MultiBFT or PVP
+// Switching on MultiBFT or SpotLess
 #define MULTI_ON false
-#define PVP false
+#define SpotLess false
 #define MULTI_THREADS (MULTI_INSTANCES > 16 ? 16 : MULTI_INSTANCES)
 #define MULTI_INSTANCES NODE_CNT
 #define CHAINED true
@@ -255,8 +255,8 @@
 #define FIX_ED25519_BUG false
 
 #define AUTO_POST true
-#define PVP_RECOVERY false
-#define STOP_NODE_SET (false && PVP_RECOVERY)
+#define SpotLess_RECOVERY false
+#define STOP_NODE_SET (false && SpotLess_RECOVERY)
 
 #define THRESHOLD_SIGNATURE true
 #define SECP256K1 true

@@ -993,7 +993,7 @@ void ClientResponseMessage::copy_from_txn(TxnManager *txn)
 {
 	Message::mcopy_from_txn(txn);
 #if CONSENSUS == HOTSTUFF
-	#if !PVP
+	#if !SpotLess
 		hash_QC_lock.lock();
 		#if CHAINED
 		view = hash_to_view[txn->get_hash()];
@@ -1833,7 +1833,7 @@ void ExecuteMessage::copy_from_txn(TxnManager *txn)
 {
 	// Constructing txn manager for one transaction less than end index.
 	this->txn_id = txn->get_txn_id() - 1;
-	#if !PVP
+	#if !SpotLess
 	this->view = get_current_view(txn->get_thd_id());
 	#else
 	uint64_t instance_id = this->txn_id / get_batch_size() % get_totInstances();
@@ -2946,7 +2946,7 @@ void HOTSTUFFPrepareMsg::add_request_msg(uint idx, Message * msg){
 void HOTSTUFFPrepareMsg::init(uint64_t instance_id)
 {
 	// Only primary should create this message
-	#if !PVP
+	#if !SpotLess
 	assert(get_view_primary(get_current_view(0)) == g_node_id);
 	#else
 	assert(get_view_primary(get_current_view(instance_id), instance_id) == g_node_id);
@@ -3217,7 +3217,7 @@ void HOTSTUFFPrepareVoteMsg::sign(uint64_t dest_node)
 
 void HOTSTUFFPrepareVoteMsg::copy_from_txn(TxnManager *txn){
 	Message::mcopy_from_txn(txn);
-	#if !PVP
+	#if !SpotLess
 	uint64_t instance_id = 0;
 	#else
 	uint64_t instance_id = this->txn_id / get_batch_size() % get_totInstances();
@@ -3345,7 +3345,7 @@ void HOTSTUFFPreCommitMsg::sign(uint64_t dest_node)
 
 void HOTSTUFFPreCommitMsg::copy_from_txn(TxnManager *txn){
 	Message::mcopy_from_txn(txn);
-	#if !PVP
+	#if !SpotLess
 	uint64_t instance_id = 0;
 	#else
 	uint64_t instance_id = this->txn_id / get_batch_size() % get_totInstances();
@@ -3476,7 +3476,7 @@ void HOTSTUFFPreCommitVoteMsg::sign(uint64_t dest_node)
 
 void HOTSTUFFPreCommitVoteMsg::copy_from_txn(TxnManager *txn){
 	Message::mcopy_from_txn(txn);
-	#if !PVP
+	#if !SpotLess
 	uint64_t instance_id = 0;
 	#else
 	uint64_t instance_id = this->txn_id / get_batch_size() % get_totInstances();
@@ -3604,7 +3604,7 @@ void HOTSTUFFCommitMsg::sign(uint64_t dest_node)
 
 void HOTSTUFFCommitMsg::copy_from_txn(TxnManager *txn){
 	Message::mcopy_from_txn(txn);
-	#if !PVP
+	#if !SpotLess
 	uint64_t instance_id = 0;
 	#else
 	uint64_t instance_id = this->txn_id / get_batch_size() % get_totInstances();
@@ -3734,7 +3734,7 @@ void HOTSTUFFCommitVoteMsg::sign(uint64_t dest_node)
 
 void HOTSTUFFCommitVoteMsg::copy_from_txn(TxnManager *txn){
 	Message::mcopy_from_txn(txn);
-	#if !PVP
+	#if !SpotLess
 	uint64_t instance_id = 0;
 	#else
 	uint64_t instance_id = this->txn_id / get_batch_size() % get_totInstances();
@@ -3863,7 +3863,7 @@ void HOTSTUFFDecideMsg::sign(uint64_t dest_node)
 
 void HOTSTUFFDecideMsg::copy_from_txn(TxnManager *txn){
 	Message::mcopy_from_txn(txn);
-	#if !PVP
+	#if !SpotLess
 	uint64_t instance_id = 0;
 	#else
 	uint64_t instance_id = this->txn_id / get_batch_size() % get_totInstances();
@@ -3997,7 +3997,7 @@ void HOTSTUFFNewViewMsg::sign(uint64_t dest_node)
 void HOTSTUFFNewViewMsg::copy_from_txn(TxnManager *txn){
 	Message::mcopy_from_txn(txn);
 	this->txn_id = txn->get_txn_id();
-#if !PVP
+#if !SpotLess
 	this->view = get_current_view(0);
 #else
 	uint64_t instance_id = this->txn_id / get_batch_size() % get_totInstances();
@@ -4009,7 +4009,7 @@ void HOTSTUFFNewViewMsg::copy_from_txn(TxnManager *txn){
 	this->hashSize = this->hash.size();
 	this->return_node = g_node_id;
 	this->batch_size = get_batch_size();
-#if !PVP
+#if !SpotLess
 	this->PreparedQC = get_g_preparedQC();
 #else
 	this->PreparedQC = get_g_preparedQC(instance_id);

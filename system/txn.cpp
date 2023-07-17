@@ -730,7 +730,7 @@ void TxnManager::set_primarybatch(HOTSTUFFPrepareMsg *prep){
 void TxnManager::setPreparedQC(HOTSTUFFPreCommitMsg *pcmsg){
     this->preparedQC = pcmsg->PreparedQC;
     string batch_hash = this->get_hash();
-#if !PVP
+#if !SpotLess
     hash_QC_lock.lock();
     if(!hash_to_QC.count(batch_hash)){
         hash_to_QC.insert(make_pair<string&,QuorumCertificate&>(batch_hash, this->preparedQC));
@@ -754,7 +754,7 @@ void TxnManager::setPreparedQC(HOTSTUFFPreCommitMsg *pcmsg){
 void TxnManager::setPreCommittedQC(HOTSTUFFCommitMsg *cmsg){
     this->precommittedQC = cmsg->PreCommittedQC;
     string batch_hash = this->get_hash();
-#if !PVP
+#if !SpotLess
     hash_QC_lock.lock();
     if(!hash_to_QC.count(batch_hash)){
         hash_to_QC.insert(make_pair<string&,QuorumCertificate&>(batch_hash, this->precommittedQC));
@@ -779,7 +779,7 @@ void TxnManager::setPreCommittedQC(HOTSTUFFCommitMsg *cmsg){
 void TxnManager::setCommittedQC(HOTSTUFFDecideMsg *dmsg){
     this->committedQC = dmsg->CommittedQC;
     string batch_hash = this->get_hash();
-#if !PVP
+#if !SpotLess
     hash_QC_lock.lock();
     if(!hash_to_QC.count(batch_hash)){
         hash_to_QC.insert(make_pair<string&,QuorumCertificate&>(batch_hash, this->committedQC));
@@ -917,7 +917,7 @@ bool TxnManager::send_hotstuff_newview(){
 bool TxnManager::send_hotstuff_newview(bool &failednode){
 #endif
     
-#if !PVP
+#if !SpotLess
     uint64_t dest_node_id = get_view_primary(get_current_view(0) + 1);
 #else
     uint64_t instance_id = this->get_txn_id() / get_batch_size() % get_totInstances();
@@ -956,7 +956,7 @@ bool TxnManager::send_hotstuff_newview(bool &failednode){
     msg_queue.enqueue(get_thd_id(), nvmsg, dest);
     dest.clear();
 #if TIMER_ON
-    #if !PVP
+    #if !SpotLess
     server_timer->waiting_prepare = true;
     server_timer->last_new_view_time = get_sys_clock();
     #else

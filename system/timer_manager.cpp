@@ -3,7 +3,7 @@
 
 #if TIMER_MANAGER
 
-bool PVPTimer::check_time_out(uint64_t current_view, uint64_t current_time){
+bool SpotLessTimer::check_time_out(uint64_t current_view, uint64_t current_time){
 	if(current_view < CRASH_VIEW)
  		return false;
  	this->timer_lock->lock();
@@ -26,7 +26,7 @@ bool PVPTimer::check_time_out(uint64_t current_view, uint64_t current_time){
     return false;
 }
 
-void PVPTimer::setTimer(){
+void SpotLessTimer::setTimer(){
 	if(!simulation->is_warmup_done()){
  		return;
  	}
@@ -38,7 +38,7 @@ void PVPTimer::setTimer(){
  	this->timer_lock->unlock();
 }
 
-void PVPTimer::endTimer(){
+void SpotLessTimer::endTimer(){
  	this->timer_lock->lock();
  	uint64_t current_time = get_sys_clock();
  	if(this->waiting){

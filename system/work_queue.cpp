@@ -5,7 +5,7 @@
 #include "client_query.h"
 #include <boost/lockfree/queue.hpp>
 
-#if !(MULTI_ON||PVP)
+#if !(MULTI_ON||SpotLess)
 
 QWorkQueue::~QWorkQueue()
 {

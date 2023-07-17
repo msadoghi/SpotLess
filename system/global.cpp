@@ -207,7 +207,7 @@ uint64_t curr_next_index()
 }
 
 #if CONSENSUS == HOTSTUFF
-#if !PVP
+#if !SpotLess
 // Entities for handling hotstuff_new_view_msgs
 uint32_t g_last_stable_new_viewed = 0;
 void set_curr_new_viewed(uint64_t txn_id){
@@ -344,7 +344,7 @@ vector<uint64_t> nodes_to_send(uint64_t beg, uint64_t end)
 // STORAGE OF CLIENT DATA
 uint64_t ClientDataStore[SYNTH_TABLE_SIZE] = {0};
 
-#if MULTI_ON || PVP
+#if MULTI_ON || SpotLess
 
 uint64_t totInstances = MULTI_INSTANCES;
 uint64_t multi_threads = MULTI_THREADS;
@@ -380,7 +380,7 @@ bool isPrimary(uint64_t id) {
 }
 #endif //MULTI_ON
 
-#endif // MUTLI_ON || PVP
+#endif // MUTLI_ON || SpotLess
 
 
 #if CONSENSUS == HOTSTUFF
@@ -400,7 +400,7 @@ sem_t output_semaphore[SEND_THREAD_CNT];
 sem_t setup_done_barrier;
 
 #if AUTO_POST
-#if !PVP
+#if !SpotLess
 bool auto_posted = false;
 std::mutex auto_posted_lock;
 void set_auto_posted(bool value){
@@ -508,7 +508,7 @@ void execute_msg_heap_pop(){
 
 uint64_t expectedInstance;
 
-//Entities for client in HOTSTUFF and PVP.
+//Entities for client in HOTSTUFF and SpotLess.
 //next_to_send is just the id of primary in the next round.
 uint64_t next_to_send = 0;
 uint64_t get_next_to_send(){
@@ -584,7 +584,7 @@ bool QuorumCertificate::ThresholdSignatureVerify(RemReqType rtype){
 
 #endif
 
-#if !PVP
+#if !SpotLess
 std::mutex hash_QC_lock;
 unordered_map<string, QuorumCertificate> hash_to_QC;
 unordered_map<string, uint64_t> hash_to_txnid;
@@ -597,7 +597,7 @@ vector<unordered_map<string, uint64_t>> hash_to_view;
 #endif
 
 
-#if !PVP
+#if !SpotLess
 // if sent is true, a replica considers itself not as the next primary
 // if sent is false, a replica considers itself as the next primary
 bool sent = true;
@@ -735,7 +735,7 @@ const QuorumCertificate& get_g_genericQC(uint64_t instance_id){
 }
 #endif
 
-#endif	// PVP
+#endif	// SpotLess
 
 #if TIMER_MANAGER
 FaultManager fault_manager;
@@ -751,7 +751,7 @@ uint64_t get_current_view(uint64_t thd_id)
 }
 
 // For updating view of different threads.
-#if !PVP
+#if !SpotLess
 std::mutex newViewMTX[THREAD_CNT + REM_THREAD_CNT + SEND_THREAD_CNT];
 uint64_t newView[THREAD_CNT + REM_THREAD_CNT + SEND_THREAD_CNT] = {0};
 #else
@@ -775,7 +775,7 @@ void set_view(uint64_t thd_id, uint64_t val)
 	newViewMTX[thd_id].unlock();
 
 	#if TEMP_QUEUE
-	#if !PVP
+	#if !SpotLess
 	if(thd_id ==0 ){
 	#else
 	if(thd_id < get_totInstances()){
@@ -961,11 +961,11 @@ uint64_t get_client_view()
 }
 #endif
 
-#if PVP_RECOVERY
+#if SpotLess_RECOVERY
 uint64_t fail_count = 0;
 #endif
 
-#if LOCAL_FAULT || VIEW_CHANGES || PVP_RECOVERY
+#if LOCAL_FAULT || VIEW_CHANGES || SpotLess_RECOVERY
 // Server parameters for tracking failed replicas
 std::mutex stopMTX[SEND_THREAD_CNT];
 vector<vector<uint64_t>> stop_nodes; // List of nodes that have stopped.

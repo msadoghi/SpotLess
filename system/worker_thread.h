@@ -55,13 +55,13 @@ public:
 #if TIMER_ON
     void add_timer(Message *msg, string qryhash);
     void remove_timer(string qryhash);
-    #if PVP
+    #if SpotLess
     void add_timer(Message *msg, string qryhash, uint64_t instance_id);
     void remove_timer(string qryhash, uint64_t instance_id);
     #endif
 #endif
 
-#if PVP_RECOVERY
+#if SpotLess_RECOVERY
 void check_for_timeout();
 void fail_primary(uint64_t time, uint64_t instance_id);
 #endif
@@ -117,13 +117,13 @@ void fail_primary(uint64_t time, uint64_t instance_id);
     void advance_view(bool update = true);
 #if CHAINED
     RC process_hotstuff_generic(Message *msg);
-    #if !PVP
+    #if !SpotLess
     void update_lockQC(const QuorumCertificate& QC, uint64_t view);
     #else
     void update_lockQC(const QuorumCertificate& QC, uint64_t view, uint64_t instance_id);
     #endif
 #endif
-    #if !PVP
+    #if !SpotLess
         void send_execute_msg_hotstuff();
         void send_execute_msg_hotstuff(TxnManager *t_man);
     #else

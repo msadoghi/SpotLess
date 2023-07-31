@@ -152,10 +152,6 @@ elif experiment_name == "txnsize-hotstuff-1600":
                   batch_size = 100, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9,
                   larger_txn="true", extra_size=1552)
 
-elif experiment_name == "tput-lat-hotstuff-p1":
-    update_config(node_cnt=128, client_cnt=1, input_thread=8, output_thread=4, client_input_thread=12,
-                  client_output_thread=1, client_thread=1, max_txn_inflight=80000,
-                  batch_size=100, done_timer=120 * 10 ** 9, warmup_timer=30 * 10 ** 9)
 
 elif experiment_name == "tput-lat-hotstuff-p1":
     update_config(node_cnt=128, client_cnt=1, input_thread=8, output_thread=4, client_input_thread=12,

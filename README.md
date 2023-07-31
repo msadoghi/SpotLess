@@ -1,6 +1,6 @@
 # ResilientDB: A High-throughput yielding Permissioned Blockchain Fabric.
 
-### ResilientDB aims at *Making Permissioned Blockchain Systems Fast Again*. ResilientDB makes *system-centric* design decisions by adopting a *Multi-thread architecture* that encompasses *deep-pipelines*. Further, we *separate* the ordering of client transactions from their execution, which allows us to perform *out-of-order processing of messages*.
+### ResilientDB aims at *Making Permissioned Blockchain Systems Fast Again*. ResilientDB makes *system-centric* design decisions by adopting a *multi-thread architecture* that encompasses *deep-pipelines*. Further, we *separate* the ordering of client transactions from their execution, which allows us to perform *out-of-order processing of messages*.
 
 ### Quick Facts about Version 2.0 of ResilientDB
 
@@ -88,7 +88,7 @@
 * BATCH_SIZE                    Number of transactions in a batch (at least 5)
 * TXN_PER_CHKPT                 Frequency at which garbage collection is done.
 * MESSAGE_PER_BUFFER            The number of messages that a replica sends at one time
-* Multi_INSTANCES								The number of concurrent instances
+* MULTI_INSTANCES		The number of concurrent instances
 * ...
 </pre>
 
@@ -99,7 +99,7 @@
   | PARAMETER_NAME         | VALUE            |
   | ---------------------- | ---------------- |
   | NODE_CNT               | 4                |
-  | THREAD_CNT             | Multi_THREADS+5  |
+  | THREAD_CNT             | MULTI_THREADS+5  |
   | REM_THREAD_CNT         | 3                |
   | SEND_THREAD_CNT        | 4                |
   | CLIENT_NODE_CNT        | 1                |
@@ -111,7 +111,7 @@
   | WARMUP_TIMER           | 10 * BILLION     |
   | BATCH_SIZE             | 100              |
   | MESSAGE_PER_BUFFER     | 3                |
-  | Multi_INSTANCES        | NODE_CNT         |
+  | MULTI_INSTANCES        | NODE_CNT         |
 
 
 * Compile the code. On compilation, two new files are created: **runcl** and **rundb**. You may fail to compile due to the lack of some packages.
@@ -144,19 +144,19 @@
       python3 scripts/StopSystem.py;
 
 
-* To run experiments with different configurations, we have provided a script that quickly generates the config file *config.h* for each experiment. We have listed the experiments that can run in each branch in the file **./Configurations.xlsx**. (https://docs.google.com/spreadsheets/d/1uhtWqk0hYLP9kd3SxUXk_oXCRZl2A17EKXyHfAT2Q_Y/edit?usp=sharing). However, you still need to muanually select the machines that you want to use in **./scripts/hostnames.py**.
+* To run experiments with different configurations, we have provided a script that quickly generates the config file *config.h* for each experiment. We have listed the experiments that can run in each branch in this form (https://docs.google.com/spreadsheets/d/1uhtWqk0hYLP9kd3SxUXk_oXCRZl2A17EKXyHfAT2Q_Y/edit?usp=sharing). However, you still need to manually select the machines that you want to use in **./scripts/hostnames.py**.
 
       python3 config.py experiment_name
 
 * Note: There are several other parameters in *config.h*, which are unusable (or not fully tested) in the current version.
 
-* Different protocols are implemented in different branches and we have create anonymous github repos for the branches. 
+* Different protocols are implemented in different branches. 
 
-  | Repo                                               | Implemented Protocol                         |
+  | Branches                                           | Implemented Protocols                        |
   | ---------------------------------------------------| -------------------------------------------- |
-  | https://anonymous.4open.science/r/spotless-oFD4/   | SpotLess, SpotLess with recovery mechanism   |
-  | https://anonymous.4open.science/r/spotless-093B/   | HotStuff                                     |
-  | https://anonymous.4open.science/r/spotless-FBB0/   | HotStuff with recovery mechanism             |
-  | https://anonymous.4open.science/r/spotless-437D/   | RCC and PBFT                                 |
-  | https://anonymous.4open.science/r/spotless-9B4C/   | RCC and PBFT with recovery mechanism         |
-  | https://anonymous.4open.science/r/spotless-DC38/   | Narwhal and Narwhal with recovery mechanism  |
+  | main                                               | SpotLess, SpotLess with recovery mechanism   |
+  | hotstuff                                           | HotStuff                                     |
+  | hotstuff_recovery                                  | HotStuff with recovery mechanism             |
+  | rcc                                                | RCC and PBFT                                 |
+  | rcc_recovery                                       | RCC and PBFT with recovery mechanism         |
+  | narwhal                                            | Narwhal and Narwhal with recovery mechanism  |

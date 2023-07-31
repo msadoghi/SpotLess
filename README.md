@@ -144,19 +144,19 @@
       python3 scripts/StopSystem.py;
 
 
-* To run experiments with different configurations, we have provided a script that quickly generates the config file *config.h* for each experiment. We have listed the experiments that can run in each branch in the file **./Configurations.xlsx**. (https://docs.google.com/spreadsheets/d/1uhtWqk0hYLP9kd3SxUXk_oXCRZl2A17EKXyHfAT2Q_Y/edit?usp=sharing). However, you still need to muanually select the machines that you want to use in **./scripts/hostnames.py**.
+* To run experiments with different configurations, we have provided a script that quickly generates the config file *config.h* for each experiment. We have listed the experiments that can run in each branch in this form (https://docs.google.com/spreadsheets/d/1uhtWqk0hYLP9kd3SxUXk_oXCRZl2A17EKXyHfAT2Q_Y/edit?usp=sharing). However, you still need to manually select the machines that you want to use in **./scripts/hostnames.py**.
 
       python3 config.py experiment_name
 
 * Note: There are several other parameters in *config.h*, which are unusable (or not fully tested) in the current version.
 
-* Different protocols are implemented in different branches and we have create anonymous github repos for the branches. 
+* Different protocols are implemented in different branches. 
 
-  | Repo                                               | Implemented Protocol                         |
+  | Branches                                           | Implemented Protocols                        |
   | ---------------------------------------------------| -------------------------------------------- |
-  | https://anonymous.4open.science/r/spotless-oFD4/   | SpotLess, SpotLess with recovery mechanism   |
-  | https://anonymous.4open.science/r/spotless-093B/   | HotStuff                                     |
-  | https://anonymous.4open.science/r/spotless-FBB0/   | HotStuff with recovery mechanism             |
-  | https://anonymous.4open.science/r/spotless-437D/   | RCC and PBFT                                 |
-  | https://anonymous.4open.science/r/spotless-9B4C/   | RCC and PBFT with recovery mechanism         |
-  | https://anonymous.4open.science/r/spotless-DC38/   | Narwhal and Narwhal with recovery mechanism  |
+  | main                                               | SpotLess, SpotLess with recovery mechanism   |
+  | hotstuff                                           | HotStuff                                     |
+  | hotstuff_recovery                                  | HotStuff with recovery mechanism             |
+  | rcc                                                | RCC and PBFT                                 |
+  | rcc_recovery                                       | RCC and PBFT with recovery mechanism         |
+  | narwhal                                            | Narwhal and Narwhal with recovery mechanism  |

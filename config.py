@@ -28,7 +28,7 @@ def update_config(node_cnt = 4, client_cnt = 4, input_thread = 3, output_thread 
         "MULTI_THREADS": multi_threads,
         "LARGER_TXN": larger_txn,
         "EXTRA_SIZE": extra_size,
-        "SpotLess_FAIL": pvp_fail,
+        "PVP_FAIL": pvp_fail,
         "RCC_FAIL": rcc_fail,
         "PBFT_FAIL": pbft_fail,
         "FAIL_DIVIDER": fail_divider,
@@ -110,27 +110,27 @@ elif experiment_name == "tput-rcc-128":
                   multi_threads=16)
 
 elif experiment_name == "batchsize-rcc-10":
-    update_config(node_cnt = 32, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
+    update_config(node_cnt = 128, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
                   client_output_thread = 1, client_thread = 1, message_per_buffer = 32, max_txn_inflight = 40000,
                   batch_size = 10, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9, multi_instances = 32,
                   multi_threads=16)
 elif experiment_name == "batchsize-rcc-50":
-    update_config(node_cnt = 32, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
+    update_config(node_cnt = 128, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
                   client_output_thread = 1, client_thread = 1, message_per_buffer = 32, max_txn_inflight = 40000,
                   batch_size = 50, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9, multi_instances = 32,
                   multi_threads=16)
 elif experiment_name == "batchsize-rcc-100":
-    update_config(node_cnt = 32, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
+    update_config(node_cnt = 128, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
                   client_output_thread = 1, client_thread = 1, message_per_buffer = 32, max_txn_inflight = 40000,
                   batch_size = 100, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9, multi_instances = 32,
                   multi_threads=16)
 elif experiment_name == "batchsize-rcc-200":
-    update_config(node_cnt = 32, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
+    update_config(node_cnt = 128, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
                   client_output_thread = 1, client_thread = 1, message_per_buffer = 32, max_txn_inflight = 40000,
                   batch_size = 200, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9, multi_instances = 32,
                   multi_threads=16)
 elif experiment_name == "batchsize-rcc-400":
-    update_config(node_cnt = 32, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
+    update_config(node_cnt = 128, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
                   client_output_thread = 1, client_thread = 1, message_per_buffer = 32, max_txn_inflight = 40000,
                   batch_size = 400, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9, multi_instances = 32,
                   multi_threads=16)
@@ -280,27 +280,27 @@ elif experiment_name == "tput-pbft-128":
                   multi_threads=16)
 
 elif experiment_name == "batchsize-pbft-10":
-    update_config(node_cnt = 32, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
+    update_config(node_cnt = 128, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
                   client_output_thread = 1, client_thread = 1, message_per_buffer = 32, max_txn_inflight = 40000,
                   batch_size = 10, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9, multi_instances = 1,
                   multi_threads=16)
 elif experiment_name == "batchsize-pbft-50":
-    update_config(node_cnt = 32, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
+    update_config(node_cnt = 128, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
                   client_output_thread = 1, client_thread = 1, message_per_buffer = 32, max_txn_inflight = 40000,
                   batch_size = 50, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9, multi_instances = 1,
                   multi_threads=16)
 elif experiment_name == "batchsize-pbft-100":
-    update_config(node_cnt = 32, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
+    update_config(node_cnt = 128, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
                   client_output_thread = 1, client_thread = 1, message_per_buffer = 32, max_txn_inflight = 40000,
                   batch_size = 100, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9, multi_instances = 1,
                   multi_threads=16)
 elif experiment_name == "batchsize-pbft-200":
-    update_config(node_cnt = 32, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
+    update_config(node_cnt = 128, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
                   client_output_thread = 1, client_thread = 1, message_per_buffer = 32, max_txn_inflight = 40000,
                   batch_size = 200, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9, multi_instances = 1,
                   multi_threads=16)
 elif experiment_name == "batchsize-pbft-400":
-    update_config(node_cnt = 32, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
+    update_config(node_cnt = 128, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
                   client_output_thread = 1, client_thread = 1, message_per_buffer = 32, max_txn_inflight = 40000,
                   batch_size = 400, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9, multi_instances = 1,
                   multi_threads=16)

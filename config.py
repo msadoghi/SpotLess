@@ -113,27 +113,27 @@ elif experiment_name == "tput-spotless-128":
                   multi_threads=16)
 
 elif experiment_name == "batchsize-spotless-10":
-    update_config(node_cnt = 32, client_cnt = 16, input_thread = 3, output_thread = 4, client_input_thread = 12,
+    update_config(node_cnt = 128, client_cnt = 16, input_thread = 3, output_thread = 4, client_input_thread = 12,
                   client_output_thread = 1, client_thread = 1, message_per_buffer = 24, max_txn_inflight = 40000,
                   batch_size = 10, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9, multi_instances = 32,
                   multi_threads=16)
 elif experiment_name == "batchsize-spotless-50":
-    update_config(node_cnt = 32, client_cnt = 16, input_thread = 3, output_thread = 4, client_input_thread = 12,
+    update_config(node_cnt = 128, client_cnt = 16, input_thread = 3, output_thread = 4, client_input_thread = 12,
                   client_output_thread = 1, client_thread = 1, message_per_buffer = 24, max_txn_inflight = 40000,
                   batch_size = 50, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9, multi_instances = 32,
                   multi_threads=16)
 elif experiment_name == "batchsize-spotless-100":
-    update_config(node_cnt = 32, client_cnt = 16, input_thread = 3, output_thread = 4, client_input_thread = 12,
+    update_config(node_cnt = 128, client_cnt = 16, input_thread = 3, output_thread = 4, client_input_thread = 12,
                   client_output_thread = 1, client_thread = 1, message_per_buffer = 24, max_txn_inflight = 40000,
                   batch_size = 100, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9, multi_instances = 32,
                   multi_threads=16)
 elif experiment_name == "batchsize-spotless-200":
-    update_config(node_cnt = 32, client_cnt = 16, input_thread = 3, output_thread = 4, client_input_thread = 12,
+    update_config(node_cnt = 128, client_cnt = 16, input_thread = 3, output_thread = 4, client_input_thread = 12,
                   client_output_thread = 1, client_thread = 1, message_per_buffer = 24, max_txn_inflight = 40000,
                   batch_size = 200, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9, multi_instances = 32,
                   multi_threads=16)
 elif experiment_name == "batchsize-spotless-400":
-    update_config(node_cnt = 32, client_cnt = 16, input_thread = 3, output_thread = 4, client_input_thread = 12,
+    update_config(node_cnt = 128, client_cnt = 16, input_thread = 3, output_thread = 4, client_input_thread = 12,
                   client_output_thread = 1, client_thread = 1, message_per_buffer = 24, max_txn_inflight = 40000,
                   batch_size = 400, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9, multi_instances = 32,
                   multi_threads=16)

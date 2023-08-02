@@ -4,7 +4,7 @@ import sys
 def update_config(node_cnt = 4, client_cnt = 4, input_thread = 3, output_thread = 4, client_input_thread = 12,
                   client_output_thread = 1, client_thread = 1, message_per_buffer = 1, max_txn_inflight = 40000,
                   batch_size = 100, done_timer = 120 * 10 ** 9, warmup_timer = 10 * 10 ** 9, multi_instances = 1,
-                  multi_threads=1, larger_txn = "false", extra_size = 0, spotless_fail = "false", rcc_fail = "false",
+                  multi_threads=1, larger_txn = "false", extra_size = 0, pvp_fail = "false", rcc_fail = "false",
                   pbft_fail = "false", fail_divider = 128, new_divider = "false", enable_ask = "false",
                   dark_test = "false", equiv_test = "false", ignore_test = "false", fail_id = 2, dark_cnt = 0,
                   equiv_cnt = 0, ignore_cnt = 0, narwhal = "false"):
@@ -28,7 +28,7 @@ def update_config(node_cnt = 4, client_cnt = 4, input_thread = 3, output_thread 
         "MULTI_THREADS": multi_threads,
         "LARGER_TXN": larger_txn,
         "EXTRA_SIZE": extra_size,
-        "SpotLess_FAIL": spotless_fail,
+        "PVP_FAIL": pvp_fail,
         "RCC_FAIL": rcc_fail,
         "PBFT_FAIL": pbft_fail,
         "FAIL_DIVIDER": fail_divider,
@@ -107,23 +107,23 @@ elif experiment_name == "tput-hotstuff-128":
                   batch_size = 100, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9)
 
 elif experiment_name == "batchsize-hotstuff-10":
-    update_config(node_cnt = 32, client_cnt = 1, input_thread = 4, output_thread = 4, client_input_thread = 12,
+    update_config(node_cnt = 128, client_cnt = 1, input_thread = 4, output_thread = 4, client_input_thread = 12,
                   client_output_thread = 1, client_thread = 1, max_txn_inflight = 40000,
                   batch_size = 10, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9)
 elif experiment_name == "batchsize-hotstuff-50":
-    update_config(node_cnt = 32, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
+    update_config(node_cnt = 128, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
                   client_output_thread = 1, client_thread = 1, max_txn_inflight = 40000,
                   batch_size = 50, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9)
 elif experiment_name == "batchsize-hotstuff-100":
-    update_config(node_cnt = 32, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
+    update_config(node_cnt = 128, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
                   client_output_thread = 1, client_thread = 1, max_txn_inflight = 40000,
                   batch_size = 100, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9)
 elif experiment_name == "batchsize-hotstuff-200":
-    update_config(node_cnt = 32, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
+    update_config(node_cnt = 128, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
                   client_output_thread = 1, client_thread = 1, max_txn_inflight = 40000,
                   batch_size = 200, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9)
 elif experiment_name == "batchsize-hotstuff-400":
-    update_config(node_cnt = 32, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
+    update_config(node_cnt = 128, client_cnt = 16, input_thread = 4, output_thread = 4, client_input_thread = 12,
                   client_output_thread = 1, client_thread = 1, max_txn_inflight = 40000,
                   batch_size = 400, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9)
 
@@ -152,6 +152,10 @@ elif experiment_name == "txnsize-hotstuff-1600":
                   batch_size = 100, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9,
                   larger_txn="true", extra_size=1552)
 
+elif experiment_name == "tput-lat-hotstuff-p1":
+    update_config(node_cnt=128, client_cnt=1, input_thread=8, output_thread=4, client_input_thread=12,
+                  client_output_thread=1, client_thread=1, max_txn_inflight=80000,
+                  batch_size=100, done_timer=120 * 10 ** 9, warmup_timer=30 * 10 ** 9)
 
 elif experiment_name == "tput-lat-hotstuff-p1":
     update_config(node_cnt=128, client_cnt=1, input_thread=8, output_thread=4, client_input_thread=12,
@@ -173,3 +177,59 @@ elif experiment_name == "tput-lat-hotstuff-p5":
     update_config(node_cnt=128, client_cnt=1, input_thread=8, output_thread=4, client_input_thread=12,
                   client_output_thread=1, client_thread=1, max_txn_inflight=5000,
                   batch_size=100, done_timer=120 * 10 ** 9, warmup_timer=30 * 10 ** 9)
+
+
+
+
+
+
+elif experiment_name == "tput-narwhal-4":
+    update_config(node_cnt = 4, client_cnt = 1, input_thread = 4, output_thread = 4, client_input_thread = 12,
+                  client_output_thread = 1, client_thread = 1, max_txn_inflight = 40000,
+                  batch_size = 5, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9, narwhal="true")
+elif experiment_name == "tput-narwhal-16":
+    update_config(node_cnt = 16, client_cnt = 1, input_thread = 4, output_thread = 4, client_input_thread = 12,
+                  client_output_thread = 1, client_thread = 1, max_txn_inflight = 40000,
+                  batch_size = 5, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9, narwhal="true")
+elif experiment_name == "tput-narwhal-32":
+    update_config(node_cnt = 32, client_cnt = 1, input_thread = 4, output_thread = 4, client_input_thread = 12,
+                  client_output_thread = 1, client_thread = 1, max_txn_inflight = 40000,
+                  batch_size = 5, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9, narwhal="true")
+elif experiment_name == "tput-narwhal-64":
+    update_config(node_cnt = 64, client_cnt = 1, input_thread = 4, output_thread = 4, client_input_thread = 12,
+                  client_output_thread = 1, client_thread = 1, max_txn_inflight = 40000,
+                  batch_size = 5, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9, narwhal="true")
+elif experiment_name == "tput-narwhal-96":
+    update_config(node_cnt = 96, client_cnt = 1, input_thread = 4, output_thread = 4, client_input_thread = 12,
+                  client_output_thread = 1, client_thread = 1, max_txn_inflight = 40000,
+                  batch_size = 5, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9, narwhal="true")
+elif experiment_name == "tput-narwhal-128":
+    update_config(node_cnt = 128, client_cnt = 1, input_thread = 4, output_thread = 4, client_input_thread = 12,
+                  client_output_thread = 1, client_thread = 1, max_txn_inflight = 40000,
+                  batch_size = 5, done_timer = 120 * 10 ** 9, warmup_timer = 30 * 10 ** 9, narwhal="true")
+
+elif experiment_name == "tput-lat-narwhal-p1":
+    update_config(node_cnt=128, client_cnt=1, input_thread=8, output_thread=4, client_input_thread=12,
+                  client_output_thread=1, client_thread=1, max_txn_inflight=80000,
+                  batch_size=5, done_timer=120 * 10 ** 9, warmup_timer=30 * 10 ** 9, narwhal="true")
+elif experiment_name == "tput-lat-narwhal-p1":
+    update_config(node_cnt=128, client_cnt=1, input_thread=8, output_thread=4, client_input_thread=12,
+                  client_output_thread=1, client_thread=1, max_txn_inflight=80000,
+                  batch_size=5, done_timer=120 * 10 ** 9, warmup_timer=30 * 10 ** 9, narwhal="true")
+elif experiment_name == "tput-lat-narwhal-p2":
+    update_config(node_cnt=128, client_cnt=1, input_thread=8, output_thread=4, client_input_thread=12,
+                  client_output_thread=1, client_thread=1, max_txn_inflight=40000,
+                  batch_size=5, done_timer=120 * 10 ** 9, warmup_timer=30 * 10 ** 9, narwhal="true")
+elif experiment_name == "tput-lat-narwhal-p3":
+    update_config(node_cnt=128, client_cnt=1, input_thread=8, output_thread=4, client_input_thread=12,
+                  client_output_thread=1, client_thread=1, max_txn_inflight=20000,
+                  batch_size=5, done_timer=120 * 10 ** 9, warmup_timer=30 * 10 ** 9, narwhal="true")
+elif experiment_name == "tput-lat-narwhal-p4":
+    update_config(node_cnt=128, client_cnt=1, input_thread=8, output_thread=4, client_input_thread=12,
+                  client_output_thread=1, client_thread=1, max_txn_inflight=10000,
+                  batch_size=5, done_timer=120 * 10 ** 9, warmup_timer=30 * 10 ** 9, narwhal="true")
+elif experiment_name == "tput-lat-narwhal-p5":
+    update_config(node_cnt=128, client_cnt=1, input_thread=8, output_thread=4, client_input_thread=12,
+                  client_output_thread=1, client_thread=1, max_txn_inflight=5000,
+                  batch_size=5, done_timer=120 * 10 ** 9, warmup_timer=30 * 10 ** 9, narwhal="true")
+
